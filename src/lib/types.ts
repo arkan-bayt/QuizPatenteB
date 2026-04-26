@@ -14,7 +14,13 @@ export interface ChapterInfo {
   questionCount: number;
 }
 
-export type QuizMode = 'chapter' | 'errors' | 'all';
+export type QuizMode = 'chapter' | 'errors' | 'multi-chapter' | 'full-exam' | 'subtopics';
+
+export interface SubtopicInfo {
+  slug: string;
+  name: string;
+  questionCount: number;
+}
 
 export interface UserAnswer {
   questionId: string;

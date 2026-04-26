@@ -10,6 +10,7 @@ interface QuizState {
   currentView: 'home' | 'quiz' | 'stats';
   quizMode: QuizMode;
   currentChapterSlug: string | null;
+  quizTitle: string;
   questions: QuizQuestion[];
   currentIndex: number;
   userAnswers: UserAnswer[];
@@ -23,7 +24,7 @@ interface QuizState {
 
   // Actions
   setView: (view: 'home' | 'quiz' | 'stats') => void;
-  startQuiz: (chapterSlug: string, mode: QuizMode) => void;
+  startQuiz: (chapterSlug: string | null, mode: QuizMode, title?: string) => void;
   answerQuestion: (answer: boolean) => void;
   nextQuestion: () => void;
   stopQuiz: () => void;
@@ -39,6 +40,7 @@ export const useQuizStore = create<QuizState>()(
       currentView: 'home',
       quizMode: 'chapter',
       currentChapterSlug: null,
+      quizTitle: '',
       questions: [],
       currentIndex: 0,
       userAnswers: [],
@@ -50,8 +52,13 @@ export const useQuizStore = create<QuizState>()(
 
       setView: (view) => set({ currentView: view }),
 
-      startQuiz: (chapterSlug, mode) => {
-        set({ currentView: 'quiz', quizMode: mode, currentChapterSlug: chapterSlug });
+      startQuiz: (chapterSlug, mode, title) => {
+        set({
+          currentView: 'quiz',
+          quizMode: mode,
+          currentChapterSlug: chapterSlug,
+          quizTitle: title || '',
+        });
       },
 
       answerQuestion: (answer) => {
@@ -70,41 +77,64 @@ export const useQuizStore = create<QuizState>()(
           timestamp: Date.now(),
         };
 
-        // Update chapter progress
-        const chapterSlug = state.currentChapterSlug || '';
-        const existingProgress = state.chapterProgress[chapterSlug] || {
-          chapterSlug,
-          totalAttempted: 0,
-          correctCount: 0,
-          wrongCount: 0,
-          errorQuestionIds: [],
-          lastAccessed: Date.now(),
-        };
+        // Extract chapter slug from question ID for multi-chapter/full-exam modes
+        // ID format: "chapter-slug-123" for single, "chapter-slug-sub-123" for multi
+        const idParts = currentQuestion.id.split('-');
+        let chapterSlug = state.currentChapterSlug || '';
 
-        const newErrorIds = isCorrect
-          ? existingProgress.errorQuestionIds.filter((id) => id !== currentQuestion.id)
-          : existingProgress.errorQuestionIds.includes(currentQuestion.id)
-            ? existingProgress.errorQuestionIds
-            : [...existingProgress.errorQuestionIds, currentQuestion.id];
+        if (!chapterSlug && idParts.length >= 2) {
+          // For multi-chapter/full-exam, find matching chapter slug
+          for (let i = idParts.length - 1; i >= 2; i--) {
+            const candidate = idParts.slice(0, i).join('-');
+            if (CHAPTERS.some((ch) => ch.slug === candidate)) {
+              chapterSlug = candidate;
+              break;
+            }
+          }
+        }
 
-        const updatedProgress: ChapterProgress = {
-          ...existingProgress,
-          totalAttempted: existingProgress.totalAttempted + 1,
-          correctCount: existingProgress.correctCount + (isCorrect ? 1 : 0),
-          wrongCount: existingProgress.wrongCount + (isCorrect ? 0 : 1),
-          errorQuestionIds: newErrorIds,
-          lastAccessed: Date.now(),
-        };
+        // Update chapter progress if we identified the chapter
+        if (chapterSlug) {
+          const existingProgress = state.chapterProgress[chapterSlug] || {
+            chapterSlug,
+            totalAttempted: 0,
+            correctCount: 0,
+            wrongCount: 0,
+            errorQuestionIds: [],
+            lastAccessed: Date.now(),
+          };
 
-        set({
-          isAnswered: true,
-          selectedAnswer: answer,
-          userAnswers: [...state.userAnswers, userAnswer],
-          chapterProgress: {
-            ...state.chapterProgress,
-            [chapterSlug]: updatedProgress,
-          },
-        });
+          const newErrorIds = isCorrect
+            ? existingProgress.errorQuestionIds.filter((id) => id !== currentQuestion.id)
+            : existingProgress.errorQuestionIds.includes(currentQuestion.id)
+              ? existingProgress.errorQuestionIds
+              : [...existingProgress.errorQuestionIds, currentQuestion.id];
+
+          const updatedProgress: ChapterProgress = {
+            ...existingProgress,
+            totalAttempted: existingProgress.totalAttempted + 1,
+            correctCount: existingProgress.correctCount + (isCorrect ? 1 : 0),
+            wrongCount: existingProgress.wrongCount + (isCorrect ? 0 : 1),
+            errorQuestionIds: newErrorIds,
+            lastAccessed: Date.now(),
+          };
+
+          set({
+            isAnswered: true,
+            selectedAnswer: answer,
+            userAnswers: [...state.userAnswers, userAnswer],
+            chapterProgress: {
+              ...state.chapterProgress,
+              [chapterSlug]: updatedProgress,
+            },
+          });
+        } else {
+          set({
+            isAnswered: true,
+            selectedAnswer: answer,
+            userAnswers: [...state.userAnswers, userAnswer],
+          });
+        }
       },
 
       nextQuestion: () => {
