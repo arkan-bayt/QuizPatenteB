@@ -644,6 +644,7 @@ function HomeView({ quizData, onStartSingle, onStartErrors, onStartMulti, onStar
         <p className="text-muted-foreground text-lg max-w-md mx-auto">
           {totalAllQuestions.toLocaleString('it-IT')} quiz ufficiali per prepararti all&apos;esame
         </p>
+        <p className="text-sm text-muted-foreground/70">Programmato da un Iraqiano 🇮🇶</p>
       </div>
 
       {/* Global Stats */}
@@ -1005,6 +1006,16 @@ function QuizView() {
             }`}>
             FALSO
           </button>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="text-center space-y-2 pt-4 pb-2">
+        <p className="text-xs text-muted-foreground/60">Per contattarci: arkanali199494@gmail.com</p>
+        <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground/60">
+          <a href="mailto:arkanali199494@gmail.com" className="hover:text-emerald-600 transition-colors">Email</a>
+          <span>|</span>
+          <a href="https://instagram.com/a10.27" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">Instagram: @a10.27</a>
         </div>
       </div>
     </div>

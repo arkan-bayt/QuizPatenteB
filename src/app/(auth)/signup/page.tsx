@@ -262,9 +262,23 @@ export default function SignupPage() {
             </p>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-border">
+          <div className="mt-8 pt-6 border-t border-border space-y-3">
             <p className="text-xs text-muted-foreground text-center">
-              Registrandoti accetti i termini di utilizzo del servizio Quiz Patente B
+              Programmato da un Iraqiano 🇮🇶
+            </p>
+            <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+              <a href="mailto:arkanali199494@gmail.com" className="hover:text-blue-600 transition-colors">
+                arkanali199494@gmail.com
+              </a>
+            </div>
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <span>Instagram:</span>
+              <a href="https://instagram.com/a10.27" target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 transition-colors font-medium">
+                @a10.27
+              </a>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Per contattarci: arkanali199494@gmail.com
             </p>
           </div>
         </div>
