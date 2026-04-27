@@ -5,6 +5,7 @@ import { useQuizStore, LEVEL_THRESHOLDS } from '@/lib/quiz-store';
 import { useTheme } from 'next-themes';
 import { QuizMode, QuizData, QuizQuestion } from '@/lib/types';
 import { CHAPTERS } from '@/lib/chapters';
+import { useAuth } from '@/contexts/AuthContext';
 
 // ==========================================
 // ICON COMPONENTS (inline SVGs)
@@ -350,7 +351,8 @@ function MultiChapterPicker({ quizData, onStartMulti, onClose }: {
 // NAVBAR
 // ==========================================
 function Navbar() {
-  const { currentView, setView, user, logout, xp, level, levelName, levelIcon, streak } = useQuizStore();
+  const { currentView, setView, xp, level, levelName, levelIcon, streak } = useQuizStore();
+  const { user, logout: authLogout } = useAuth();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -434,17 +436,14 @@ function Navbar() {
                 <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden mb-2">
                   <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${Math.min(100, xpProgress)}%` }} />
                 </div>
-                <button onClick={logout}
+                <button onClick={authLogout}
                   className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                   <IconLogOut className="w-4 h-4" /> Esci
                 </button>
               </div>
             </div>
           ) : (
-            <button onClick={() => setView('login')}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
-              Accedi
-            </button>
+            <div className="w-8" /> 
           )}
         </div>
       </div>
