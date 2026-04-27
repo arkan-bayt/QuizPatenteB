@@ -905,13 +905,13 @@ function QuizView() {
     return () => { window.speechSynthesis.cancel(); window.speechSynthesis.removeEventListener('voiceschanged', handler); };
   }, []);
 
-  // Auto-advance after answer
+  // Auto-advance after answer (paused when AI is active)
   useEffect(() => {
-    if (isAnswered && !isFinished) {
+    if (isAnswered && !isFinished && !aiLoading && !aiExplanation) {
       timerRef.current = setTimeout(() => nextQuestion(), 1500);
       return () => { if (timerRef.current) clearTimeout(timerRef.current); };
     }
-  }, [isAnswered, isFinished, nextQuestion]);
+  }, [isAnswered, isFinished, aiLoading, aiExplanation, nextQuestion]);
 
   // Clear AI explanation when question changes
   useEffect(() => {
@@ -921,6 +921,11 @@ function QuizView() {
 
   const askAiExplanation = async () => {
     if (!currentQuestion) return;
+    // Cancel auto-advance so user can read the explanation
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
     setAiLoading(true);
     try {
       const res = await fetch('/api/ai/explain', {
@@ -1050,6 +1055,14 @@ function QuizView() {
           </div>
         )}
 
+        {/* Next button when AI explanation is shown */
+        {aiExplanation && (
+          <button onClick={() => nextQuestion()}
+            className="w-full py-3 rounded-xl font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+            Prossima Domanda <IconArrowRight className="w-4 h-4" />
+          </button>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <button onClick={() => answerQuestion(true)} disabled={isAnswered}
             className={`py-4 px-6 rounded-xl text-lg font-bold transition-all active:scale-95 disabled:opacity-60 ${
@@ -1090,6 +1103,8 @@ function ExamView() {
   const store = useQuizStore();
   const { questions, currentIndex, isAnswered, selectedAnswer, userAnswers, isSpeaking, examTimeRemaining, examTimerActive, answerQuestion, nextQuestion, goToHome, setSpeaking, submitExam } = store;
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
+  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1112,13 +1127,19 @@ function ExamView() {
     }
   }, [examTimerActive, examTimeRemaining]);
 
-  // Auto-advance after answer
+  // Clear AI explanation when question changes
   useEffect(() => {
-    if (isAnswered) {
+    setAiExplanation(null);
+    setAiLoading(false);
+  }, [currentIndex]);
+
+  // Auto-advance after answer (paused when AI is active)
+  useEffect(() => {
+    if (isAnswered && !aiLoading && !aiExplanation) {
       autoAdvanceRef.current = setTimeout(() => nextQuestion(), 1200);
       return () => { if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current); };
     }
-  }, [isAnswered, nextQuestion]);
+  }, [isAnswered, aiLoading, aiExplanation, nextQuestion]);
 
   // TTS
   const speakQuestion = useCallback(() => {
@@ -1141,6 +1162,35 @@ function ExamView() {
     window.speechSynthesis.addEventListener('voiceschanged', handler);
     return () => { window.speechSynthesis.cancel(); window.speechSynthesis.removeEventListener('voiceschanged', handler); };
   }, []);
+
+  const askAiExplanation = async () => {
+    if (!currentQuestion) return;
+    // Cancel auto-advance so user can read the explanation
+    if (autoAdvanceRef.current) {
+      clearTimeout(autoAdvanceRef.current);
+      autoAdvanceRef.current = null;
+    }
+    setAiLoading(true);
+    try {
+      const res = await fetch('/api/ai/explain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: currentQuestion.q,
+          correctAnswer: currentQuestion.a,
+          userAnswer: selectedAnswer,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.explanation) {
+        setAiExplanation(data.explanation);
+      }
+    } catch {
+      // silent
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const imageError = imageErrors[currentIndex] || false;
   const handleImageError = () => setImageErrors(prev => ({ ...prev, [currentIndex]: true }));
@@ -1209,6 +1259,43 @@ function ExamView() {
               ? <><IconCheckCircle className="w-5 h-5 flex-shrink-0" /><span>Corretto!</span></>
               : <><IconXCircle className="w-5 h-5 flex-shrink-0" /><span>Sbagliato! Era {currentQuestion.a ? 'VERO' : 'FALSO'}.</span></>}
           </div>
+        )}
+
+        {/* AI Explanation for wrong answers */}
+        {isAnswered && currentQuestion && selectedAnswer !== currentQuestion.a && (
+          <div className="space-y-2">
+            {!aiExplanation && !aiLoading && (
+              <button
+                onClick={askAiExplanation}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all active:scale-[0.98]"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z"/><path d="M16 14a4 4 0 0 1-8 0"/><path d="M12 18v4"/><path d="M8 22h8"/><path d="M5 8l-2 2"/><path d="M19 8l2 2"/></svg>
+                Spiega con AI
+              </button>
+            )}
+            {aiLoading && (
+              <div className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/10">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                Generazione spiegazione...
+              </div>
+            )}
+            {aiExplanation && (
+              <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 text-sm leading-relaxed text-foreground">
+                <div className="flex items-start gap-2">
+                  <span className="text-lg flex-shrink-0">🤖</span>
+                  <p>{aiExplanation}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Next button when AI explanation is shown */}
+        {aiExplanation && (
+          <button onClick={() => nextQuestion()}
+            className="w-full py-3 rounded-xl font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+            Prossima Domanda <IconArrowRight className="w-4 h-4" />
+          </button>
         )}
 
         {currentQuestion && (
