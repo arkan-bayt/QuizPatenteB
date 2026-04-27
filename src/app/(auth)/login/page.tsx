@@ -233,8 +233,8 @@ function LoginForm() {
             </div>
             <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
               <span>Instagram:</span>
-              <a href="https://instagram.com/a10.27" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors font-medium">
-                @a10.27
+              <a href="https://www.instagram.com/27.a10" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors font-medium">
+                @27.a10
               </a>
             </div>
             <p className="text-xs text-muted-foreground text-center">

@@ -1015,7 +1015,7 @@ function QuizView() {
         <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground/60">
           <a href="mailto:arkanali199494@gmail.com" className="hover:text-emerald-600 transition-colors">Email</a>
           <span>|</span>
-          <a href="https://instagram.com/a10.27" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">Instagram: @a10.27</a>
+          <a href="https://www.instagram.com/27.a10" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">Instagram: @27.a10</a>
         </div>
       </div>
     </div>
