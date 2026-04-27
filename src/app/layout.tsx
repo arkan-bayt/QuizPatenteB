@@ -4,7 +4,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "Quiz Patente B - Allenati per l'Esame di Guida",
-  description: "7.139 quiz ufficiali per la patente B italiana con correzione istantanea e statistiche.",
+  description: "7.139 quiz ufficiali per la patente B italiana con esame simulato, statistiche avanzate e gamification.",
 };
 
 export default function RootLayout({
