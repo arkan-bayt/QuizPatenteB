@@ -695,6 +695,30 @@ function HomeView({ quizData, onStartSingle, onStartErrors, onStartMulti, onStar
         })()}
       </div>
 
+      {/* Continue where you left off */}
+      {(() => {
+        const entries = Object.entries(chapterProgress);
+        if (entries.length === 0) return null;
+        const lastAccessed = entries.sort((a, b) => b[1].lastAccessed - a[1].lastAccessed)[0];
+        const lastChapter = CHAPTERS.find(c => c.slug === lastAccessed[0]);
+        if (!lastChapter) return null;
+        return (
+          <button
+            onClick={() => onStartSingle(lastAccessed[0])}
+            className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl p-4 hover:shadow-lg transition-all active:scale-[0.98] flex items-center gap-3"
+          >
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+            </div>
+            <div className="text-left flex-1 min-w-0">
+              <div className="font-bold text-sm">Continua da dove hai lasciato</div>
+              <div className="text-xs text-emerald-100 truncate">{lastChapter.name} — {lastAccessed[1].totalAttempted} risposte</div>
+            </div>
+            <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
+          </button>
+        );
+      })()}
+
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <button onClick={() => setShowMultiPicker(true)}
@@ -1341,6 +1365,8 @@ function StatsView({ quizData }: { quizData: QuizData }) {
 // ==========================================
 export default function QuizApp() {
   const { currentView, setView, quizMode, user } = useQuizStore();
+  const { user: authUser, isLoading: authLoading } = useAuth();
+  const loadProgress = useQuizStore((s) => s.loadProgress);
   const [quizData, setQuizData] = useState<QuizData | null>(null);
   const [loading, setLoading] = useState(true);
   const { theme, setTheme } = useTheme();
@@ -1352,6 +1378,13 @@ export default function QuizApp() {
       .then(data => { setQuizData(data); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
+
+  // Load progress from Supabase when user is logged in
+  useEffect(() => {
+    if (authUser && !authLoading) {
+      loadProgress();
+    }
+  }, [authUser, authLoading, loadProgress]);
 
   // Hydrate user from localStorage
   useEffect(() => {

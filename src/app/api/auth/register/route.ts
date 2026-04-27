@@ -27,11 +27,11 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await registerUser(email, name, password);
-    const token = createToken(user.email, user.name);
+    const token = createToken(user.id, user.email, user.name);
 
     const response = NextResponse.json({
       success: true,
-      user: { email: user.email, name: user.name },
+      user: { userId: user.id, email: user.email, name: user.name },
     });
 
     response.cookies.set('auth-token', token, {

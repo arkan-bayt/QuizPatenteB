@@ -27,14 +27,16 @@ export function verifyPassword(password: string, storedHash: string): boolean {
 const TOKEN_SECRET = process.env.AUTH_SECRET || 'patente-b-quiz-secret-change-me-2024';
 
 interface TokenPayload {
+  userId: string;
   email: string;
   name: string;
   iat: number;
   exp: number;
 }
 
-export function createToken(email: string, name: string): string {
+export function createToken(userId: string, email: string, name: string): string {
   const payload: TokenPayload = {
+    userId,
     email,
     name,
     iat: Date.now(),
@@ -64,6 +66,7 @@ export function verifyToken(token: string): TokenPayload | null {
 // ── Supabase user store ──
 
 export interface StoredUser {
+  id: string;
   email: string;
   name: string;
   password_hash: string;
@@ -79,6 +82,7 @@ export async function findUserByEmail(email: string): Promise<StoredUser | null>
 
   if (error || !data) return null;
   return {
+    id: data.id,
     email: data.email,
     name: data.name,
     password_hash: data.password_hash,
@@ -112,6 +116,7 @@ export async function registerUser(email: string, name: string, password: string
   }
 
   return {
+    id: data.id,
     email: data.email,
     name: data.name,
     password_hash: data.password_hash,

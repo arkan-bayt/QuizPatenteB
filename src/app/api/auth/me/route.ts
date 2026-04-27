@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      user: { email: payload.email, name: payload.name },
+      user: { userId: payload.userId, email: payload.email, name: payload.name },
     });
   } catch {
     return NextResponse.json({ user: null }, { status: 401 });

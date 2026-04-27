@@ -32,6 +32,7 @@ export interface ChapterProgress {
   wrongCount: number;
   errorQuestionIds: string[];
   lastAccessed: number;
+  lastQuestionId?: string;
 }
 
 export interface ExamResult {

@@ -13,6 +13,7 @@ import {
   GamificationState,
 } from './types';
 import { CHAPTERS } from './chapters';
+import { loadProgressFromServer, saveProgressToServer, retryPendingSync, setupOnlineListener, createDebouncedSync, ProgressMap } from './progress-sync';
 
 const LEVEL_THRESHOLDS = [
   { level: 1, name: 'Principiante', minXP: 0, icon: '🌱' },
@@ -77,6 +78,12 @@ interface QuizState {
   examResults: ExamResult[];
   lastExamResult: ExamResult | null;
 
+  // Sync
+  isSyncing: boolean;
+  loadProgress: () => Promise<void>;
+  syncProgress: () => void;
+  flushSync: () => Promise<boolean>;
+
   // Actions
   setView: (view: AppView) => void;
   startQuiz: (chapterSlug: string | null, mode: QuizMode, title?: string, questions?: QuizQuestion[]) => void;
@@ -122,6 +129,9 @@ export const useQuizStore = create<QuizState>()(
       isFinished: false,
       chapterProgress: {},
 
+      // Sync
+      isSyncing: false,
+
       // Auth
       user: null,
 
@@ -139,6 +149,49 @@ export const useQuizStore = create<QuizState>()(
       examTimerActive: false,
       examResults: [],
       lastExamResult: null,
+
+      // Load progress from Supabase on login
+      loadProgress: async () => {
+        try {
+          set({ isSyncing: true });
+          const serverProgress = await loadProgressFromServer();
+          if (serverProgress && Object.keys(serverProgress).length > 0) {
+            // Merge: server data as base, local overrides if newer
+            const local = get().chapterProgress;
+            const merged = { ...serverProgress } as Record<string, ChapterProgress>;
+            for (const [key, val] of Object.entries(local)) {
+              const serverVal = serverProgress[key];
+              if (!serverVal || val.lastAccessed > (serverVal.lastAccessed || 0)) {
+                merged[key] = val;
+              }
+            }
+            set({ chapterProgress: merged });
+          }
+          // Also retry any pending offline syncs
+          await retryPendingSync();
+        } catch {
+          // Silent fail - local data still works
+        } finally {
+          set({ isSyncing: false });
+        }
+      },
+
+      // Debounced sync to Supabase
+      syncProgress: () => {
+        const { sync } = getDebouncedSync();
+        sync(get().chapterProgress);
+      },
+
+      // Force immediate sync (e.g. before leaving page)
+      flushSync: async () => {
+        set({ isSyncing: true });
+        try {
+          const ok = await getDebouncedSync().flush();
+          return ok;
+        } finally {
+          set({ isSyncing: false });
+        }
+      },
 
       setView: (view) => set({ currentView: view }),
 
@@ -213,6 +266,7 @@ export const useQuizStore = create<QuizState>()(
             wrongCount: existingProgress.wrongCount + (isCorrect ? 0 : 1),
             errorQuestionIds: newErrorIds,
             lastAccessed: Date.now(),
+            lastQuestionId: currentQuestion.id,
           };
         }
 
@@ -243,6 +297,9 @@ export const useQuizStore = create<QuizState>()(
           lastStudyDate: today,
           totalStudyDays: newTotalStudyDays,
         });
+
+        // Sync to Supabase in background
+        get().syncProgress();
       },
 
       nextQuestion: () => {
@@ -448,5 +505,30 @@ export const useQuizStore = create<QuizState>()(
     }
   )
 );
+
+// Singleton debounced sync
+let _debouncedSync: ReturnType<typeof createDebouncedSync> | null = null;
+function getDebouncedSync() {
+  if (!_debouncedSync) {
+    _debouncedSync = createDebouncedSync(2000);
+    // Setup online listener for retry
+    if (typeof window !== 'undefined') {
+      setupOnlineListener();
+    }
+  }
+  return _debouncedSync;
+}
+
+// Sync on page close/visibility change
+if (typeof window !== 'undefined') {
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      useQuizStore.getState().flushSync();
+    }
+  });
+  window.addEventListener('beforeunload', () => {
+    useQuizStore.getState().flushSync();
+  });
+}
 
 export { LEVEL_THRESHOLDS, getLevelForXP };

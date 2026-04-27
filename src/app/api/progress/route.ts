@@ -2,77 +2,56 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth-utils';
 import { supabase } from '@/lib/supabase';
 
-// GET - Load user's chapter progress from Supabase
+// GET - Load user's progress from Supabase (single jsonb column)
 export async function GET(request: NextRequest) {
   try {
     const token = request.cookies.get('auth-token')?.value;
     if (!token) return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
 
     const payload = verifyToken(token);
-    if (!payload) return NextResponse.json({ error: 'Token non valido' }, { status: 401 });
+    if (!payload || !payload.userId) {
+      return NextResponse.json({ error: 'Sessione scaduta, effettua di nuovo il login' }, { status: 401 });
+    }
 
     const { data, error } = await supabase
       .from('user_progress')
-      .select('*')
-      .eq('user_email', payload.email);
+      .select('progress, updated_at')
+      .eq('user_id', payload.userId)
+      .maybeSingle();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Convert to the format expected by the quiz\ store
-    const progress: Record<string, {
-      chapterSlug: string;
-      totalAttempted: number;
-      correctCount: number;
-      wrongCount: number;
-      errorQuestionIds: string[];
-      lastAccessed: number;
-    }> = {};
-
-    for (const row of data) {
-      progress[row.chapter_slug] = {
-        chapterSlug: row.chapter_slug,
-        totalAttempted: row.total_attempted || 0,
-        correctCount: row.correct_count || 0,
-        wrongCount: row.wrong_count || 0,
-        errorQuestionIds: row.error_question_ids || [],
-        lastAccessed: new Date(row.last_accessed).getTime() || Date.now(),
-      };
-    }
-
-    return NextResponse.json({ progress });
+    const progress = data?.progress || {};
+    return NextResponse.json({ progress, updatedAt: data?.updated_at || null });
   } catch {
     return NextResponse.json({ error: 'Errore del server' }, { status: 500 });
   }
 }
 
-// POST - Save/update user's chapter progress
-export async function POST(request: NextRequest) {
+// PUT - Save all progress at once (single jsonb column)
+export async function PUT(request: NextRequest) {
   try {
     const token = request.cookies.get('auth-token')?.value;
     if (!token) return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
 
     const payload = verifyToken(token);
-    if (!payload) return NextResponse.json({ error: 'Token non valido' }, { status: 401 });
-
-    const { chapterSlug, totalAttempted, correctCount, wrongCount, errorQuestionIds } = await request.json();
-
-    if (!chapterSlug) {
-      return NextResponse.json({ error: 'chapterSlug richiesto' }, { status: 400 });
+    if (!payload || !payload.userId) {
+      return NextResponse.json({ error: 'Sessione scaduta, effettua di nuovo il login' }, { status: 401 });
     }
 
-    // Upsert the progress record
+    const { progress } = await request.json();
+    if (!progress || typeof progress !== 'object') {
+      return NextResponse.json({ error: 'progress richiesto' }, { status: 400 });
+    }
+
     const { error } = await supabase
       .from('user_progress')
       .upsert({
-        user_email: payload.email,
-        chapter_slug: chapterSlug,
-        total_attempted: totalAttempted || 0,
-        correct_count: correctCount || 0,
-        wrong_count: wrongCount || 0,
-        error_question_ids: errorQuestionIds || [],
-        last_accessed: new Date().toISOString(),
+        user_id: payload.userId,
+        progress,
+        updated_at: new Date().toISOString(),
       }, {
-        onConflict: 'user_email,chapter_slug',
+        onConflict: 'user_id',
       });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -83,37 +62,42 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT - Save all progress at once
-export async function PUT(request: NextRequest) {
+// POST - Save/update single chapter (partial merge into jsonb)
+export async function POST(request: NextRequest) {
   try {
     const token = request.cookies.get('auth-token')?.value;
     if (!token) return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
 
     const payload = verifyToken(token);
-    if (!payload) return NextResponse.json({ error: 'Token non valido' }, { status: 401 });
-
-    const { progress } = await request.json();
-    if (!progress || typeof progress !== 'object') {
-      return NextResponse.json({ error: 'progress richiesto' }, { status: 400 });
+    if (!payload || !payload.userId) {
+      return NextResponse.json({ error: 'Sessione scaduta, effettua di nuovo il login' }, { status: 401 });
     }
 
-    const rows = Object.entries(progress).map(([slug, p]: [string, any]) => ({
-      user_email: payload.email,
-      chapter_slug: slug,
-      total_attempted: p.totalAttempted || 0,
-      correct_count: p.correctCount || 0,
-      wrong_count: p.wrongCount || 0,
-      error_question_ids: p.errorQuestionIds || [],
-      last_accessed: new Date().toISOString(),
-    }));
+    const { chapterSlug, chapterProgress: chapterData } = await request.json();
 
-    if (rows.length === 0) {
-      return NextResponse.json({ success: true });
+    if (!chapterSlug || !chapterData) {
+      return NextResponse.json({ error: 'chapterSlug e chapterProgress richiesti' }, { status: 400 });
     }
+
+    // Fetch current progress, merge chapter, and save
+    const { data: existing } = await supabase
+      .from('user_progress')
+      .select('progress')
+      .eq('user_id', payload.userId)
+      .maybeSingle();
+
+    const currentProgress: Record<string, any> = existing?.progress || {};
+    currentProgress[chapterSlug] = chapterData;
 
     const { error } = await supabase
       .from('user_progress')
-      .upsert(rows, { onConflict: 'user_email,chapter_slug' });
+      .upsert({
+        user_id: payload.userId,
+        progress: currentProgress,
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'user_id',
+      });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
