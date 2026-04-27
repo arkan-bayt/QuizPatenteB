@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = findUserByEmail(email);
+    const user = await findUserByEmail(email);
     if (!user) {
       return NextResponse.json(
         { error: 'Email o password non corretti' },
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isValid = verifyPassword(password, user.passwordHash);
+    const isValid = verifyPassword(password, user.password_hash);
     if (!isValid) {
       return NextResponse.json(
         { error: 'Email o password non corretti' },

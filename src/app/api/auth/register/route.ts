@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = registerUser(email, name, password);
+    const user = await registerUser(email, name, password);
     const token = createToken(user.email, user.name);
 
     const response = NextResponse.json({

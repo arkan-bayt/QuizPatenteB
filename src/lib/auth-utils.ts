@@ -1,6 +1,5 @@
 import { randomBytes, createHmac, timingSafeEqual, scryptSync } from 'crypto';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
+import { supabase } from './supabase';
 
 // ── Password hashing using scrypt (built-in Node.js) ──
 
@@ -62,74 +61,60 @@ export function verifyToken(token: string): TokenPayload | null {
   }
 }
 
-// ── Persistent JSON file user store ──
+// ── Supabase user store ──
 
 export interface StoredUser {
   email: string;
   name: string;
-  passwordHash: string;
-  createdAt: number;
+  password_hash: string;
+  created_at: string;
 }
 
-function getDataDir(): string {
-  // Try /tmp first (works on Vercel), fallback to project root
-  const tmpDir = '/tmp/quiz-patente-b';
-  const projectDir = join(process.cwd(), 'data');
+export async function findUserByEmail(email: string): Promise<StoredUser | null> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', email.toLowerCase().trim())
+    .maybeSingle();
 
-  if (existsSync(tmpDir)) return tmpDir;
-  if (!existsSync(projectDir)) {
-    try { mkdirSync(projectDir, { recursive: true }); } catch { /* ignore */ }
-  }
-  return projectDir;
+  if (error || !data) return null;
+  return {
+    email: data.email,
+    name: data.name,
+    password_hash: data.password_hash,
+    created_at: data.created_at,
+  };
 }
 
-function getUsersFile(): string {
-  return join(getDataDir(), 'users.json');
-}
-
-function loadUsers(): Record<string, StoredUser> {
-  const filePath = getUsersFile();
-  try {
-    if (existsSync(filePath)) {
-      const data = readFileSync(filePath, 'utf-8');
-      return JSON.parse(data);
-    }
-  } catch {
-    // File corrupted or unreadable, start fresh
-  }
-  return {};
-}
-
-function saveUsers(users: Record<string, StoredUser>): void {
-  const dir = getDataDir();
-  if (!existsSync(dir)) {
-    try { mkdirSync(dir, { recursive: true }); } catch { /* ignore */ }
-  }
-  try {
-    writeFileSync(join(dir, 'users.json'), JSON.stringify(users, null, 2), 'utf-8');
-  } catch {
-    // Write failed (e.g., read-only filesystem on Vercel)
-    // Fall back to in-memory storage silently
-  }
-}
-
-export function findUserByEmail(email: string): StoredUser | undefined {
-  const users = loadUsers();
-  return users[email.toLowerCase().trim()];
-}
-
-export function registerUser(email: string, name: string, password: string): StoredUser {
+export async function registerUser(email: string, name: string, password: string): Promise<StoredUser> {
   const lowerEmail = email.toLowerCase().trim();
-  const users = loadUsers();
 
-  if (users[lowerEmail]) {
+  // Check if user exists
+  const existing = await findUserByEmail(lowerEmail);
+  if (existing) {
     throw new Error('QUESTA_EMAIL_GIA_REGISTRATA');
   }
 
   const passwordHash = hashPassword(password);
-  const user: StoredUser = { email: lowerEmail, name, passwordHash, createdAt: Date.now() };
-  users[lowerEmail] = user;
 
-  saveUsers(users);
-  return user;
+  const { data, error } = await supabase
+    .from('users')
+    .insert({
+      email: lowerEmail,
+      name,
+      password_hash: passwordHash,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error('Errore durante la registrazione nel database');
+  }
+
+  return {
+    email: data.email,
+    name: data.name,
+    password_hash: data.password_hash,
+    created_at: data.created_at,
+  };
 }
