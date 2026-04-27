@@ -130,3 +130,4 @@ Ogni quiz e una domanda con risposta VERO/FALSO, il formato ufficiale dell'esame
 
 - [Ed0ardo/QuizPatenteB](https://github.com/Ed0ardo/QuizPatenteB) per il database dei quiz
 - [Next.js](https://nextjs.org/), [Tailwind CSS](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/)
+# deployed
