@@ -20,7 +20,6 @@ export default function Error({
         info += 'Name: ' + String(error.name || 'none') + '\n';
         info += 'Digest: ' + String(error.digest || 'none') + '\n';
         if (error.stack) info += 'Stack: ' + String(error.stack).slice(0, 2000) + '\n';
-        // Try to stringify the error to see all properties
         try {
           const keys = Object.getOwnPropertyNames(error);
           info += 'Keys: ' + keys.join(', ') + '\n';
@@ -37,6 +36,13 @@ export default function Error({
     }
     setDetails(info);
     console.error('[ERROR_PAGE] Full error details:', info);
+
+    // Try to log localStorage state for debugging
+    try {
+      console.log('[ERROR_PAGE] localStorage keys:', 
+        Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)).filter(k => k?.includes('patente') || k?.includes('quiz'))
+      );
+    } catch { /* ignore */ }
   }, [error]);
 
   const handleClearAndReload = () => {
@@ -54,6 +60,8 @@ export default function Error({
     }
   };
 
+  const isReact310 = error?.message?.includes('Objects are not valid') || error?.message?.includes('#310');
+
   const errorMsg = error?.message || 'Unknown error';
 
   return (
@@ -70,6 +78,20 @@ export default function Error({
         <p className="text-muted-foreground">
           Si è verificato un errore nel caricamento della pagina.
         </p>
+
+        {isReact310 && (
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-left">
+            <p className="text-sm text-amber-700 dark:text-amber-400 font-bold mb-2">
+              Dati non validi rilevati (React #310)
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-500">
+              Un oggetto sta venendo renderizzato come testo. Apri la console del browser (F12) e cerca i messaggi &quot;REACT_310_INTERCEPT&quot; per vedere il dettaglio.
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-500 mt-2">
+              Clicca &quot;Cancella dati e ricarica&quot; per resettare completamente l&apos;app.
+            </p>
+          </div>
+        )}
 
         {/* ALWAYS show the error message */}
         <div className="bg-card border rounded-xl p-4 text-left">

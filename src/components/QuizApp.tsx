@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuizStore, LEVEL_THRESHOLDS } from '@/lib/quiz-store';
 import { useTheme } from 'next-themes';
 import { QuizMode, QuizData, QuizQuestion, SavedQuizSession } from '@/lib/types';
@@ -9,6 +9,49 @@ import { useAuth } from '@/contexts/AuthContext';
 import { hasSavedSession, deleteSessionByParams } from '@/lib/session-manager';
 import ResumeSessionDialog from '@/components/ResumeSessionDialog';
 import Link from 'next/link';
+
+// ==========================================
+// SAFE RENDER: Intercept objects passed as React children
+// =========================================
+if (typeof window !== 'undefined') {
+  const originalCreateElement = React.createElement;
+  (React as any).createElement = function (...args: any[]) {
+    const type = args[0];
+    const props = args[1] || {};
+    // Convert direct children args that are plain objects to strings
+    const children = args.slice(2).map(child => {
+      if (child !== null && child !== undefined && typeof child === 'object' && !Array.isArray(child) && !(child as any).$$typeof && !(child as any).type) {
+        // This is a plain object being rendered as a child - convert to string
+        console.warn('[REACT_310_FIX] Converted object to string:', {
+          component: typeof type === 'string' ? type : (type as any)?.displayName || (type as any)?.name || String(type),
+          objectKeys: Object.keys(child).slice(0, 5),
+        });
+        try {
+          const str = JSON.stringify(child);
+          return str && str !== '{}' ? str : String(child);
+        } catch {
+          return String(child);
+        }
+      }
+      return child;
+    });
+    // Also check props.children for plain objects
+    let newProps = props;
+    if (props.children !== undefined && props.children !== null && typeof props.children === 'object' && !Array.isArray(props.children) && !(props.children as any).$$typeof && !(props.children as any).type) {
+      console.warn('[REACT_310_FIX] Converted props.children object to string:', {
+        component: typeof type === 'string' ? type : (type as any)?.displayName || (type as any)?.name || String(type),
+        objectKeys: Object.keys(props.children).slice(0, 5),
+      });
+      try {
+        const str = JSON.stringify(props.children);
+        newProps = { ...props, children: (str && str !== '{}') ? str : String(props.children) };
+      } catch {
+        newProps = { ...props, children: String(props.children) };
+      }
+    }
+    return (originalCreateElement as any)(type, newProps, ...children);
+  };
+}
 
 // ==========================================
 // QUIZ DATA VALIDATION
@@ -37,6 +80,13 @@ function safeStr(val: unknown, fallback: string = ''): string {
   if (val === null || val === undefined) return fallback;
   if (typeof val === 'string') return val;
   if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  // If it's an object, try to extract a string representation
+  if (typeof val === 'object') {
+    try {
+      const s = JSON.stringify(val);
+      if (s && s !== '[object Object]') return s;
+    } catch { /* ignore */ }
+  }
   return fallback;
 }
 
