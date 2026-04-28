@@ -8,6 +8,7 @@ import { CHAPTERS } from '@/lib/chapters';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasSavedSession, deleteSessionByParams } from '@/lib/session-manager';
 import ResumeSessionDialog from '@/components/ResumeSessionDialog';
+import Link from 'next/link';
 
 // ==========================================
 // ICON COMPONENTS (inline SVGs)
@@ -445,7 +446,14 @@ function Navbar() {
               </div>
             </div>
           ) : (
-            <div className="w-8" /> 
+            <div className="flex items-center gap-2">
+              <Link href="/login" className="px-3 py-1.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                Accedi
+              </Link>
+              <Link href="/signup" className="px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
+                Registrati
+              </Link>
+            </div>
           )}
         </div>
       </div>
@@ -1391,20 +1399,30 @@ export default function QuizApp() {
   // Load quiz data
   useEffect(() => {
     fetch('/quizData.json')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error('Failed to load');
+        return r.json();
+      })
       .then(data => { setQuizData(data); setLoading(false); })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        console.error('Failed to load quiz data:', err);
+        setLoading(false);
+      });
   }, []);
 
   // Load progress from Supabase when user is logged in
   useEffect(() => {
     if (authUser && !authLoading) {
-      loadProgress();
+      loadProgress().catch(() => {
+        // Silent fail - local data still works
+      });
     }
   }, [authUser, authLoading, loadProgress]);
 
-  // Hydrate user from localStorage
+  // Hydrate user from localStorage (fallback for non-Supabase auth)
   useEffect(() => {
+    if (authLoading) return; // Wait for AuthProvider to finish
+    if (authUser) return; // Already have user from AuthProvider
     const raw = localStorage.getItem('quiz-patente-current-user');
     if (raw) {
       try {

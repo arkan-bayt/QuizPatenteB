@@ -27,11 +27,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch('/api/auth/me');
       if (res.ok) {
         const data = await res.json();
-        setUser(data.user);
+        if (data.user && data.user.userId) {
+          setUser(data.user);
+        } else {
+          setUser(null);
+        }
       } else {
         setUser(null);
       }
     } catch {
+      // Network error or API down - try localStorage fallback
+      try {
+        const raw = localStorage.getItem('quiz-patente-current-user');
+        if (raw) {
+          const u = JSON.parse(raw);
+          if (u && u.id) {
+            setUser({ userId: u.id, email: u.email, name: u.name });
+          }
+        }
+      } catch {
+        // ignore parse errors
+      }
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -85,7 +101,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // ignore
     }
     setUser(null);
-    window.location.href = '/login';
+    // Redirect to home instead of /login since pages are now accessible without auth
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
+    }
   };
 
   return (
