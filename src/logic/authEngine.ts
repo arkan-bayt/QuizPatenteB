@@ -1,75 +1,98 @@
 // ============================================================
-// LOGIC - Multi-user Auth + User Management
+// LOGIC - Multi-user Auth via API
 // ============================================================
-import { supabase, AppUser } from '@/data/supabaseClient';
+import { AppUser } from '@/data/supabaseClient';
 
-function hash(str: string): string {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) { h = ((h << 5) - h) + str.charCodeAt(i); h = h & h; }
-  return Math.abs(h).toString(36);
+// Hardcoded super admin (fallback when API unavailable)
+const SUPER_ADMIN: AppUser = { id: 'super-admin', username: 'arkan', password_hash: '', role: 'admin', is_active: true, created_at: '' };
+
+// Login via API
+export async function login(username: string, password: string): Promise<{ ok: boolean; msg: string; user?: AppUser }> {
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login', username, password }),
+    });
+    const data = await res.json();
+    if (data.ok && data.user) {
+      return { ok: true, msg: 'OK', user: data.user as AppUser };
+    }
+    return { ok: false, msg: data.msg || 'Username o password non corretti' };
+  } catch {
+    // Fallback: check super admin locally
+    if (username === 'arkan' && password === 'arkan1') {
+      return { ok: true, msg: 'OK', user: SUPER_ADMIN };
+    }
+    return { ok: false, msg: 'Errore di connessione. Riprova.' };
+  }
 }
 
-// Get all users from Supabase
+// Get all users via API
 export async function getAllUsers(): Promise<AppUser[]> {
   try {
-    const { data, error } = await supabase.from('app_users').select('*').order('created_at', { ascending: true });
-    if (!error && data) return data as AppUser[];
-  } catch { /* */ }
-  return [];
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'list_users' }),
+    });
+    const data = await res.json();
+    if (data.ok && data.users) return data.users as AppUser[];
+    return [];
+  } catch {
+    return [SUPER_ADMIN];
+  }
 }
 
-// Add user (admin only)
-export async function addUser(username: string, password: string, role: 'admin' | 'user' = 'user'): Promise<{ ok: boolean; msg: string }> {
+// Add user via API
+export async function addUser(username: string, password: string, role: 'admin' | 'user' = 'user', adminUsername?: string): Promise<{ ok: boolean; msg: string }> {
   if (!username.trim() || !password.trim()) return { ok: false, msg: 'Compila tutti i campi' };
   if (username.length < 3) return { ok: false, msg: 'Username minimo 3 caratteri' };
   if (password.length < 4) return { ok: false, msg: 'Password minimo 4 caratteri' };
   try {
-    const { data: existing } = await supabase.from('app_users').select('id').eq('username', username).single();
-    if (existing) return { ok: false, msg: 'Username gia esistente' };
-    const { error } = await supabase.from('app_users').insert({ username, password_hash: hash(password), role, is_active: true });
-    if (error) return { ok: false, msg: 'Errore: ' + error.message };
-    return { ok: true, msg: 'Utente creato con successo' };
-  } catch (e: any) { return { ok: false, msg: 'Errore di connessione' }; }
-}
-
-// Update user role
-export async function updateUserRole(userId: string, role: 'admin' | 'user'): Promise<{ ok: boolean; msg: string }> {
-  try {
-    const { error } = await supabase.from('app_users').update({ role }).eq('id', userId);
-    if (error) return { ok: false, msg: error.message };
-    return { ok: true, msg: 'Ruolo aggiornato' };
-  } catch { return { ok: false, msg: 'Errore' }; }
-}
-
-// Delete user
-export async function deleteUser(userId: string): Promise<{ ok: boolean; msg: string }> {
-  try {
-    const { error } = await supabase.from('app_users').delete().eq('id', userId);
-    if (error) return { ok: false, msg: error.message };
-    return { ok: true, msg: 'Utente eliminato' };
-  } catch { return { ok: false, msg: 'Errore' }; }
-}
-
-// Login
-export async function login(username: string, password: string): Promise<{ ok: boolean; msg: string; user?: AppUser }> {
-  // Try Supabase
-  try {
-    const { data, error } = await supabase.from('app_users').select('*').eq('username', username).eq('is_active', true).single();
-    if (!error && data) {
-      if (data.password_hash === hash(password)) {
-        return { ok: true, msg: 'OK', user: data as AppUser };
-      }
-      return { ok: false, msg: 'Password non corretta' };
-    }
-  } catch { /* fallback */ }
-  // Fallback: super admin
-  if (username === 'arkan' && password === 'arkan1') {
-    return { ok: true, msg: 'OK', user: { id: 'super-admin', username: 'arkan', password_hash: '', role: 'admin', is_active: true, created_at: '' } };
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'add_user', username, password, role, adminUsername }),
+    });
+    const data = await res.json();
+    return { ok: data.ok, msg: data.msg || 'Errore' };
+  } catch {
+    return { ok: false, msg: 'Errore di connessione' };
   }
-  return { ok: false, msg: 'Username o password non corretti' };
 }
 
-// Session management
+// Update user role via API
+export async function updateUserRole(userId: string, role: 'admin' | 'user', adminUsername?: string): Promise<{ ok: boolean; msg: string }> {
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'toggle_role', userId, newRole: role, adminUsername }),
+    });
+    const data = await res.json();
+    return { ok: data.ok, msg: data.msg || 'Errore' };
+  } catch {
+    return { ok: false, msg: 'Errore' };
+  }
+}
+
+// Delete user via API
+export async function deleteUser(userId: string, adminUsername?: string): Promise<{ ok: boolean; msg: string }> {
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete_user', userId, adminUsername }),
+    });
+    const data = await res.json();
+    return { ok: data.ok, msg: data.msg || 'Errore' };
+  } catch {
+    return { ok: false, msg: 'Errore' };
+  }
+}
+
+// Session management (local only)
 export function saveSession(user: AppUser): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem('qp_session', JSON.stringify({ ...user, ts: Date.now() }));

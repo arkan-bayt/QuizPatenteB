@@ -6,6 +6,7 @@ import { getAllUsers, addUser, updateUserRole, deleteUser } from '@/logic/authEn
 
 export default function AdminPanel() {
   const store = useStore();
+  const { user } = store;
   const [users, setUsers] = useState<AppUser[]>([]);
   const [newUser, setNewUser] = useState('');
   const [newPw, setNewPw] = useState('');
@@ -29,7 +30,8 @@ export default function AdminPanel() {
 
   const handleAdd = async () => {
     setBusy(true);
-    const res = await addUser(newUser, newPw, newRole);
+    const adminName = user?.username || '';
+    const res = await addUser(newUser, newPw, newRole, adminName);
     if (res.ok) {
       showMsg('Utente creato con successo', 'success');
       setNewUser(''); setNewPw(''); loadUsers();
@@ -41,14 +43,16 @@ export default function AdminPanel() {
 
   const handleToggleRole = async (u: AppUser) => {
     const newRole = u.role === 'admin' ? 'user' : 'admin';
-    const res = await updateUserRole(u.id, newRole);
+    const adminName = user?.username || '';
+    const res = await updateUserRole(u.id, newRole, adminName);
     showMsg(res.msg, res.ok ? 'success' : 'error');
     loadUsers();
   };
 
   const handleDelete = async (u: AppUser) => {
     if (!confirm(`Eliminare l'utente ${u.username}?`)) return;
-    const res = await deleteUser(u.id);
+    const adminName = user?.username || '';
+    const res = await deleteUser(u.id, adminName);
     showMsg(res.msg, res.ok ? 'success' : 'error');
     loadUsers();
   };
