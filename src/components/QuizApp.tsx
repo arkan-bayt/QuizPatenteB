@@ -1453,30 +1453,71 @@ function StatsView({ quizData }: { quizData: QuizData }) {
 // MAIN APP
 // ==========================================
 export default function QuizApp() {
-  const { currentView, setView, quizMode, user } = useQuizStore();
+  const store = useQuizStore();
+  const { currentView, setView, quizMode } = store;
+  const user = typeof store.user === 'object' && store.user !== null ? store.user : null;
   const { user: authUser, isLoading: authLoading } = useAuth();
   const loadProgress = useQuizStore((s) => s.loadProgress);
   const [quizData, setQuizData] = useState<QuizData | null>(null);
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
+  const [renderError, setRenderError] = useState<string | null>(null);
   const { theme, setTheme } = useTheme();
+
+  // Validate store values on every render to catch corrupted data
+  useEffect(() => {
+    try {
+      const s = useQuizStore.getState();
+      const issues: string[] = [];
+      if (s.xp !== undefined && typeof s.xp !== 'number') issues.push('xp is ' + typeof s.xp);
+      if (s.level !== undefined && typeof s.level !== 'number') issues.push('level is ' + typeof s.level);
+      if (s.levelName !== undefined && typeof s.levelName !== 'string') issues.push('levelName is ' + typeof s.levelName);
+      if (s.levelIcon !== undefined && typeof s.levelIcon !== 'string') issues.push('levelIcon is ' + typeof s.levelIcon);
+      if (s.streak !== undefined && typeof s.streak !== 'number') issues.push('streak is ' + typeof s.streak);
+      if (s.lastExamResult !== undefined && s.lastExamResult !== null && typeof s.lastExamResult !== 'object') issues.push('lastExamResult is ' + typeof s.lastExamResult);
+      if (s.currentView !== undefined && typeof s.currentView !== 'string') issues.push('currentView is ' + typeof s.currentView);
+      if (s.quizTitle !== undefined && typeof s.quizTitle !== 'string') issues.push('quizTitle is ' + typeof s.quizTitle);
+      // Check chapterProgress values
+      if (s.chapterProgress && typeof s.chapterProgress === 'object') {
+        for (const [k, v] of Object.entries(s.chapterProgress)) {
+          if (!v || typeof v !== 'object') { issues.push('chapterProgress[' + k + '] is not an object'); break; }
+          if (typeof v.totalAttempted !== 'number') issues.push('chapterProgress[' + k + '].totalAttempted is ' + typeof v.totalAttempted);
+          if (typeof v.correctCount !== 'number') issues.push('chapterProgress[' + k + '].correctCount is ' + typeof v.correctCount);
+        }
+      }
+      if (issues.length > 0) {
+        console.error('[STORE_VALIDATION] Issues found:', issues.join('; '));
+        // Auto-fix: reset corrupted state
+        useQuizStore.setState({
+          xp: 0, level: 1, levelName: 'Principiante', levelIcon: '\u{1F331}',
+          streak: 0, lastStudyDate: '', totalStudyDays: 0,
+          chapterProgress: {}, examResults: [], lastExamResult: null,
+          currentView: 'home', quizTitle: '',
+        });
+      }
+    } catch (e) {
+      console.error('[STORE_VALIDATION] Error:', e);
+    }
+  });
 
   // Wait for zustand persist to rehydrate before rendering
   useEffect(() => {
-    // Use subscribeWithSelector or a simple timeout to detect hydration
-    const unsubFinishHydration = useQuizStore.persist.onFinishHydration(() => {
-      setHydrated(true);
-    });
-    // If already hydrated (e.g., no stored state), set immediately
-    if (useQuizStore.persist.hasHydrated()) {
+    try {
+      const unsubFinishHydration = useQuizStore.persist.onFinishHydration(() => {
+        setHydrated(true);
+      });
+      if (useQuizStore.persist.hasHydrated()) {
+        setHydrated(true);
+      }
+      const fallback = setTimeout(() => setHydrated(true), 500);
+      return () => {
+        unsubFinishHydration();
+        clearTimeout(fallback);
+      };
+    } catch (e) {
+      console.error('[HYDRATION] Error:', e);
       setHydrated(true);
     }
-    // Fallback: set hydrated after a short delay to avoid infinite loading
-    const fallback = setTimeout(() => setHydrated(true), 500);
-    return () => {
-      unsubFinishHydration();
-      clearTimeout(fallback);
-    };
   }, []);
 
   // Session resume state
@@ -1507,8 +1548,8 @@ export default function QuizApp() {
   // Load progress from Supabase when user is logged in
   useEffect(() => {
     if (authUser && !authLoading) {
-      loadProgress().catch(() => {
-        // Silent fail - local data still works
+      loadProgress().catch((err) => {
+        console.error('[PROGRESS_LOAD] Failed to load progress:', err);
       });
     }
   }, [authUser, authLoading, loadProgress]);
@@ -1782,6 +1823,20 @@ export default function QuizApp() {
     setPendingStartFn(null);
   }, []);
 
+  if (renderError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="max-w-md w-full text-center space-y-6">
+          <h1 className="text-2xl font-bold text-red-500">Errore di rendering</h1>
+          <pre className="bg-card border rounded-xl p-4 text-left text-xs font-mono text-red-500 break-all max-h-64 overflow-y-auto">{renderError}</pre>
+          <button onClick={() => { setRenderError(null); useQuizStore.setState({ currentView: 'home', quizTitle: '', questions: [], userAnswers: [], isFinished: false, lastExamResult: null }); }} className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
+            Riprova
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Resume Session Dialog */}
@@ -1816,7 +1871,7 @@ export default function QuizApp() {
       {/* Footer */}
       <footer className="border-t py-4 mt-auto">
         <div className="max-w-4xl mx-auto px-4 text-center text-xs text-muted-foreground">
-          Quiz Patente B — {Object.values(quizData).reduce((s, ch) => s + Object.values(ch).reduce((ss, qs) => ss + qs.length, 0), 0).toLocaleString('it-IT')} quiz ufficiali per la preparazione all&apos;esame di guida
+          Quiz Patente B — {quizData ? Object.values(quizData).reduce((s, ch) => s + Object.values(ch).reduce((ss, qs) => ss + qs.length, 0), 0).toLocaleString('it-IT') : '0'} quiz ufficiali per la preparazione all&apos;esame di guida
         </div>
       </footer>
     </div>
