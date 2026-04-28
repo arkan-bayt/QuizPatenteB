@@ -167,7 +167,6 @@ export const useQuizStore = create<QuizState>()(
           set({ isSyncing: true });
           const serverProgress = await loadProgressFromServer();
           if (serverProgress && Object.keys(serverProgress).length > 0) {
-            // Validate and sanitize server data before merging
             const sanitizedServer: Record<string, ChapterProgress> = {};
             for (const [key, val] of Object.entries(serverProgress)) {
               if (!val || typeof val !== 'object') continue;
@@ -181,7 +180,6 @@ export const useQuizStore = create<QuizState>()(
                 lastQuestionId: typeof val.lastQuestionId === 'string' ? val.lastQuestionId : undefined,
               };
             }
-            // Merge: server data as base, local overrides if newer
             const local = get().chapterProgress;
             const merged = { ...sanitizedServer };
             for (const [key, val] of Object.entries(local)) {
@@ -192,7 +190,6 @@ export const useQuizStore = create<QuizState>()(
             }
             set({ chapterProgress: merged });
           }
-          // Also retry any pending offline syncs
           await retryPendingSync();
         } catch {
           // Silent fail - local data still works
@@ -201,13 +198,11 @@ export const useQuizStore = create<QuizState>()(
         }
       },
 
-      // Debounced sync to Supabase
       syncProgress: () => {
         const { sync } = getDebouncedSync();
         sync(get().chapterProgress);
       },
 
-      // Force immediate sync (e.g. before leaving page)
       flushSync: async () => {
         set({ isSyncing: true });
         try {
@@ -220,7 +215,6 @@ export const useQuizStore = create<QuizState>()(
 
       setView: (view) => set({ currentView: view }),
 
-      // Session state
       currentSessionKey: null,
       currentSessionMeta: null,
 
@@ -242,7 +236,7 @@ export const useQuizStore = create<QuizState>()(
           isAnswered: false,
           selectedAnswer: null,
           isFinished: false,
-          examTimeRemaining: mode === 'exam' ? 20 * 60 : 20 * 60,
+          examTimeRemaining: 20 * 60,
           examTimerActive: mode === 'exam',
           currentSessionKey: sessionKey,
           currentSessionMeta: meta || null,
@@ -272,7 +266,7 @@ export const useQuizStore = create<QuizState>()(
       saveCurrentSession: () => {
         const state = get();
         if (!state.currentSessionKey || state.questions.length === 0) return;
-        if (state.quizMode === 'exam') return; // Don't save exam sessions
+        if (state.quizMode === 'exam') return;
 
         const session: SavedQuizSession = {
           sessionKey: state.currentSessionKey,
@@ -306,7 +300,6 @@ export const useQuizStore = create<QuizState>()(
           timestamp: Date.now(),
         };
 
-        // Find the chapter slug from question ID
         const idParts = currentQuestion.id.split('-');
         let chapterSlug = state.currentChapterSlug || '';
         if (!chapterSlug && idParts.length >= 2) {
@@ -319,7 +312,6 @@ export const useQuizStore = create<QuizState>()(
           }
         }
 
-        // Update progress
         const newChapterProgress = { ...state.chapterProgress };
         if (chapterSlug) {
           const existingProgress = newChapterProgress[chapterSlug] || {
@@ -348,12 +340,10 @@ export const useQuizStore = create<QuizState>()(
           };
         }
 
-        // Update XP
         const xpChange = isCorrect ? 10 : -5;
         const newXp = Math.max(0, state.xp + xpChange);
         const newLevelInfo = getLevelForXP(newXp);
 
-        // Update streak
         const today = new Date().toISOString().split('T')[0];
         const newStreak = state.lastStudyDate === today
           ? state.streak
@@ -376,7 +366,6 @@ export const useQuizStore = create<QuizState>()(
           totalStudyDays: newTotalStudyDays,
         });
 
-        // Sync to Supabase in background
         get().syncProgress();
       },
 
@@ -385,7 +374,6 @@ export const useQuizStore = create<QuizState>()(
         const nextIndex = state.currentIndex + 1;
 
         if (state.quizMode === 'exam' && nextIndex >= state.questions.length) {
-          // Exam finished - submit
           get().submitExam();
         } else if (nextIndex >= state.questions.length) {
           set({ isFinished: true });
@@ -399,14 +387,12 @@ export const useQuizStore = create<QuizState>()(
         if (state.quizMode === 'exam') {
           get().submitExam();
         } else {
-          // Save session before finishing
           get().saveCurrentSession();
           set({ isFinished: true });
         }
       },
 
       goToHome: () => {
-        // Save session before leaving (if there's an active quiz with answers)
         const state = get();
         if (state.questions.length > 0 && state.userAnswers.length > 0 && state.quizMode !== 'exam') {
           get().saveCurrentSession();
@@ -461,7 +447,6 @@ export const useQuizStore = create<QuizState>()(
         }
       },
 
-      // Auth
       login: (email, password) => {
         const usersRaw = localStorage.getItem('quiz-patente-users');
         const users: (User & { password: string })[] = usersRaw ? JSON.parse(usersRaw) : [];
@@ -503,7 +488,6 @@ export const useQuizStore = create<QuizState>()(
         localStorage.removeItem('quiz-patente-current-user');
       },
 
-      // Exam
       startExam: (questions) => {
         set({
           currentView: 'exam',
@@ -523,7 +507,6 @@ export const useQuizStore = create<QuizState>()(
       },
 
       setExamTimeRemaining: (time) => set({ examTimeRemaining: time }),
-
       setExamTimerActive: (active) => set({ examTimerActive: active }),
 
       submitExam: () => {
@@ -559,7 +542,6 @@ export const useQuizStore = create<QuizState>()(
         });
       },
 
-      // Stats helpers
       getTotalCorrect: () => {
         return Object.values(get().chapterProgress).reduce((sum, p) => sum + p.correctCount, 0);
       },
@@ -577,8 +559,8 @@ export const useQuizStore = create<QuizState>()(
       },
     }),
     {
-      name: 'patente-b-quiz-storage-v6',
-      version: 5,
+      name: 'patente-b-quiz-storage-v7',
+      version: 6,
       migrate: (persisted: any, version: number) => {
         // Always sanitize all persisted fields regardless of version
         const sanitizeUser = (u: any) => {
@@ -623,14 +605,12 @@ export const useQuizStore = create<QuizState>()(
           })).slice(0, 50);
         };
 
-        // IMPORTANT: Only return known properties - do NOT spread ...persisted
-        // to avoid injecting corrupted/extra fields from older app versions
         const cleaned = {
           chapterProgress: sanitizeChapterProgress(persisted.chapterProgress),
           xp: (typeof persisted.xp === 'number' && isFinite(persisted.xp)) ? Math.max(0, persisted.xp) : 0,
           level: (typeof persisted.level === 'number' && persisted.level >= 1 && persisted.level <= 8) ? persisted.level : 1,
           levelName: (typeof persisted.levelName === 'string') ? persisted.levelName : 'Principiante',
-          levelIcon: (typeof persisted.levelIcon === 'string') ? persisted.levelIcon : '\u{1F331}',
+          levelIcon: (typeof persisted.levelIcon === 'string') ? persisted.levelIcon : '🌱',
           streak: (typeof persisted.streak === 'number' && persisted.streak >= 0) ? persisted.streak : 0,
           lastStudyDate: (typeof persisted.lastStudyDate === 'string') ? persisted.lastStudyDate : '',
           totalStudyDays: (typeof persisted.totalStudyDays === 'number' && persisted.totalStudyDays >= 0) ? persisted.totalStudyDays : 0,
@@ -659,57 +639,69 @@ export const useQuizStore = create<QuizState>()(
           try { localStorage.removeItem('patente-b-quiz-storage-v3'); } catch { /* ignore */ }
           try { localStorage.removeItem('patente-b-quiz-storage-v4'); } catch { /* ignore */ }
           try { localStorage.removeItem('patente-b-quiz-storage-v5'); } catch { /* ignore */ }
+          try { localStorage.removeItem('patente-b-quiz-storage-v6'); } catch { /* ignore */ }
           try { localStorage.removeItem('patente-b-progress-cache'); } catch { /* ignore */ }
           try { localStorage.removeItem('patente-b-pending-sync'); } catch { /* ignore */ }
         }
         return (state, error) => {
           if (error) {
             console.error('Failed to rehydrate store, clearing corrupted data:', error);
-            try { localStorage.removeItem('patente-b-quiz-storage-v6'); } catch { /* ignore */ }
-            try { localStorage.removeItem('patente-b-quiz-storage-v5'); } catch { /* ignore */ }
-            try { localStorage.removeItem('patente-b-quiz-storage-v4'); } catch { /* ignore */ }
+            try { localStorage.removeItem('patente-b-quiz-storage-v7'); } catch { /* ignore */ }
           }
           if (state) {
-            const s = useQuizStore.getState();
-            let needsReset = false;
+            try {
+              const s = useQuizStore.getState();
+              let needsReset = false;
 
-            if (typeof s.levelIcon !== 'string') needsReset = true;
-            if (typeof s.levelName !== 'string') needsReset = true;
-            if (typeof s.xp !== 'number' || !isFinite(s.xp)) needsReset = true;
-            if (typeof s.level !== 'number') needsReset = true;
-            if (typeof s.streak !== 'number') needsReset = true;
-            if (typeof s.totalStudyDays !== 'number') needsReset = true;
-            if (typeof s.lastStudyDate !== 'string') needsReset = true;
+              if (typeof s.levelIcon !== 'string') needsReset = true;
+              if (typeof s.levelName !== 'string') needsReset = true;
+              if (typeof s.xp !== 'number' || !isFinite(s.xp)) needsReset = true;
+              if (typeof s.level !== 'number') needsReset = true;
+              if (typeof s.streak !== 'number') needsReset = true;
+              if (typeof s.totalStudyDays !== 'number') needsReset = true;
+              if (typeof s.lastStudyDate !== 'string') needsReset = true;
 
-            if (s.user && (typeof s.user.name !== 'string' || typeof s.user.email !== 'string')) {
-              needsReset = true;
-            }
+              if (s.user && (typeof s.user.name !== 'string' || typeof s.user.email !== 'string')) {
+                needsReset = true;
+              }
 
-            if (s.chapterProgress && typeof s.chapterProgress === 'object') {
-              for (const [key, val] of Object.entries(s.chapterProgress)) {
-                if (!val || typeof val !== 'object') {
-                  needsReset = true;
-                  break;
-                }
-                if (typeof val.totalAttempted !== 'number' ||
-                    typeof val.correctCount !== 'number' ||
-                    typeof val.wrongCount !== 'number' ||
-                    !Array.isArray(val.errorQuestionIds)) {
-                  needsReset = true;
-                  break;
+              if (s.chapterProgress && typeof s.chapterProgress === 'object') {
+                for (const [key, val] of Object.entries(s.chapterProgress)) {
+                  if (!val || typeof val !== 'object') {
+                    needsReset = true;
+                    break;
+                  }
+                  if (typeof val.totalAttempted !== 'number' ||
+                      typeof val.correctCount !== 'number' ||
+                      typeof val.wrongCount !== 'number' ||
+                      !Array.isArray(val.errorQuestionIds)) {
+                    needsReset = true;
+                    break;
+                  }
                 }
               }
-            }
 
-            if (needsReset) {
-              console.warn('Invalid rehydrated state detected, resetting to defaults');
-              useQuizStore.setState({
-                xp: 0, level: 1, levelName: 'Principiante', levelIcon: '\u{1F331}',
-                streak: 0, lastStudyDate: '', totalStudyDays: 0,
-                chapterProgress: {},
-                examResults: [],
-                user: null,
-              });
+              if (needsReset) {
+                console.warn('Invalid rehydrated state detected, resetting to defaults');
+                useQuizStore.setState({
+                  xp: 0, level: 1, levelName: 'Principiante', levelIcon: '🌱',
+                  streak: 0, lastStudyDate: '', totalStudyDays: 0,
+                  chapterProgress: {},
+                  examResults: [],
+                  user: null,
+                });
+              }
+            } catch (e) {
+              console.error('[REHYDRATION] Validation error:', e);
+              try {
+                useQuizStore.setState({
+                  xp: 0, level: 1, levelName: 'Principiante', levelIcon: '🌱',
+                  streak: 0, lastStudyDate: '', totalStudyDays: 0,
+                  chapterProgress: {},
+                  examResults: [],
+                  user: null,
+                });
+              } catch { /* ignore */ }
             }
           }
         };
@@ -723,7 +715,6 @@ let _debouncedSync: ReturnType<typeof createDebouncedSync> | null = null;
 function getDebouncedSync() {
   if (!_debouncedSync) {
     _debouncedSync = createDebouncedSync(2000);
-    // Setup online listener for retry
     if (typeof window !== 'undefined') {
       setupOnlineListener();
     }
@@ -731,26 +722,45 @@ function getDebouncedSync() {
   return _debouncedSync;
 }
 
-// Sync on page close/visibility change
-if (typeof window !== 'undefined') {
-  window.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
+/**
+ * Setup lifecycle listeners (visibilitychange, beforeunload).
+ * MUST be called from a useEffect inside a component, NOT at module level,
+ * to avoid ReferenceError from accessing useQuizStore during module initialization.
+ */
+export function setupLifecycleListeners(): () => void {
+  const handleVisibilityChange = () => {
+    try {
+      if (document.visibilityState === 'hidden') {
+        useQuizStore.getState().flushSync();
+        const state = useQuizStore.getState();
+        if (state.questions.length > 0 && state.userAnswers.length > 0 && state.quizMode !== 'exam') {
+          state.saveCurrentSession();
+        }
+      }
+    } catch (e) {
+      console.error('[LIFECYCLE] visibilitychange error:', e);
+    }
+  };
+
+  const handleBeforeUnload = () => {
+    try {
       useQuizStore.getState().flushSync();
-      // Also save current quiz session
       const state = useQuizStore.getState();
       if (state.questions.length > 0 && state.userAnswers.length > 0 && state.quizMode !== 'exam') {
         state.saveCurrentSession();
       }
+    } catch (e) {
+      console.error('[LIFECYCLE] beforeunload error:', e);
     }
-  });
-  window.addEventListener('beforeunload', () => {
-    useQuizStore.getState().flushSync();
-    // Also save current quiz session
-    const state = useQuizStore.getState();
-    if (state.questions.length > 0 && state.userAnswers.length > 0 && state.quizMode !== 'exam') {
-      state.saveCurrentSession();
-    }
-  });
+  };
+
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('beforeunload', handleBeforeUnload);
+
+  return () => {
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+  };
 }
 
 export { LEVEL_THRESHOLDS, getLevelForXP };

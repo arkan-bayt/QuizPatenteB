@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuizStore, LEVEL_THRESHOLDS } from '@/lib/quiz-store';
+import { useQuizStore, LEVEL_THRESHOLDS, setupLifecycleListeners } from '@/lib/quiz-store';
 import { useTheme } from 'next-themes';
 import { QuizMode, QuizData, QuizQuestion, SavedQuizSession } from '@/lib/types';
 import { CHAPTERS } from '@/lib/chapters';
@@ -1529,6 +1529,13 @@ export default function QuizApp() {
   // Session resume state
   const [pendingSession, setPendingSession] = useState<SavedQuizSession | null>(null);
   const [pendingStartFn, setPendingStartFn] = useState<(() => void) | null>(null);
+
+  // Setup lifecycle listeners (visibilitychange, beforeunload)
+  // Done in useEffect to avoid ReferenceError from module-level useQuizStore access
+  useEffect(() => {
+    const cleanup = setupLifecycleListeners();
+    return cleanup;
+  }, []);
 
   // Load quiz data
   useEffect(() => {
