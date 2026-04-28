@@ -9,18 +9,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ============================================================
-// Admin credentials interface
-// ============================================================
-
-export interface AdminCredentials {
-  id: string;
-  username: string;
-  password_hash: string;
-  created_at: string;
-}
-
-// Default admin credentials (fallback if Supabase is unavailable)
 export const DEFAULT_ADMIN = {
   username: 'arkan',
   password: '12345',
