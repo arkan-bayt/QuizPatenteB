@@ -1,5 +1,8 @@
 'use client';
 
+// Import interceptor FIRST to catch React #310 before any component renders
+import '@/lib/react-sanitize';
+
 import dynamic from 'next/dynamic';
 
 const QuizApp = dynamic(() => import('@/components/QuizApp'), {
