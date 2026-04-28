@@ -29,25 +29,26 @@ export default function ChapterScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-mesh pb-24">
+    <div className="min-h-screen bg-mesh pb-12">
       {/* Header */}
-      <div className="sticky top-0 z-30 border-b border-[var(--border)]" style={{ background: 'rgba(10,10,15,0.85)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)' }}>
+      <div className="sticky top-0 z-30 glass-header">
         <div className="max-w-2xl mx-auto px-5 py-4 flex items-center gap-3">
-          <button onClick={() => store.goHome()} className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/[0.04] border border-[var(--border)] hover:bg-white/[0.08] transition-all duration-200">
-            <svg className="w-5 h-5 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <button onClick={() => store.goHome()} className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-105"
+            style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
+            <svg className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-[15px] font-bold text-white truncate">Cap. {chapter.id}: {chapter.name}</h1>
-            <p className="text-[11px] text-[var(--text-muted)] mt-0.5 font-medium">{answeredCount}/{totalQ} completate</p>
+            <h1 className="text-[15px] font-bold truncate" style={{ color: 'var(--text-primary)' }}>Cap. {chapter.id}: {chapter.name}</h1>
+            <p className="text-[11px] mt-0.5 font-medium" style={{ color: 'var(--text-muted)' }}>{answeredCount}/{totalQ} completate</p>
           </div>
           {isComplete && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/15">
-              <svg className="w-3.5 h-3.5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ background: 'var(--success-100)', border: '1px solid var(--success-150)' }}>
+              <svg className="w-3.5 h-3.5" style={{ color: 'var(--success)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-[11px] font-semibold text-green-300">Completato</span>
+              <span className="text-[11px] font-semibold" style={{ color: 'var(--success)' }}>Completato</span>
             </div>
           )}
         </div>
@@ -55,42 +56,44 @@ export default function ChapterScreen() {
 
       <div className="max-w-2xl mx-auto px-5 pt-6 space-y-5">
         {/* Progress Card */}
-        <div className="glass p-6 anim-up" style={{ boxShadow: isComplete ? '0 0 60px rgba(34,197,94,0.08)' : 'none' }}>
+        <div className="glass p-6 anim-up" style={{ boxShadow: isComplete ? 'var(--glow-success)' : 'var(--shadow-lg)' }}>
           {/* Circular progress + stats */}
           <div className="flex items-center gap-6 mb-5">
-            <div className="relative w-24 h-24 flex-shrink-0">
-              <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="6" />
+            <div className="relative w-28 h-28 flex-shrink-0">
+              <svg className="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="var(--bg-tertiary)" strokeWidth="6" />
                 <circle cx="50" cy="50" r="42" fill="none"
-                  stroke={isComplete ? '#22c55e' : 'url(#gradient)'} strokeWidth="6"
+                  stroke={isComplete ? 'var(--success)' : 'url(#chGradient)'} strokeWidth="6"
                   strokeLinecap="round"
                   strokeDasharray={`${pct * 2.64} ${264 - pct * 2.64}`}
                   className="transition-all duration-1000 ease-out"
+                  style={{ filter: isComplete ? 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.3))' : 'none' }}
                 />
                 <defs>
-                  <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#6366f1" />
-                    <stop offset="100%" stopColor="#8b5cf6" />
+                  <linearGradient id="chGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#1E3A8A" />
+                    <stop offset="100%" stopColor="#3B82F6" />
                   </linearGradient>
                 </defs>
               </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className={`text-xl font-extrabold tabular-nums ${isComplete ? 'text-green-300' : 'text-white'}`}>{pct}%</span>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-2xl font-extrabold tabular-nums" style={{ color: isComplete ? 'var(--success)' : 'var(--text-primary)' }}>{pct}%</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>{answeredCount}/{totalQ}</span>
               </div>
             </div>
 
             <div className="flex-1 grid grid-cols-3 gap-3">
-              <div className="text-center p-3 rounded-xl bg-green-500/[0.06] border border-green-500/[0.08]">
-                <p className="text-lg font-bold text-green-300 tabular-nums">{correctCount}</p>
-                <p className="text-[10px] text-[var(--text-muted)] font-semibold uppercase tracking-wider mt-0.5">Corrette</p>
+              <div className="text-center p-3 rounded-xl" style={{ background: 'var(--success-50)', border: '1px solid var(--success-100)' }}>
+                <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--success)' }}>{correctCount}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: 'var(--text-muted)' }}>Corrette</p>
               </div>
-              <div className="text-center p-3 rounded-xl bg-red-500/[0.06] border border-red-500/[0.08]">
-                <p className="text-lg font-bold text-red-300 tabular-nums">{wrongCount}</p>
-                <p className="text-[10px] text-[var(--text-muted)] font-semibold uppercase tracking-wider mt-0.5">Sbagliate</p>
+              <div className="text-center p-3 rounded-xl" style={{ background: 'var(--danger-50)', border: '1px solid var(--danger-100)' }}>
+                <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--danger)' }}>{wrongCount}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: 'var(--text-muted)' }}>Sbagliate</p>
               </div>
-              <div className="text-center p-3 rounded-xl bg-indigo-500/[0.06] border border-indigo-500/[0.08]">
-                <p className="text-lg font-bold text-indigo-300 tabular-nums">{accuracy}%</p>
-                <p className="text-[10px] text-[var(--text-muted)] font-semibold uppercase tracking-wider mt-0.5">Precisione</p>
+              <div className="text-center p-3 rounded-xl" style={{ background: 'var(--primary-50)', border: '1px solid var(--primary-100)' }}>
+                <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--primary-light)' }}>{accuracy}%</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: 'var(--text-muted)' }}>Precisione</p>
               </div>
             </div>
           </div>
@@ -100,7 +103,7 @@ export default function ChapterScreen() {
             <div className={isComplete ? 'progress-fill-green' : 'progress-fill'} style={{ width: `${pct}%` }} />
           </div>
 
-          {/* Action buttons */}
+          {/* Action button */}
           <div className="flex gap-3">
             <button onClick={handleStartAll} className={`flex-1 ${isComplete ? 'btn-success' : 'btn-primary'}`}>
               {answeredCount === 0 ? 'Inizia Capitolo' : answeredCount >= totalQ ? 'Ripeti Capitolo' : `Continua (${totalQ - answeredCount} rimaste)`}
@@ -111,12 +114,12 @@ export default function ChapterScreen() {
         {/* Subtopics */}
         <div className="space-y-2">
           <div className="flex items-center gap-2 px-1 mb-3">
-            <div className="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center">
-              <svg className="w-3.5 h-3.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="icon-box icon-box-purple w-7 h-7">
+              <svg className="w-3.5 h-3.5" style={{ color: 'var(--purple)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
               </svg>
             </div>
-            <h2 className="text-[12px] font-bold text-[var(--text-muted)] uppercase tracking-[0.12em]">Sottotemi ({subtopics.length})</h2>
+            <h2 className="text-[12px] font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--text-muted)' }}>Sottotemi ({subtopics.length})</h2>
           </div>
 
           {subtopics.map((st, i) => {
@@ -130,27 +133,27 @@ export default function ChapterScreen() {
               <button key={st} onClick={() => store.openSubtopic(chapter.id, st)}
                 className="glass-hover w-full text-left p-4 flex items-center gap-4 anim-up"
                 style={{ animationDelay: `${i * 40}ms` }}>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 ${stComplete ? 'bg-green-500/15' : 'bg-white/[0.04]'}`}
-                  style={{ border: `1px solid ${stComplete ? 'rgba(34,197,94,0.2)' : 'var(--border)'}` }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300"
+                  style={{ background: stComplete ? 'var(--success-100)' : 'var(--bg-tertiary)', border: `1px solid ${stComplete ? 'var(--success-150)' : 'var(--border)'}` }}>
                   {stComplete
-                    ? <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                    : <span className="text-[12px] font-bold text-[var(--text-secondary)] tabular-nums">{i + 1}</span>
+                    ? <svg className="w-5 h-5" style={{ color: 'var(--success)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                    : <span className="text-[12px] font-bold tabular-nums" style={{ color: 'var(--text-secondary)' }}>{i + 1}</span>
                   }
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-white truncate">{stLabel}</p>
+                  <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{stLabel}</p>
                   <div className="flex items-center gap-3 mt-1.5">
                     <div className="flex-1 progress-bar" style={{ height: '3px' }}>
-                      <div className={`h-full rounded-full transition-all duration-700 ${stComplete ? 'bg-green-400' : ''}`}
-                        style={{ width: `${stPct}%`, background: stComplete ? undefined : 'linear-gradient(90deg, #6366f1, #a855f7)' }} />
+                      <div className="h-full rounded-full transition-all duration-700"
+                        style={{ width: `${stPct}%`, background: stComplete ? 'var(--success)' : 'linear-gradient(90deg, var(--primary), var(--primary-light))' }} />
                     </div>
-                    <span className="text-[10px] text-[var(--text-muted)] tabular-nums font-medium">{stAnswered}/{stQs.length}</span>
+                    <span className="text-[10px] tabular-nums font-medium" style={{ color: 'var(--text-muted)' }}>{stAnswered}/{stQs.length}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className="badge-modern text-[10px]">{stQs.length} Q</span>
                 </div>
-                <svg className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                 </svg>
               </button>

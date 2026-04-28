@@ -18,27 +18,25 @@ export default function ResultScreen() {
     ? (passed ? 'Esame superato! Servono almeno 21/30.' : 'Esame non superato. Riprova!')
     : (pct >= 60 ? 'Ottimo lavoro!' : 'Ripassa e riprova.');
 
-  const titleColor = passed ? 'text-green-300' : 'text-red-300';
-  const ringColor = passed ? '#22c55e' : '#ef4444';
+  const titleColor = passed ? 'var(--success)' : 'var(--danger)';
+  const ringColor = passed ? '#10B981' : '#EF4444';
 
   return (
     <div className="min-h-screen bg-mesh flex items-center justify-center p-5 relative overflow-hidden">
       {/* Background effects */}
       {passed && (
-        <>
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-green-500/5 blur-3xl anim-float" />
-            <div className="absolute bottom-1/4 right-1/4 w-48 h-48 rounded-full bg-green-500/5 blur-3xl anim-float" style={{ animationDelay: '1.5s' }} />
-          </div>
-        </>
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full anim-float" style={{ background: 'var(--success-100)', filter: 'blur(60px)' }} />
+          <div className="absolute bottom-1/4 right-1/4 w-48 h-48 rounded-full anim-float" style={{ background: 'var(--success-100)', filter: 'blur(60px)', animationDelay: '1.5s' }} />
+        </div>
       )}
 
       <div className="w-full max-w-sm relative z-10 anim-scale">
         {/* Score Ring */}
         <div className="text-center mb-8">
           <div className="inline-block relative">
-            <svg className="w-36 h-36 -rotate-90" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="5" />
+            <svg className="w-40 h-40 -rotate-90" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="45" fill="none" stroke="var(--bg-tertiary)" strokeWidth="5" />
               <circle cx="50" cy="50" r="45" fill="none"
                 stroke={ringColor}
                 strokeWidth="5"
@@ -46,50 +44,50 @@ export default function ResultScreen() {
                 strokeDasharray={circumference}
                 strokeDashoffset={offset}
                 className="score-ring-circle"
-                style={{ filter: `drop-shadow(0 0 8px ${ringColor}40)` }}
+                style={{ filter: `drop-shadow(0 0 10px ${ringColor}50)` }}
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <p className={`text-4xl font-extrabold tabular-nums ${titleColor}`}>{pct}%</p>
-              <p className="text-[var(--text-muted)] text-[11px] font-medium mt-1">{isExam ? `${correctCount}/30` : 'Punteggio'}</p>
+              <p className="text-[44px] font-extrabold tabular-nums leading-none" style={{ color: titleColor }}>{pct}%</p>
+              <p className="text-[11px] font-medium mt-1.5" style={{ color: 'var(--text-muted)' }}>{isExam ? `${correctCount}/30` : 'Punteggio'}</p>
             </div>
           </div>
 
-          {/* Confetti-like dots for passed */}
+          {/* Celebration dots */}
           {passed && (
             <div className="flex items-center justify-center gap-2 mt-4">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="w-2 h-2 rounded-full bg-green-400 anim-bounce" style={{ animationDelay: `${i * 100}ms` }} />
+                <div key={i} className="w-2 h-2 rounded-full anim-bounce" style={{ background: 'var(--success)', animationDelay: `${i * 100}ms` }} />
               ))}
             </div>
           )}
         </div>
 
         {/* Title */}
-        <h1 className={`text-2xl font-extrabold text-center mb-2 ${titleColor}`}>{title}</h1>
-        <p className="text-[var(--text-secondary)] text-sm text-center mb-8">{sub}</p>
+        <h1 className="text-2xl font-extrabold text-center mb-2" style={{ color: titleColor }}>{title}</h1>
+        <p className="text-sm text-center mb-8" style={{ color: 'var(--text-secondary)' }}>{sub}</p>
 
         {/* Stats Card */}
-        <div className="glass p-6 mb-5" style={{ boxShadow: '0 16px 48px rgba(0,0,0,0.3)' }}>
+        <div className="glass p-6 mb-5" style={{ boxShadow: 'var(--shadow-xl)' }}>
           <div className="grid grid-cols-3 gap-4 text-center mb-5">
             <div>
-              <p className="text-2xl font-extrabold text-white tabular-nums">{total}</p>
-              <p className="text-[10px] text-[var(--text-muted)] font-semibold uppercase tracking-wider mt-1">Totali</p>
+              <p className="text-2xl font-extrabold tabular-nums" style={{ color: 'var(--text-primary)' }}>{total}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mt-1" style={{ color: 'var(--text-muted)' }}>Totali</p>
             </div>
             <div>
-              <p className="text-2xl font-extrabold text-green-300 tabular-nums">{correctCount}</p>
-              <p className="text-[10px] text-green-400/60 font-semibold uppercase tracking-wider mt-1">Corrette</p>
+              <p className="text-2xl font-extrabold tabular-nums" style={{ color: 'var(--success)' }}>{correctCount}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mt-1" style={{ color: 'var(--success)', opacity: 0.6 }}>Corrette</p>
             </div>
             <div>
-              <p className="text-2xl font-extrabold text-red-300 tabular-nums">{wrongCount}</p>
-              <p className="text-[10px] text-red-400/60 font-semibold uppercase tracking-wider mt-1">Sbagliate</p>
+              <p className="text-2xl font-extrabold tabular-nums" style={{ color: 'var(--danger)' }}>{wrongCount}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mt-1" style={{ color: 'var(--danger)', opacity: 0.6 }}>Sbagliate</p>
             </div>
           </div>
 
           {/* Visual bar */}
-          <div className="flex h-3 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
-            <div className="bg-gradient-to-r from-green-400 to-green-500 transition-all duration-1000 ease-out rounded-l-full" style={{ width: `${pct}%` }} />
-            <div className="bg-red-500/30 flex-1 rounded-r-full" />
+          <div className="flex h-3 rounded-full overflow-hidden" style={{ background: 'var(--bg-tertiary)' }}>
+            <div className="transition-all duration-1000 ease-out rounded-l-full" style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #10B981, #34D399)' }} />
+            <div className="flex-1 rounded-r-full" style={{ background: 'var(--danger-100)' }} />
           </div>
         </div>
 
@@ -105,8 +103,8 @@ export default function ResultScreen() {
           </button>
           <button onClick={() => { store.setAutoAdvance(!autoAdvance); }}
             className="btn-ghost w-full text-xs flex items-center justify-center gap-2 py-3">
-            <div className={`w-2 h-2 rounded-full ${autoAdvance ? 'bg-green-400' : 'bg-red-400'}`} />
-            Avanzamento auto: <span className={`font-bold ${autoAdvance ? 'text-green-300' : 'text-red-300'}`}>{autoAdvance ? 'ON' : 'OFF'}</span>
+            <div className="w-2 h-2 rounded-full" style={{ background: autoAdvance ? 'var(--success)' : 'var(--danger)' }} />
+            Avanzamento auto: <span className="font-bold" style={{ color: autoAdvance ? 'var(--success)' : 'var(--danger)' }}>{autoAdvance ? 'ON' : 'OFF'}</span>
           </button>
         </div>
       </div>

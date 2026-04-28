@@ -12,13 +12,13 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#0a0a0f',
+  themeColor: '#1E3A8A',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="it">
-      <body className="antialiased" style={{ background: '#0a0a0f' }}>
+    <html lang="it" suppressHydrationWarning>
+      <body className="antialiased">
         {children}
       </body>
     </html>

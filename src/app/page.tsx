@@ -18,6 +18,30 @@ export default function Page() {
   const [ready, setReady] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
+  // Dark mode auto-detection + manual toggle persistence
+  useEffect(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else if (saved === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      // Auto-detect system preference
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      if (mq.matches) {
+        document.documentElement.classList.add('dark');
+      }
+      // Listen for system changes
+      const handler = (e: MediaQueryListEvent) => {
+        if (!localStorage.getItem('theme')) {
+          document.documentElement.classList.toggle('dark', e.matches);
+        }
+      };
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
+    }
+  }, []);
+
   useEffect(() => {
     preloadVoices();
     loadQuizData().then((data) => {
@@ -49,9 +73,9 @@ export default function Page() {
   if (!ready) {
     return (
       <div className="min-h-screen bg-mesh flex flex-col items-center justify-center gap-4">
-        <div className="w-10 h-10 rounded-2xl border-2 border-indigo-500/30 border-t-indigo-400 animate-spin"
-          style={{ boxShadow: '0 0 20px rgba(99,102,241,0.2)' }} />
-        <p className="text-[var(--text-muted)] text-sm font-medium">Caricamento domande...</p>
+        <div className="w-10 h-10 rounded-2xl border-[2.5px] animate-spin"
+          style={{ borderColor: 'var(--primary-150)', borderTopColor: 'var(--primary-light)', boxShadow: 'var(--glow-primary)' }} />
+        <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Caricamento domande...</p>
       </div>
     );
   }
@@ -60,9 +84,9 @@ export default function Page() {
   if (syncing) {
     return (
       <div className="min-h-screen bg-mesh flex flex-col items-center justify-center gap-4">
-        <div className="w-10 h-10 rounded-2xl border-2 border-cyan-500/30 border-t-cyan-400 animate-spin"
-          style={{ boxShadow: '0 0 20px rgba(6,182,212,0.2)' }} />
-        <p className="text-[var(--text-muted)] text-sm font-medium">Sincronizzazione progresso...</p>
+        <div className="w-10 h-10 rounded-2xl border-[2.5px] animate-spin"
+          style={{ borderColor: 'var(--success-150)', borderTopColor: 'var(--success)', boxShadow: 'var(--glow-success)' }} />
+        <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Sincronizzazione progresso...</p>
       </div>
     );
   }
