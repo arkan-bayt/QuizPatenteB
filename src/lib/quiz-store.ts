@@ -563,7 +563,27 @@ export const useQuizStore = create<QuizState>()(
       },
     }),
     {
-      name: 'patente-b-quiz-storage-v2',
+      name: 'patente-b-quiz-storage-v3',
+      version: 1,
+      migrate: (persisted: any, version: number) => {
+        if (version === 0) {
+          // v0 -> v1: validate and sanitize all persisted fields
+          const cleaned = {
+            ...persisted,
+            xp: (typeof persisted.xp === 'number' && isFinite(persisted.xp)) ? Math.max(0, persisted.xp) : 0,
+            level: (typeof persisted.level === 'number' && persisted.level >= 1 && persisted.level <= 8) ? persisted.level : 1,
+            levelName: (typeof persisted.levelName === 'string') ? persisted.levelName : 'Principiante',
+            levelIcon: (typeof persisted.levelIcon === 'string') ? persisted.levelIcon : '🌱',
+            streak: (typeof persisted.streak === 'number' && persisted.streak >= 0) ? persisted.streak : 0,
+            lastStudyDate: (typeof persisted.lastStudyDate === 'string') ? persisted.lastStudyDate : '',
+            totalStudyDays: (typeof persisted.totalStudyDays === 'number' && persisted.totalStudyDays >= 0) ? persisted.totalStudyDays : 0,
+            examResults: Array.isArray(persisted.examResults) ? persisted.examResults : [],
+            user: (persisted.user && typeof persisted.user === 'object' && typeof persisted.user.name === 'string') ? persisted.user : null,
+          };
+          return cleaned;
+        }
+        return persisted;
+      },
       partialize: (state) => ({
         chapterProgress: state.chapterProgress,
         xp: state.xp,
@@ -576,6 +596,26 @@ export const useQuizStore = create<QuizState>()(
         examResults: state.examResults,
         user: state.user,
       }),
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (error) {
+            console.error('Failed to rehydrate store, clearing corrupted data:', error);
+            try { localStorage.removeItem('patente-b-quiz-storage-v3'); } catch { /* ignore */ }
+            try { localStorage.removeItem('patente-b-quiz-storage-v2'); } catch { /* ignore */ }
+          }
+          if (state) {
+            // Validate critical rendered values
+            const s = useQuizStore.getState();
+            if (typeof s.levelIcon !== 'string' || typeof s.xp !== 'number' || typeof s.level !== 'number') {
+              console.warn('Invalid rehydrated state, resetting gamification values');
+              useQuizStore.setState({
+                xp: 0, level: 1, levelName: 'Principiante', levelIcon: '🌱',
+                streak: 0, lastStudyDate: '', totalStudyDays: 0,
+              });
+            }
+          }
+        };
+      },
     }
   )
 );

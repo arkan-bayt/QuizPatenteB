@@ -27,6 +27,9 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      const errorInfo = this.state.error?.message || 'Unknown error';
+      const errorStack = this.state.error?.stack || '';
+
       return (
         <div className="min-h-screen flex items-center justify-center bg-background px-4">
           <div className="max-w-md w-full text-center space-y-6">
@@ -41,13 +44,16 @@ export default class ErrorBoundary extends Component<Props, State> {
             <p className="text-muted-foreground">
               Qualcosa è andato storto. Prova a ricaricare la pagina.
             </p>
-            {this.state.error && (
-              <div className="bg-card border rounded-xl p-4 text-left">
-                <p className="text-xs font-mono text-red-500 break-all">
-                  {this.state.error.message}
-                </p>
-              </div>
-            )}
+            <div className="bg-card border rounded-xl p-4 text-left">
+              <p className="text-xs font-mono text-red-500 break-all">
+                {errorInfo}
+              </p>
+              {errorStack && (
+                <pre className="mt-2 text-[10px] font-mono text-muted-foreground whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
+                  {errorStack.split('\n').slice(0, 15).join('\n')}
+                </pre>
+              )}
+            </div>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={() => this.setState({ hasError: false, error: null })}
@@ -58,8 +64,16 @@ export default class ErrorBoundary extends Component<Props, State> {
               <button
                 onClick={() => {
                   if (typeof window !== 'undefined') {
-                    localStorage.clear();
-                    window.location.href = '/login';
+                    // Clear all quiz-related localStorage keys
+                    const keysToRemove: string[] = [];
+                    for (let i = 0; i < localStorage.length; i++) {
+                      const key = localStorage.key(i);
+                      if (key && (key.startsWith('patente-b-') || key.startsWith('quiz-patente-'))) {
+                        keysToRemove.push(key);
+                      }
+                    }
+                    keysToRemove.forEach(k => localStorage.removeItem(k));
+                    window.location.reload();
                   }
                 }}
                 className="px-6 py-3 rounded-xl bg-muted hover:bg-accent font-medium transition-colors"

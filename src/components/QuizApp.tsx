@@ -710,9 +710,16 @@ function HomeView({ quizData, onStartSingle, onStartErrors, onStartMulti, onStar
       {(() => {
         const entries = Object.entries(chapterProgress);
         if (entries.length === 0) return null;
-        const lastAccessed = entries.sort((a, b) => b[1].lastAccessed - a[1].lastAccessed)[0];
+        const sorted = [...entries].sort((a, b) => {
+          const aTime = typeof a[1]?.lastAccessed === 'number' ? a[1].lastAccessed : 0;
+          const bTime = typeof b[1]?.lastAccessed === 'number' ? b[1].lastAccessed : 0;
+          return bTime - aTime;
+        });
+        const lastAccessed = sorted[0];
+        if (!lastAccessed || !lastAccessed[1]) return null;
         const lastChapter = CHAPTERS.find(c => c.slug === lastAccessed[0]);
         if (!lastChapter) return null;
+        const attempted = typeof lastAccessed[1].totalAttempted === 'number' ? lastAccessed[1].totalAttempted : 0;
         return (
           <button
             onClick={() => onStartSingle(lastAccessed[0])}
@@ -723,7 +730,7 @@ function HomeView({ quizData, onStartSingle, onStartErrors, onStartMulti, onStar
             </div>
             <div className="text-left flex-1 min-w-0">
               <div className="font-bold text-sm">Continua da dove hai lasciato</div>
-              <div className="text-xs text-emerald-100 truncate">{lastChapter.name} — {lastAccessed[1].totalAttempted} risposte</div>
+              <div className="text-xs text-emerald-100 truncate">{lastChapter.name} — {attempted} risposte</div>
             </div>
             <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
           </button>
@@ -1252,13 +1259,17 @@ function StatsView({ quizData }: { quizData: QuizData }) {
   const chapterStats = useMemo(() => {
     return CHAPTERS.map(ch => {
       const p = chapterProgress[ch.slug];
+      const safeP = p && typeof p === 'object' ? p : null;
+      const errorIds = Array.isArray(safeP?.errorQuestionIds) ? safeP.errorQuestionIds : [];
       return {
         ...ch,
-        attempted: p?.totalAttempted || 0,
-        correct: p?.correctCount || 0,
-        wrong: p?.wrongCount || 0,
-        errors: p?.errorQuestionIds.length || 0,
-        pct: p && p.totalAttempted > 0 ? Math.round((p.correctCount / p.totalAttempted) * 100) : 0,
+        attempted: (typeof safeP?.totalAttempted === 'number' ? safeP.totalAttempted : 0),
+        correct: (typeof safeP?.correctCount === 'number' ? safeP.correctCount : 0),
+        wrong: (typeof safeP?.wrongCount === 'number' ? safeP.wrongCount : 0),
+        errors: errorIds.length,
+        pct: safeP && typeof safeP.totalAttempted === 'number' && safeP.totalAttempted > 0
+          ? Math.round(((typeof safeP.correctCount === 'number' ? safeP.correctCount : 0) / safeP.totalAttempted) * 100)
+          : 0,
       };
     }).sort((a, b) => b.pct - a.pct);
   }, [chapterProgress]);
@@ -1390,7 +1401,26 @@ export default function QuizApp() {
   const loadProgress = useQuizStore((s) => s.loadProgress);
   const [quizData, setQuizData] = useState<QuizData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
   const { theme, setTheme } = useTheme();
+
+  // Wait for zustand persist to rehydrate before rendering
+  useEffect(() => {
+    // Use subscribeWithSelector or a simple timeout to detect hydration
+    const unsubFinishHydration = useQuizStore.persist.onFinishHydration(() => {
+      setHydrated(true);
+    });
+    // If already hydrated (e.g., no stored state), set immediately
+    if (useQuizStore.persist.hasHydrated()) {
+      setHydrated(true);
+    }
+    // Fallback: set hydrated after a short delay to avoid infinite loading
+    const fallback = setTimeout(() => setHydrated(true), 500);
+    return () => {
+      unsubFinishHydration();
+      clearTimeout(fallback);
+    };
+  }, []);
 
   // Session resume state
   const [pendingSession, setPendingSession] = useState<SavedQuizSession | null>(null);
@@ -1421,16 +1451,19 @@ export default function QuizApp() {
 
   // Hydrate user from localStorage (fallback for non-Supabase auth)
   useEffect(() => {
-    if (authLoading) return; // Wait for AuthProvider to finish
-    if (authUser) return; // Already have user from AuthProvider
+    if (authLoading) return;
+    if (authUser) return;
+    if (!hydrated) return;
     const raw = localStorage.getItem('quiz-patente-current-user');
     if (raw) {
       try {
         const u = JSON.parse(raw);
-        if (u && u.id) useQuizStore.setState({ user: u });
+        if (u && u.id && typeof u.name === 'string' && typeof u.email === 'string') {
+          useQuizStore.setState({ user: u });
+        }
       } catch {}
     }
-  }, []);
+  }, [authLoading, authUser, hydrated]);
 
   // Quiz start handlers (with session resume check)
   const startSingleChapter = useCallback((chapterSlug: string) => {
@@ -1639,7 +1672,7 @@ export default function QuizApp() {
     }
   }, [currentView, quizData, startExamFromNav, setView]);
 
-  if (loading) {
+  if (loading || !hydrated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-3">
