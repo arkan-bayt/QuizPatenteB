@@ -1,19 +1,26 @@
 'use client';
 
-import dynamic from 'next/dynamic';
-
-const QuizApp = dynamic(() => import('@/components/QuizApp'), {
-  ssr: false,
-  loading: () => (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center space-y-3">
-        <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-muted-foreground">Caricamento quiz...</p>
-      </div>
-    </div>
-  ),
-});
+import React from 'react';
+import { useQuizStore } from '@/store/useQuizStore';
+import LoginScreen from '@/components/LoginScreen';
+import SelectionScreen from '@/components/SelectionScreen';
+import QuizScreen from '@/components/QuizScreen';
+import ResultScreen from '@/components/ResultScreen';
 
 export default function Home() {
-  return <QuizApp />;
+  const screen = useQuizStore((state) => state.screen);
+
+  // Simple screen renderer - no complex objects passed
+  switch (screen) {
+    case 'login':
+      return <LoginScreen />;
+    case 'select':
+      return <SelectionScreen />;
+    case 'quiz':
+      return <QuizScreen />;
+    case 'result':
+      return <ResultScreen />;
+    default:
+      return <LoginScreen />;
+  }
 }
