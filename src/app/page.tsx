@@ -1,9 +1,5 @@
 'use client';
 
-// CRITICAL: This interceptor MUST be imported FIRST before any React usage
-// It patches React.createElement to prevent "Objects are not valid as a React child" (#310)
-import '@/lib/react-sanitize';
-
 import dynamic from 'next/dynamic';
 
 const QuizApp = dynamic(() => import('@/components/QuizApp'), {
