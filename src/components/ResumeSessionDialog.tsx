@@ -3,6 +3,13 @@
 import { SavedQuizSession } from '@/lib/types';
 import { formatTimeAgo } from '@/lib/session-manager';
 
+function safeStr(val: unknown, fallback: string = ''): string {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  return fallback;
+}
+
 /**
  * ResumeSessionDialog
  * Shows when a saved session exists for the quiz the user is about to start.
@@ -85,7 +92,7 @@ export default function ResumeSessionDialog({
             </div>
             <div>
               <h3 className="font-bold text-lg">Sessione salvata trovata</h3>
-              <p className="text-emerald-100 text-sm">{session.quizTitle}</p>
+              <p className="text-emerald-100 text-sm">{safeStr(session.quizTitle)}</p>
             </div>
           </div>
         </div>

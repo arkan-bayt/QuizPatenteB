@@ -11,6 +11,26 @@ import ResumeSessionDialog from '@/components/ResumeSessionDialog';
 import Link from 'next/link';
 
 // ==========================================
+// QUIZ DATA VALIDATION
+// ==========================================
+function isValidQuizData(data: unknown): data is QuizData {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+  for (const [key, val] of Object.entries(data as Record<string, unknown>)) {
+    if (typeof key !== 'string') return false;
+    if (!val || typeof val !== 'object' || Array.isArray(val)) return false;
+    for (const [subKey, subVal] of Object.entries(val as Record<string, unknown>)) {
+      if (!Array.isArray(subVal)) return false;
+      for (const q of subVal) {
+        if (!q || typeof q !== 'object') return false;
+        if (typeof (q as Record<string, unknown>).q !== 'string') return false;
+        if (typeof (q as Record<string, unknown>).a !== 'boolean') return false;
+      }
+    }
+  }
+  return true;
+}
+
+// ==========================================
 // SAFE RENDER HELPERS
 // ==========================================
 function safeStr(val: unknown, fallback: string = ''): string {
@@ -1468,7 +1488,14 @@ export default function QuizApp() {
         if (!r.ok) throw new Error('Failed to load');
         return r.json();
       })
-      .then(data => { setQuizData(data); setLoading(false); })
+      .then(data => {
+        if (isValidQuizData(data)) {
+          setQuizData(data);
+        } else {
+          console.error('Invalid quiz data structure:', typeof data, Array.isArray(data));
+        }
+        setLoading(false);
+      })
       .catch((err) => {
         console.error('Failed to load quiz data:', err);
         setLoading(false);
