@@ -25,3 +25,21 @@ CREATE POLICY "Allow all operations on users" ON users
 
 -- Index for fast email lookups
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
+
+-- ============================================
+-- user_progress table: stores user quiz progress
+-- ============================================
+CREATE TABLE IF NOT EXISTS user_progress (
+  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  progress JSONB DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable Row Level Security
+ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;
+
+-- Allow all operations for anon key (our backend verifies tokens)
+CREATE POLICY "Allow all operations on user_progress" ON user_progress
+  FOR ALL
+  USING (true)
+  WITH CHECK (true);

@@ -26,6 +26,13 @@ export function middleware(request: NextRequest) {
 
   // Protect all other routes
   if (!token) {
+    // For API routes, return 401 JSON instead of redirecting
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { error: 'Non autorizzato' },
+        { status: 401 }
+      );
+    }
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);

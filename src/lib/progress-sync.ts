@@ -27,18 +27,18 @@ export type ProgressMap = Record<string, ProgressData>;
 export async function loadProgressFromServer(): Promise<ProgressMap | null> {
   try {
     const res = await fetch('/api/progress');
-    if (res.ok) {
-      const { progress } = await res.json();
-      if (progress && Object.keys(progress).length > 0) {
-        // Cache locally for offline access
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify(progress));
-        } catch { /* storage full */ }
-        return progress;
-      }
-      return null;
+    if (!res.ok) return null;
+    // Check content type to avoid parsing HTML redirects
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) return null;
+    const { progress } = await res.json();
+    if (progress && Object.keys(progress).length > 0) {
+      // Cache locally for offline access
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(progress));
+      } catch { /* storage full */ }
+      return progress;
     }
-    // Not authenticated or server error
     return null;
   } catch {
     // Offline or network error - load from cache
