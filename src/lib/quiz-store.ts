@@ -167,11 +167,25 @@ export const useQuizStore = create<QuizState>()(
           set({ isSyncing: true });
           const serverProgress = await loadProgressFromServer();
           if (serverProgress && Object.keys(serverProgress).length > 0) {
+            // Validate and sanitize server data before merging
+            const sanitizedServer: Record<string, ChapterProgress> = {};
+            for (const [key, val] of Object.entries(serverProgress)) {
+              if (!val || typeof val !== 'object') continue;
+              sanitizedServer[key] = {
+                chapterSlug: typeof val.chapterSlug === 'string' ? val.chapterSlug : key,
+                totalAttempted: typeof val.totalAttempted === 'number' && isFinite(val.totalAttempted) ? Math.max(0, val.totalAttempted) : 0,
+                correctCount: typeof val.correctCount === 'number' && isFinite(val.correctCount) ? Math.max(0, val.correctCount) : 0,
+                wrongCount: typeof val.wrongCount === 'number' && isFinite(val.wrongCount) ? Math.max(0, val.wrongCount) : 0,
+                errorQuestionIds: Array.isArray(val.errorQuestionIds) ? val.errorQuestionIds.filter((id: any) => typeof id === 'string') : [],
+                lastAccessed: typeof val.lastAccessed === 'number' && isFinite(val.lastAccessed) ? val.lastAccessed : 0,
+                lastQuestionId: typeof val.lastQuestionId === 'string' ? val.lastQuestionId : undefined,
+              };
+            }
             // Merge: server data as base, local overrides if newer
             const local = get().chapterProgress;
-            const merged = { ...serverProgress } as Record<string, ChapterProgress>;
+            const merged = { ...sanitizedServer };
             for (const [key, val] of Object.entries(local)) {
-              const serverVal = serverProgress[key];
+              const serverVal = sanitizedServer[key];
               if (!serverVal || val.lastAccessed > (serverVal.lastAccessed || 0)) {
                 merged[key] = val;
               }
@@ -564,25 +578,54 @@ export const useQuizStore = create<QuizState>()(
     }),
     {
       name: 'patente-b-quiz-storage-v3',
-      version: 1,
+      version: 2,
       migrate: (persisted: any, version: number) => {
-        if (version === 0) {
-          // v0 -> v1: validate and sanitize all persisted fields
-          const cleaned = {
-            ...persisted,
-            xp: (typeof persisted.xp === 'number' && isFinite(persisted.xp)) ? Math.max(0, persisted.xp) : 0,
-            level: (typeof persisted.level === 'number' && persisted.level >= 1 && persisted.level <= 8) ? persisted.level : 1,
-            levelName: (typeof persisted.levelName === 'string') ? persisted.levelName : 'Principiante',
-            levelIcon: (typeof persisted.levelIcon === 'string') ? persisted.levelIcon : '🌱',
-            streak: (typeof persisted.streak === 'number' && persisted.streak >= 0) ? persisted.streak : 0,
-            lastStudyDate: (typeof persisted.lastStudyDate === 'string') ? persisted.lastStudyDate : '',
-            totalStudyDays: (typeof persisted.totalStudyDays === 'number' && persisted.totalStudyDays >= 0) ? persisted.totalStudyDays : 0,
-            examResults: Array.isArray(persisted.examResults) ? persisted.examResults : [],
-            user: (persisted.user && typeof persisted.user === 'object' && typeof persisted.user.name === 'string') ? persisted.user : null,
+        // Always sanitize all persisted fields regardless of version
+        const sanitizeUser = (u: any) => {
+          if (!u || typeof u !== 'object') return null;
+          return {
+            id: typeof u.id === 'string' ? u.id : '',
+            email: typeof u.email === 'string' ? u.email : '',
+            name: typeof u.name === 'string' ? u.name : 'Utente',
+            createdAt: typeof u.createdAt === 'number' ? u.createdAt : Date.now(),
           };
-          return cleaned;
-        }
-        return persisted;
+        };
+        const sanitizeChapterProgress = (cp: any) => {
+          if (!cp || typeof cp !== 'object') return {};
+          const result: Record<string, ChapterProgress> = {};
+          for (const [key, val] of Object.entries(cp)) {
+            if (!val || typeof val !== 'object') continue;
+            result[key] = {
+              chapterSlug: typeof val.chapterSlug === 'string' ? val.chapterSlug : key,
+              totalAttempted: typeof val.totalAttempted === 'number' && isFinite(val.totalAttempted) ? Math.max(0, val.totalAttempted) : 0,
+              correctCount: typeof val.correctCount === 'number' && isFinite(val.correctCount) ? Math.max(0, val.correctCount) : 0,
+              wrongCount: typeof val.wrongCount === 'number' && isFinite(val.wrongCount) ? Math.max(0, val.wrongCount) : 0,
+              errorQuestionIds: Array.isArray(val.errorQuestionIds) ? val.errorQuestionIds.filter((id: any) => typeof id === 'string') : [],
+              lastAccessed: typeof val.lastAccessed === 'number' && isFinite(val.lastAccessed) ? val.lastAccessed : 0,
+              lastQuestionId: typeof val.lastQuestionId === 'string' ? val.lastQuestionId : undefined,
+            };
+          }
+          return result;
+        };
+        const sanitizeExamResults = (results: any) => {
+          if (!Array.isArray(results)) return [];
+          return results.filter((r: any) => r && typeof r === 'object' && typeof r.score === 'number').slice(0, 50);
+        };
+
+        const cleaned = {
+          ...persisted,
+          chapterProgress: sanitizeChapterProgress(persisted.chapterProgress),
+          xp: (typeof persisted.xp === 'number' && isFinite(persisted.xp)) ? Math.max(0, persisted.xp) : 0,
+          level: (typeof persisted.level === 'number' && persisted.level >= 1 && persisted.level <= 8) ? persisted.level : 1,
+          levelName: (typeof persisted.levelName === 'string') ? persisted.levelName : 'Principiante',
+          levelIcon: (typeof persisted.levelIcon === 'string') ? persisted.levelIcon : '\u{1F331}',
+          streak: (typeof persisted.streak === 'number' && persisted.streak >= 0) ? persisted.streak : 0,
+          lastStudyDate: (typeof persisted.lastStudyDate === 'string') ? persisted.lastStudyDate : '',
+          totalStudyDays: (typeof persisted.totalStudyDays === 'number' && persisted.totalStudyDays >= 0) ? persisted.totalStudyDays : 0,
+          examResults: sanitizeExamResults(persisted.examResults),
+          user: sanitizeUser(persisted.user),
+        };
+        return cleaned;
       },
       partialize: (state) => ({
         chapterProgress: state.chapterProgress,
@@ -604,13 +647,45 @@ export const useQuizStore = create<QuizState>()(
             try { localStorage.removeItem('patente-b-quiz-storage-v2'); } catch { /* ignore */ }
           }
           if (state) {
-            // Validate critical rendered values
             const s = useQuizStore.getState();
-            if (typeof s.levelIcon !== 'string' || typeof s.xp !== 'number' || typeof s.level !== 'number') {
-              console.warn('Invalid rehydrated state, resetting gamification values');
+            let needsReset = false;
+
+            if (typeof s.levelIcon !== 'string') needsReset = true;
+            if (typeof s.levelName !== 'string') needsReset = true;
+            if (typeof s.xp !== 'number' || !isFinite(s.xp)) needsReset = true;
+            if (typeof s.level !== 'number') needsReset = true;
+            if (typeof s.streak !== 'number') needsReset = true;
+            if (typeof s.totalStudyDays !== 'number') needsReset = true;
+            if (typeof s.lastStudyDate !== 'string') needsReset = true;
+
+            if (s.user && (typeof s.user.name !== 'string' || typeof s.user.email !== 'string')) {
+              needsReset = true;
+            }
+
+            if (s.chapterProgress && typeof s.chapterProgress === 'object') {
+              for (const [key, val] of Object.entries(s.chapterProgress)) {
+                if (!val || typeof val !== 'object') {
+                  needsReset = true;
+                  break;
+                }
+                if (typeof val.totalAttempted !== 'number' ||
+                    typeof val.correctCount !== 'number' ||
+                    typeof val.wrongCount !== 'number' ||
+                    !Array.isArray(val.errorQuestionIds)) {
+                  needsReset = true;
+                  break;
+                }
+              }
+            }
+
+            if (needsReset) {
+              console.warn('Invalid rehydrated state detected, resetting to defaults');
               useQuizStore.setState({
-                xp: 0, level: 1, levelName: 'Principiante', levelIcon: '🌱',
+                xp: 0, level: 1, levelName: 'Principiante', levelIcon: '\u{1F331}',
                 streak: 0, lastStudyDate: '', totalStudyDays: 0,
+                chapterProgress: {},
+                examResults: [],
+                user: null,
               });
             }
           }

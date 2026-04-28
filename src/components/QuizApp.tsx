@@ -11,6 +11,21 @@ import ResumeSessionDialog from '@/components/ResumeSessionDialog';
 import Link from 'next/link';
 
 // ==========================================
+// SAFE RENDER HELPERS
+// ==========================================
+function safeStr(val: unknown, fallback: string = ''): string {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  return fallback;
+}
+
+function safeNum(val: unknown, fallback: number = 0): number {
+  if (typeof val === 'number' && isFinite(val)) return val;
+  return fallback;
+}
+
+// ==========================================
 // ICON COMPONENTS (inline SVGs)
 // ==========================================
 function IconHome({ className }: { className?: string }) {
@@ -354,7 +369,13 @@ function MultiChapterPicker({ quizData, onStartMulti, onClose }: {
 // NAVBAR
 // ==========================================
 function Navbar() {
-  const { currentView, setView, xp, level, levelName, levelIcon, streak } = useQuizStore();
+  const store = useQuizStore();
+  const { currentView, setView } = store;
+  const xp = safeNum(store.xp, 0);
+  const level = safeNum(store.level, 1);
+  const levelName = safeStr(store.levelName, 'Principiante');
+  const levelIcon = safeStr(store.levelIcon, '\u{1F331}');
+  const streak = safeNum(store.streak, 0);
   const { user, logout: authLogout } = useAuth();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -428,8 +449,8 @@ function Navbar() {
               </button>
               <div className="absolute right-0 top-full mt-1 w-48 bg-card border rounded-xl shadow-lg p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
                 <div className="px-3 py-2 border-b mb-1">
-                  <div className="text-sm font-medium truncate">{user.name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{user.email}</div>
+                  <div className="text-sm font-medium truncate">{safeStr(user?.name, 'Utente')}</div>
+                  <div className="text-xs text-muted-foreground truncate">{safeStr(user?.email, '')}</div>
                 </div>
                 <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground mb-1">
                   <span>{levelIcon}</span>
@@ -631,7 +652,13 @@ function HomeView({ quizData, onStartSingle, onStartErrors, onStartMulti, onStar
   onStartFullExam: () => void;
   onStartSubtopics: (slug: string, subs: string[]) => void;
 }) {
-  const { chapterProgress, getTotalCorrect, getTotalWrong, getTotalErrors, xp, level, levelName, levelIcon, streak, totalStudyDays } = useQuizStore();
+  const { chapterProgress, getTotalCorrect, getTotalWrong, getTotalErrors, ...gamificationRaw } = useQuizStore();
+  const xp = safeNum(gamificationRaw.xp, 0);
+  const level = safeNum(gamificationRaw.level, 1);
+  const levelName = safeStr(gamificationRaw.levelName, 'Principiante');
+  const levelIcon = safeStr(gamificationRaw.levelIcon, '\u{1F331}');
+  const streak = safeNum(gamificationRaw.streak, 0);
+  const totalStudyDays = safeNum(gamificationRaw.totalStudyDays, 0);
   const [subtopicChapter, setSubtopicChapter] = useState<string | null>(null);
   const [showMultiPicker, setShowMultiPicker] = useState(false);
 
@@ -994,7 +1021,7 @@ function QuizView() {
           </div>
         )}
 
-        <p className="text-lg sm:text-xl font-medium leading-relaxed">{currentQuestion.q}</p>
+        <p className="text-lg sm:text-xl font-medium leading-relaxed">{safeStr(currentQuestion.q)}</p>
 
         {isAnswered && (
           <div className={`flex items-center gap-3 p-4 rounded-xl text-sm font-medium ${selectedAnswer === currentQuestion.a
@@ -1155,7 +1182,7 @@ function ExamView() {
           </div>
         )}
 
-        <p className="text-lg sm:text-xl font-medium leading-relaxed">{currentQuestion?.q}</p>
+        <p className="text-lg sm:text-xl font-medium leading-relaxed">{safeStr(currentQuestion?.q)}</p>
 
         {isAnswered && currentQuestion && (
           <div className={`flex items-center gap-3 p-4 rounded-xl text-sm font-medium ${selectedAnswer === currentQuestion.a
@@ -1249,7 +1276,15 @@ function ExamResultView() {
 // STATS VIEW
 // ==========================================
 function StatsView({ quizData }: { quizData: QuizData }) {
-  const { chapterProgress, xp, level, levelName, levelIcon, streak, totalStudyDays, examResults, getTotalCorrect, getTotalWrong, getTotalErrors, getAccuracy } = useQuizStore();
+  const store = useQuizStore();
+  const { chapterProgress, getTotalCorrect, getTotalWrong, getTotalErrors, getAccuracy } = store;
+  const xp = safeNum(store.xp, 0);
+  const level = safeNum(store.level, 1);
+  const levelName = safeStr(store.levelName, 'Principiante');
+  const levelIcon = safeStr(store.levelIcon, '\u{1F331}');
+  const streak = safeNum(store.streak, 0);
+  const totalStudyDays = safeNum(store.totalStudyDays, 0);
+  const examResults = Array.isArray(store.examResults) ? store.examResults : [];
   const totalCorrect = getTotalCorrect();
   const totalWrong = getTotalWrong();
   const totalErrors = getTotalErrors();
