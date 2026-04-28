@@ -43,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const u = JSON.parse(raw);
           if (u && u.id) {
             setUser({ userId: u.id, email: u.email, name: u.name });
+            return; // Don't fall through to setUser(null)
           }
         }
       } catch {
