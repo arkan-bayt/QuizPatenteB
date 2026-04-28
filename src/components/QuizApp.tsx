@@ -11,49 +11,6 @@ import ResumeSessionDialog from '@/components/ResumeSessionDialog';
 import Link from 'next/link';
 
 // ==========================================
-// SAFE RENDER: Intercept objects passed as React children
-// =========================================
-if (typeof window !== 'undefined') {
-  const originalCreateElement = React.createElement;
-  (React as any).createElement = function (...args: any[]) {
-    const type = args[0];
-    const props = args[1] || {};
-    // Convert direct children args that are plain objects to strings
-    const children = args.slice(2).map(child => {
-      if (child !== null && child !== undefined && typeof child === 'object' && !Array.isArray(child) && !(child as any).$$typeof && !(child as any).type) {
-        // This is a plain object being rendered as a child - convert to string
-        console.warn('[REACT_310_FIX] Converted object to string:', {
-          component: typeof type === 'string' ? type : (type as any)?.displayName || (type as any)?.name || String(type),
-          objectKeys: Object.keys(child).slice(0, 5),
-        });
-        try {
-          const str = JSON.stringify(child);
-          return str && str !== '{}' ? str : String(child);
-        } catch {
-          return String(child);
-        }
-      }
-      return child;
-    });
-    // Also check props.children for plain objects
-    let newProps = props;
-    if (props.children !== undefined && props.children !== null && typeof props.children === 'object' && !Array.isArray(props.children) && !(props.children as any).$$typeof && !(props.children as any).type) {
-      console.warn('[REACT_310_FIX] Converted props.children object to string:', {
-        component: typeof type === 'string' ? type : (type as any)?.displayName || (type as any)?.name || String(type),
-        objectKeys: Object.keys(props.children).slice(0, 5),
-      });
-      try {
-        const str = JSON.stringify(props.children);
-        newProps = { ...props, children: (str && str !== '{}') ? str : String(props.children) };
-      } catch {
-        newProps = { ...props, children: String(props.children) };
-      }
-    }
-    return (originalCreateElement as any)(type, newProps, ...children);
-  };
-}
-
-// ==========================================
 // QUIZ DATA VALIDATION
 // ==========================================
 function isValidQuizData(data: unknown): data is QuizData {
@@ -1303,22 +1260,22 @@ function ExamResultView() {
 
       <div>
         <h2 className="text-2xl font-bold">{r.passed ? 'Esame Superato!' : 'Esame Non Superato'}</h2>
-        <p className="text-muted-foreground mt-2">{r.title} — {r.totalQuestions} domande</p>
+        <p className="text-muted-foreground mt-2">{safeStr(r.title, 'Esame')} — {safeNum(r.totalQuestions, 0)} domande</p>
       </div>
 
       <div className="bg-card border rounded-2xl p-6 space-y-4">
-        <div className="text-5xl font-bold">{r.score}%</div>
+        <div className="text-5xl font-bold">{safeNum(r.score, 0)}%</div>
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-background rounded-xl p-3">
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{r.correctAnswers}</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{safeNum(r.correctAnswers, 0)}</div>
             <div className="text-xs text-muted-foreground">Corrette</div>
           </div>
           <div className="bg-background rounded-xl p-3">
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{r.wrongAnswers}</div>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{safeNum(r.wrongAnswers, 0)}</div>
             <div className="text-xs text-muted-foreground">Sbagliate</div>
           </div>
           <div className="bg-background rounded-xl p-3">
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatTime(r.timeSpent)}</div>
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatTime(safeNum(r.timeSpent, 0))}</div>
             <div className="text-xs text-muted-foreground">Tempo</div>
           </div>
         </div>
@@ -1458,7 +1415,7 @@ function StatsView({ quizData }: { quizData: QuizData }) {
                     <span>{new Date(r.date).toLocaleDateString('it-IT')}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-muted-foreground">{formatTime(r.timeSpent)}</span>
+                    <span className="text-muted-foreground">{formatTime(safeNum(r.timeSpent, 0))}</span>
                     <span className={`font-bold ${r.score >= 80 ? 'text-green-600' : r.score >= 60 ? 'text-amber-600' : 'text-red-600'}`}>{r.score}%</span>
                   </div>
                 </div>
@@ -1511,8 +1468,7 @@ export default function QuizApp() {
   const [quizData, setQuizData] = useState<QuizData | null>(null);
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
-  const [renderError, setRenderError] = useState<string | null>(null);
-  const { theme, setTheme } = useTheme();
+    const { theme, setTheme } = useTheme();
 
   // Validate store values on every render to catch corrupted data
   useEffect(() => {
@@ -1559,7 +1515,7 @@ export default function QuizApp() {
       if (useQuizStore.persist.hasHydrated()) {
         setHydrated(true);
       }
-      const fallback = setTimeout(() => setHydrated(true), 500);
+      const fallback = setTimeout(() => setHydrated(true), 3000);
       return () => {
         unsubFinishHydration();
         clearTimeout(fallback);
@@ -1872,20 +1828,6 @@ export default function QuizApp() {
     setPendingSession(null);
     setPendingStartFn(null);
   }, []);
-
-  if (renderError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
-        <div className="max-w-md w-full text-center space-y-6">
-          <h1 className="text-2xl font-bold text-red-500">Errore di rendering</h1>
-          <pre className="bg-card border rounded-xl p-4 text-left text-xs font-mono text-red-500 break-all max-h-64 overflow-y-auto">{renderError}</pre>
-          <button onClick={() => { setRenderError(null); useQuizStore.setState({ currentView: 'home', quizTitle: '', questions: [], userAnswers: [], isFinished: false, lastExamResult: null }); }} className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
-            Riprova
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
