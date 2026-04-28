@@ -4,7 +4,6 @@ import { useStore } from '@/store/useStore';
 import { loadQuizData } from '@/data/quizData';
 import { loadSession, clearSession } from '@/logic/authEngine';
 import { preloadVoices } from '@/logic/ttsEngine';
-import { loadQuizResume } from '@/logic/progressEngine';
 import LoginScreen from '@/components/LoginScreen';
 import HomeScreen from '@/components/HomeScreen';
 import ChapterScreen from '@/components/ChapterScreen';
@@ -38,8 +37,10 @@ export default function Page() {
 
   if (!ready) {
     return (
-      <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
-        <div className="w-6 h-6 rounded-full border-2 border-indigo-500/30 border-t-indigo-500 animate-spin" />
+      <div className="min-h-screen bg-mesh flex flex-col items-center justify-center gap-4">
+        <div className="w-10 h-10 rounded-2xl border-2 border-indigo-500/30 border-t-indigo-400 animate-spin"
+          style={{ boxShadow: '0 0 20px rgba(99,102,241,0.2)' }} />
+        <p className="text-[var(--text-muted)] text-sm font-medium">Caricamento domande...</p>
       </div>
     );
   }
