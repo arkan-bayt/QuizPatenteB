@@ -650,7 +650,10 @@ export const useQuizStore = create<QuizState>()(
           }
           if (state) {
             try {
-              const s = useQuizStore.getState();
+              // IMPORTANT: Use the 'state' parameter directly instead of useQuizStore.getState()
+              // to avoid ReferenceError (TDZ) since useQuizStore hasn't finished
+              // being assigned yet when this callback first runs during create()
+              const s = state;
               let needsReset = false;
 
               if (typeof s.levelIcon !== 'string') needsReset = true;
@@ -683,25 +686,19 @@ export const useQuizStore = create<QuizState>()(
 
               if (needsReset) {
                 console.warn('Invalid rehydrated state detected, resetting to defaults');
-                useQuizStore.setState({
-                  xp: 0, level: 1, levelName: 'Principiante', levelIcon: '🌱',
+                // Apply reset directly to the state object to avoid useQuizStore TDZ
+                const resetValues: Record<string, any> = {
+                  xp: 0, level: 1, levelName: 'Principiante', levelIcon: '\u{1F331}',
                   streak: 0, lastStudyDate: '', totalStudyDays: 0,
-                  chapterProgress: {},
-                  examResults: [],
-                  user: null,
-                });
+                  chapterProgress: {}, examResults: [], user: null,
+                };
+                for (const [key, val] of Object.entries(resetValues)) {
+                  try { (state as Record<string, unknown>)[key] = val; } catch { /* ignore */ }
+                }
               }
             } catch (e) {
               console.error('[REHYDRATION] Validation error:', e);
-              try {
-                useQuizStore.setState({
-                  xp: 0, level: 1, levelName: 'Principiante', levelIcon: '🌱',
-                  streak: 0, lastStudyDate: '', totalStudyDays: 0,
-                  chapterProgress: {},
-                  examResults: [],
-                  user: null,
-                });
-              } catch { /* ignore */ }
+              // Cannot use useQuizStore here (TDZ), just log the error
             }
           }
         };
