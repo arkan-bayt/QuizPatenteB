@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuizStore, LEVEL_THRESHOLDS } from '@/lib/quiz-store';
 import { useTheme } from 'next-themes';
-import { QuizMode, QuizData, QuizQuestion } from '@/lib/types';
+import { QuizMode, QuizData, QuizQuestion, SavedQuizSession } from '@/lib/types';
 import { CHAPTERS } from '@/lib/chapters';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasSavedSession, deleteSessionByParams } from '@/lib/session-manager';
+import ResumeSessionDialog from '@/components/ResumeSessionDialog';
 
 // ==========================================
 // ICON COMPONENTS (inline SVGs)
@@ -367,7 +369,7 @@ function Navbar() {
         {/* Logo */}
         <button onClick={() => setView('home')} className="flex items-center gap-2 flex-shrink-0">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-2.7-3.6A1 1 0 0014.5 6h-5a1 1 0 00-.8.4L6 10l-2.5.1C2.7 10.3 2 11.1 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
           </div>
           <span className="font-bold text-sm hidden sm:block">Quiz Patente B</span>
         </button>
@@ -638,7 +640,7 @@ function HomeView({ quizData, onStartSingle, onStartErrors, onStartMulti, onStar
       {/* Hero */}
       <div className="text-center space-y-3">
         <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 text-white mb-2 shadow-lg">
-          <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-2.7-3.6A1 1 0 0014.5 6h-5a1 1 0 00-.8.4L6 10l-2.5.1C2.7 10.3 2 11.1 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+          <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Quiz Patente B</h1>
         <p className="text-muted-foreground text-lg max-w-md mx-auto">
@@ -874,8 +876,6 @@ function QuizView() {
   const store = useQuizStore();
   const { questions, currentIndex, isAnswered, selectedAnswer, userAnswers, isFinished, isSpeaking, quizMode, quizTitle, answerQuestion, nextQuestion, stopQuiz, goToHome, setSpeaking } = store;
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
-  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentQuestion = questions[currentIndex];
@@ -905,48 +905,13 @@ function QuizView() {
     return () => { window.speechSynthesis.cancel(); window.speechSynthesis.removeEventListener('voiceschanged', handler); };
   }, []);
 
-  // Auto-advance after answer (paused when AI is active)
+  // Auto-advance after answer
   useEffect(() => {
-    if (isAnswered && !isFinished && !aiLoading && !aiExplanation) {
+    if (isAnswered && !isFinished) {
       timerRef.current = setTimeout(() => nextQuestion(), 1500);
       return () => { if (timerRef.current) clearTimeout(timerRef.current); };
     }
-  }, [isAnswered, isFinished, aiLoading, aiExplanation, nextQuestion]);
-
-  // Clear AI explanation when question changes
-  useEffect(() => {
-    setAiExplanation(null);
-    setAiLoading(false);
-  }, [currentIndex]);
-
-  const askAiExplanation = async () => {
-    if (!currentQuestion) return;
-    // Cancel auto-advance so user can read the explanation
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    setAiLoading(true);
-    try {
-      const res = await fetch('/api/ai/explain', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: currentQuestion.q,
-          correctAnswer: currentQuestion.a,
-          userAnswer: selectedAnswer,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data.explanation) {
-        setAiExplanation(data.explanation);
-      }
-    } catch {
-      // silent
-    } finally {
-      setAiLoading(false);
-    }
-  };
+  }, [isAnswered, isFinished, nextQuestion]);
 
   const imageError = imageErrors[currentIndex] || false;
   const handleImageError = () => setImageErrors(prev => ({ ...prev, [currentIndex]: true }));
@@ -1026,43 +991,6 @@ function QuizView() {
           </div>
         )}
 
-        {/* AI Explanation for wrong answers */}
-        {isAnswered && selectedAnswer !== currentQuestion.a && (
-          <div className="space-y-2">
-            {!aiExplanation && !aiLoading && (
-              <button
-                onClick={askAiExplanation}
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all active:scale-[0.98]"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z"/><path d="M16 14a4 4 0 0 1-8 0"/><path d="M12 18v4"/><path d="M8 22h8"/><path d="M5 8l-2 2"/><path d="M19 8l2 2"/></svg>
-                Spiega con AI
-              </button>
-            )}
-            {aiLoading && (
-              <div className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/10">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                Generazione spiegazione...
-              </div>
-            )}
-            {aiExplanation && (
-              <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 text-sm leading-relaxed text-foreground">
-                <div className="flex items-start gap-2">
-                  <span className="text-lg flex-shrink-0">🤖</span>
-                  <p>{aiExplanation}</p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Next button when AI explanation is shown */
-        {aiExplanation && (
-          <button onClick={() => nextQuestion()}
-            className="w-full py-3 rounded-xl font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-            Prossima Domanda <IconArrowRight className="w-4 h-4" />
-          </button>
-        )}
-
         <div className="grid grid-cols-2 gap-3">
           <button onClick={() => answerQuestion(true)} disabled={isAnswered}
             className={`py-4 px-6 rounded-xl text-lg font-bold transition-all active:scale-95 disabled:opacity-60 ${
@@ -1103,8 +1031,6 @@ function ExamView() {
   const store = useQuizStore();
   const { questions, currentIndex, isAnswered, selectedAnswer, userAnswers, isSpeaking, examTimeRemaining, examTimerActive, answerQuestion, nextQuestion, goToHome, setSpeaking, submitExam } = store;
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
-  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1127,19 +1053,13 @@ function ExamView() {
     }
   }, [examTimerActive, examTimeRemaining]);
 
-  // Clear AI explanation when question changes
+  // Auto-advance after answer
   useEffect(() => {
-    setAiExplanation(null);
-    setAiLoading(false);
-  }, [currentIndex]);
-
-  // Auto-advance after answer (paused when AI is active)
-  useEffect(() => {
-    if (isAnswered && !aiLoading && !aiExplanation) {
+    if (isAnswered) {
       autoAdvanceRef.current = setTimeout(() => nextQuestion(), 1200);
       return () => { if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current); };
     }
-  }, [isAnswered, aiLoading, aiExplanation, nextQuestion]);
+  }, [isAnswered, nextQuestion]);
 
   // TTS
   const speakQuestion = useCallback(() => {
@@ -1162,35 +1082,6 @@ function ExamView() {
     window.speechSynthesis.addEventListener('voiceschanged', handler);
     return () => { window.speechSynthesis.cancel(); window.speechSynthesis.removeEventListener('voiceschanged', handler); };
   }, []);
-
-  const askAiExplanation = async () => {
-    if (!currentQuestion) return;
-    // Cancel auto-advance so user can read the explanation
-    if (autoAdvanceRef.current) {
-      clearTimeout(autoAdvanceRef.current);
-      autoAdvanceRef.current = null;
-    }
-    setAiLoading(true);
-    try {
-      const res = await fetch('/api/ai/explain', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: currentQuestion.q,
-          correctAnswer: currentQuestion.a,
-          userAnswer: selectedAnswer,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data.explanation) {
-        setAiExplanation(data.explanation);
-      }
-    } catch {
-      // silent
-    } finally {
-      setAiLoading(false);
-    }
-  };
 
   const imageError = imageErrors[currentIndex] || false;
   const handleImageError = () => setImageErrors(prev => ({ ...prev, [currentIndex]: true }));
@@ -1259,43 +1150,6 @@ function ExamView() {
               ? <><IconCheckCircle className="w-5 h-5 flex-shrink-0" /><span>Corretto!</span></>
               : <><IconXCircle className="w-5 h-5 flex-shrink-0" /><span>Sbagliato! Era {currentQuestion.a ? 'VERO' : 'FALSO'}.</span></>}
           </div>
-        )}
-
-        {/* AI Explanation for wrong answers */}
-        {isAnswered && currentQuestion && selectedAnswer !== currentQuestion.a && (
-          <div className="space-y-2">
-            {!aiExplanation && !aiLoading && (
-              <button
-                onClick={askAiExplanation}
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all active:scale-[0.98]"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z"/><path d="M16 14a4 4 0 0 1-8 0"/><path d="M12 18v4"/><path d="M8 22h8"/><path d="M5 8l-2 2"/><path d="M19 8l2 2"/></svg>
-                Spiega con AI
-              </button>
-            )}
-            {aiLoading && (
-              <div className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/10">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                Generazione spiegazione...
-              </div>
-            )}
-            {aiExplanation && (
-              <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 text-sm leading-relaxed text-foreground">
-                <div className="flex items-start gap-2">
-                  <span className="text-lg flex-shrink-0">🤖</span>
-                  <p>{aiExplanation}</p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Next button when AI explanation is shown */}
-        {aiExplanation && (
-          <button onClick={() => nextQuestion()}
-            className="w-full py-3 rounded-xl font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-            Prossima Domanda <IconArrowRight className="w-4 h-4" />
-          </button>
         )}
 
         {currentQuestion && (
@@ -1530,6 +1384,10 @@ export default function QuizApp() {
   const [loading, setLoading] = useState(true);
   const { theme, setTheme } = useTheme();
 
+  // Session resume state
+  const [pendingSession, setPendingSession] = useState<SavedQuizSession | null>(null);
+  const [pendingStartFn, setPendingStartFn] = useState<(() => void) | null>(null);
+
   // Load quiz data
   useEffect(() => {
     fetch('/quizData.json')
@@ -1556,9 +1414,31 @@ export default function QuizApp() {
     }
   }, []);
 
-  // Quiz start handlers
+  // Quiz start handlers (with session resume check)
   const startSingleChapter = useCallback((chapterSlug: string) => {
     if (!quizData || !quizData[chapterSlug]) return;
+
+    // Check for saved session
+    const savedSession = hasSavedSession({ quizMode: 'chapter', chapterSlug });
+    if (savedSession) {
+      const startNew = () => {
+        deleteSessionByParams({ quizMode: 'chapter', chapterSlug });
+        const chapterData = quizData[chapterSlug];
+        const questions: QuizQuestion[] = [];
+        let idCounter = 0;
+        for (const [subSlug, qs] of Object.entries(chapterData)) {
+          for (const q of qs) {
+            questions.push({ ...q, id: `${chapterSlug}-${idCounter++}` });
+          }
+        }
+        const ch = CHAPTERS.find(c => c.slug === chapterSlug);
+        useQuizStore.getState().startQuiz(chapterSlug, 'chapter', ch?.name || chapterSlug, shuffleArray(questions));
+      };
+      setPendingStartFn(() => startNew);
+      setPendingSession(savedSession);
+      return;
+    }
+
     const chapterData = quizData[chapterSlug];
     const questions: QuizQuestion[] = [];
     let idCounter = 0;
@@ -1575,6 +1455,30 @@ export default function QuizApp() {
     if (!quizData || !quizData[chapterSlug]) return;
     const progress = useQuizStore.getState().chapterProgress[chapterSlug];
     if (!progress || progress.errorQuestionIds.length === 0) return;
+
+    // Check for saved session
+    const savedSession = hasSavedSession({ quizMode: 'errors', chapterSlug });
+    if (savedSession) {
+      const startNew = () => {
+        deleteSessionByParams({ quizMode: 'errors', chapterSlug });
+        const chapterData = quizData[chapterSlug];
+        const errorIds = new Set(progress.errorQuestionIds);
+        const questions: QuizQuestion[] = [];
+        let idCounter = 0;
+        for (const qs of Object.values(chapterData)) {
+          for (const q of qs) {
+            const qId = `${chapterSlug}-${idCounter++}`;
+            if (errorIds.has(qId)) questions.push({ ...q, id: qId });
+          }
+        }
+        const ch = CHAPTERS.find(c => c.slug === chapterSlug);
+        useQuizStore.getState().startQuiz(chapterSlug, 'errors', `Errori: ${ch?.name || chapterSlug}`, shuffleArray(questions));
+      };
+      setPendingStartFn(() => startNew);
+      setPendingSession(savedSession);
+      return;
+    }
+
     const chapterData = quizData[chapterSlug];
     const errorIds = new Set(progress.errorQuestionIds);
     const questions: QuizQuestion[] = [];
@@ -1591,6 +1495,30 @@ export default function QuizApp() {
 
   const startMultiChapter = useCallback((chapterSlugs: string[]) => {
     if (!quizData) return;
+
+    // Check for saved session
+    const savedSession = hasSavedSession({ quizMode: 'multi-chapter', chapterSlugs });
+    if (savedSession) {
+      const startNew = () => {
+        deleteSessionByParams({ quizMode: 'multi-chapter', chapterSlugs });
+        const questions: QuizQuestion[] = [];
+        for (const slug of chapterSlugs) {
+          const ch = quizData[slug];
+          if (!ch) continue;
+          let idCounter = 0;
+          for (const qs of Object.values(ch)) {
+            for (const q of qs) {
+              questions.push({ ...q, id: `${slug}-${idCounter++}` });
+            }
+          }
+        }
+        useQuizStore.getState().startQuiz(null, 'multi-chapter', 'Multi Capitoli', shuffleArray(questions), { chapterSlugs });
+      };
+      setPendingStartFn(() => startNew);
+      setPendingSession(savedSession);
+      return;
+    }
+
     const questions: QuizQuestion[] = [];
     for (const slug of chapterSlugs) {
       const ch = quizData[slug];
@@ -1602,11 +1530,34 @@ export default function QuizApp() {
         }
       }
     }
-    useQuizStore.getState().startQuiz(null, 'multi-chapter', 'Multi Capitoli', shuffleArray(questions));
+    useQuizStore.getState().startQuiz(null, 'multi-chapter', 'Multi Capitoli', shuffleArray(questions), { chapterSlugs });
   }, [quizData]);
 
   const startSubtopics = useCallback((chapterSlug: string, subtopics: string[]) => {
     if (!quizData || !quizData[chapterSlug]) return;
+
+    // Check for saved session
+    const savedSession = hasSavedSession({ quizMode: 'subtopics', chapterSlug, subtopics });
+    if (savedSession) {
+      const startNew = () => {
+        deleteSessionByParams({ quizMode: 'subtopics', chapterSlug, subtopics });
+        const chapterData = quizData[chapterSlug];
+        const questions: QuizQuestion[] = [];
+        let idCounter = 0;
+        for (const subSlug of subtopics) {
+          const qs = chapterData[subSlug];
+          if (!qs) continue;
+          for (const q of qs) {
+            questions.push({ ...q, id: `${chapterSlug}-${subSlug}-${idCounter++}` });
+          }
+        }
+        useQuizStore.getState().startQuiz(chapterSlug, 'subtopics', 'Argomenti Selezionati', shuffleArray(questions), { subtopics });
+      };
+      setPendingStartFn(() => startNew);
+      setPendingSession(savedSession);
+      return;
+    }
+
     const chapterData = quizData[chapterSlug];
     const questions: QuizQuestion[] = [];
     let idCounter = 0;
@@ -1617,7 +1568,7 @@ export default function QuizApp() {
         questions.push({ ...q, id: `${chapterSlug}-${subSlug}-${idCounter++}` });
       }
     }
-    useQuizStore.getState().startQuiz(chapterSlug, 'subtopics', 'Argomenti Selezionati', shuffleArray(questions));
+    useQuizStore.getState().startQuiz(chapterSlug, 'subtopics', 'Argomenti Selezionati', shuffleArray(questions), { subtopics });
   }, [quizData]);
 
   const startFullExam = useCallback(() => {
@@ -1692,8 +1643,41 @@ export default function QuizApp() {
     );
   }
 
+  // Resume session handler
+  const handleResumeSession = useCallback(() => {
+    if (pendingSession) {
+      useQuizStore.getState().resumeQuiz(pendingSession);
+      setPendingSession(null);
+      setPendingStartFn(null);
+    }
+  }, [pendingSession]);
+
+  // Start over handler
+  const handleStartOver = useCallback(() => {
+    if (pendingStartFn) {
+      pendingStartFn();
+      setPendingSession(null);
+      setPendingStartFn(null);
+    }
+  }, [pendingStartFn]);
+
+  // Dismiss dialog handler
+  const handleDismissDialog = useCallback(() => {
+    setPendingSession(null);
+    setPendingStartFn(null);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {/* Resume Session Dialog */}
+      {pendingSession && (
+        <ResumeSessionDialog
+          session={pendingSession}
+          onResume={handleResumeSession}
+          onStartOver={handleStartOver}
+          onDismiss={handleDismissDialog}
+        />
+      )}
       <Navbar />
       <main className="flex-1 px-4 py-6 max-w-4xl mx-auto w-full">
         {currentView === 'home' && (

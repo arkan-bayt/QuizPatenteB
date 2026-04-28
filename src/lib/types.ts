@@ -67,3 +67,32 @@ export interface GamificationState {
 export type AppView = 'home' | 'login' | 'register' | 'quiz' | 'exam' | 'exam-result' | 'errors' | 'stats';
 
 export type QuizData = Record<string, Record<string, Array<{ q: string; a: boolean; img?: string }>>>;
+
+/**
+ * Represents a saved quiz session that can be resumed later.
+ * Stored in localStorage so the user can continue from where they left off.
+ */
+export interface SavedQuizSession {
+  /** Unique session identifier based on quiz configuration */
+  sessionKey: string;
+  /** The quiz mode used */
+  quizMode: QuizMode;
+  /** Chapter slug (for single chapter/errors/subtopics modes) */
+  chapterSlug: string | null;
+  /** Selected chapter slugs (for multi-chapter mode) */
+  chapterSlugs: string[] | null;
+  /** Selected subtopics (for subtopics mode) */
+  subtopics: string[] | null;
+  /** Display title for the quiz */
+  quizTitle: string;
+  /** All questions in the session */
+  questions: QuizQuestion[];
+  /** Current question index */
+  currentIndex: number;
+  /** Answers given so far */
+  userAnswers: UserAnswer[];
+  /** Timestamp when session was last saved */
+  savedAt: number;
+  /** Timestamp when session was first created */
+  createdAt: number;
+}

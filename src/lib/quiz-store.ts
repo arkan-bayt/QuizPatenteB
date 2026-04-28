@@ -11,9 +11,11 @@ import {
   ExamResult,
   User,
   GamificationState,
+  SavedQuizSession,
 } from './types';
 import { CHAPTERS } from './chapters';
 import { loadProgressFromServer, saveProgressToServer, retryPendingSync, setupOnlineListener, createDebouncedSync, ProgressMap } from './progress-sync';
+import { generateSessionKey, saveQuizSession, deleteSessionByParams } from './session-manager';
 
 const LEVEL_THRESHOLDS = [
   { level: 1, name: 'Principiante', minXP: 0, icon: '🌱' },
@@ -84,9 +86,17 @@ interface QuizState {
   syncProgress: () => void;
   flushSync: () => Promise<boolean>;
 
+  // Session state for resume functionality
+  currentSessionKey: string | null;
+  currentSessionMeta: {
+    chapterSlugs?: string[];
+    subtopics?: string[];
+  } | null;
+
   // Actions
   setView: (view: AppView) => void;
-  startQuiz: (chapterSlug: string | null, mode: QuizMode, title?: string, questions?: QuizQuestion[]) => void;
+  startQuiz: (chapterSlug: string | null, mode: QuizMode, title?: string, questions?: QuizQuestion[], meta?: { chapterSlugs?: string[]; subtopics?: string[] }) => void;
+  resumeQuiz: (session: SavedQuizSession) => void;
   answerQuestion: (answer: boolean) => void;
   nextQuestion: () => void;
   stopQuiz: () => void;
@@ -94,6 +104,7 @@ interface QuizState {
   resetQuiz: () => void;
   setSpeaking: (speaking: boolean) => void;
   clearErrorQuestions: (chapterSlug: string) => void;
+  saveCurrentSession: () => void;
 
   // Auth actions
   login: (email: string, password: string) => boolean;
@@ -195,7 +206,17 @@ export const useQuizStore = create<QuizState>()(
 
       setView: (view) => set({ currentView: view }),
 
-      startQuiz: (chapterSlug, mode, title, questions) => {
+      // Session state
+      currentSessionKey: null,
+      currentSessionMeta: null,
+
+      startQuiz: (chapterSlug, mode, title, questions, meta) => {
+        const sessionKey = generateSessionKey({
+          quizMode: mode,
+          chapterSlug,
+          chapterSlugs: meta?.chapterSlugs,
+          subtopics: meta?.subtopics,
+        });
         set({
           currentView: mode === 'exam' ? 'exam' : 'quiz',
           quizMode: mode,
@@ -209,7 +230,50 @@ export const useQuizStore = create<QuizState>()(
           isFinished: false,
           examTimeRemaining: mode === 'exam' ? 20 * 60 : 20 * 60,
           examTimerActive: mode === 'exam',
+          currentSessionKey: sessionKey,
+          currentSessionMeta: meta || null,
         });
+      },
+
+      resumeQuiz: (session) => {
+        set({
+          currentView: 'quiz',
+          quizMode: session.quizMode,
+          currentChapterSlug: session.chapterSlug,
+          quizTitle: session.quizTitle,
+          questions: session.questions,
+          currentIndex: session.currentIndex,
+          userAnswers: session.userAnswers,
+          isAnswered: false,
+          selectedAnswer: null,
+          isFinished: false,
+          currentSessionKey: session.sessionKey,
+          currentSessionMeta: {
+            chapterSlugs: session.chapterSlugs || undefined,
+            subtopics: session.subtopics || undefined,
+          },
+        });
+      },
+
+      saveCurrentSession: () => {
+        const state = get();
+        if (!state.currentSessionKey || state.questions.length === 0) return;
+        if (state.quizMode === 'exam') return; // Don't save exam sessions
+
+        const session: SavedQuizSession = {
+          sessionKey: state.currentSessionKey,
+          quizMode: state.quizMode,
+          chapterSlug: state.currentChapterSlug,
+          chapterSlugs: state.currentSessionMeta?.chapterSlugs || null,
+          subtopics: state.currentSessionMeta?.subtopics || null,
+          quizTitle: state.quizTitle,
+          questions: state.questions,
+          currentIndex: state.currentIndex,
+          userAnswers: state.userAnswers,
+          savedAt: Date.now(),
+          createdAt: Date.now(),
+        };
+        saveQuizSession(session);
       },
 
       answerQuestion: (answer) => {
@@ -317,14 +381,22 @@ export const useQuizStore = create<QuizState>()(
       },
 
       stopQuiz: () => {
-        if (get().quizMode === 'exam') {
+        const state = get();
+        if (state.quizMode === 'exam') {
           get().submitExam();
         } else {
+          // Save session before finishing
+          get().saveCurrentSession();
           set({ isFinished: true });
         }
       },
 
       goToHome: () => {
+        // Save session before leaving (if there's an active quiz with answers)
+        const state = get();
+        if (state.questions.length > 0 && state.userAnswers.length > 0 && state.quizMode !== 'exam') {
+          get().saveCurrentSession();
+        }
         set({
           currentView: 'home',
           questions: [],
@@ -335,6 +407,8 @@ export const useQuizStore = create<QuizState>()(
           isFinished: false,
           examTimerActive: false,
           lastExamResult: null,
+          currentSessionKey: null,
+          currentSessionMeta: null,
         });
       },
 
@@ -524,10 +598,20 @@ if (typeof window !== 'undefined') {
   window.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       useQuizStore.getState().flushSync();
+      // Also save current quiz session
+      const state = useQuizStore.getState();
+      if (state.questions.length > 0 && state.userAnswers.length > 0 && state.quizMode !== 'exam') {
+        state.saveCurrentSession();
+      }
     }
   });
   window.addEventListener('beforeunload', () => {
     useQuizStore.getState().flushSync();
+    // Also save current quiz session
+    const state = useQuizStore.getState();
+    if (state.questions.length > 0 && state.userAnswers.length > 0 && state.quizMode !== 'exam') {
+      state.saveCurrentSession();
+    }
   });
 }
 
