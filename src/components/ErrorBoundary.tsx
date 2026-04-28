@@ -57,11 +57,11 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   handleClearAndReload = () => {
     if (typeof window !== 'undefined') {
-      // Clear all quiz-related localStorage keys
+      // Clear ALL quiz-related localStorage keys
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && (key.startsWith('patente-b-') || key.startsWith('quiz-patente-'))) {
+        if (key && (key.startsWith('patente-b-') || key.startsWith('quiz-patente-') || key.startsWith('quiz-session-'))) {
           keysToRemove.push(key);
         }
       }
@@ -74,6 +74,8 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       const errorInfo = safeErrorMessage(this.state.error);
       const errorStack = safeErrorStack(this.state.error);
+
+      const isReact310 = errorInfo.includes('Objects are not valid') || errorInfo.includes('#310');
 
       return (
         <div className="min-h-screen flex items-center justify-center bg-background px-4">
@@ -89,7 +91,17 @@ export default class ErrorBoundary extends Component<Props, State> {
             <p className="text-muted-foreground">
               Qualcosa è andato storto. Prova a ricaricare la pagina.
             </p>
-            {errorInfo && (
+            {isReact310 && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-left">
+                <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
+                  Dati corrotti rilevati - React Error #310
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
+                  I dati salvati nel browser contengono valori non validi. Usa &quot;Cancella dati e ricomincia&quot; per risolvere.
+                </p>
+              </div>
+            )}
+            {errorInfo && !isReact310 && (
               <div className="bg-card border rounded-xl p-4 text-left">
                 <p className="text-xs font-mono text-red-500 break-all">
                   {errorInfo}
@@ -101,7 +113,7 @@ export default class ErrorBoundary extends Component<Props, State> {
                 )}
               </div>
             )}
-            <div className="flex gap-3 justify-center">
+            <div className="flex flex-col gap-3 justify-center">
               <button
                 onClick={this.handleReset}
                 className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors"
@@ -110,7 +122,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               </button>
               <button
                 onClick={this.handleClearAndReload}
-                className="px-6 py-3 rounded-xl bg-muted hover:bg-accent font-medium transition-colors"
+                className="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
               >
                 Cancella dati e ricomincia
               </button>

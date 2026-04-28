@@ -578,7 +578,7 @@ export const useQuizStore = create<QuizState>()(
     }),
     {
       name: 'patente-b-quiz-storage-v3',
-      version: 2,
+      version: 3,
       migrate: (persisted: any, version: number) => {
         // Always sanitize all persisted fields regardless of version
         const sanitizeUser = (u: any) => {
@@ -609,11 +609,23 @@ export const useQuizStore = create<QuizState>()(
         };
         const sanitizeExamResults = (results: any) => {
           if (!Array.isArray(results)) return [];
-          return results.filter((r: any) => r && typeof r === 'object' && typeof r.score === 'number').slice(0, 50);
+          return results.filter((r: any) => r && typeof r === 'object' && typeof r.score === 'number').map((r: any) => ({
+            id: typeof r.id === 'string' ? r.id : Date.now().toString(36),
+            type: typeof r.type === 'string' ? r.type : 'exam',
+            title: typeof r.title === 'string' ? r.title : 'Esame',
+            totalQuestions: typeof r.totalQuestions === 'number' ? r.totalQuestions : 30,
+            correctAnswers: typeof r.correctAnswers === 'number' ? r.correctAnswers : 0,
+            wrongAnswers: typeof r.wrongAnswers === 'number' ? r.wrongAnswers : 0,
+            score: typeof r.score === 'number' ? r.score : 0,
+            timeSpent: typeof r.timeSpent === 'number' ? r.timeSpent : 0,
+            passed: typeof r.passed === 'boolean' ? r.passed : false,
+            date: typeof r.date === 'number' ? r.date : Date.now(),
+          })).slice(0, 50);
         };
 
+        // IMPORTANT: Only return known properties - do NOT spread ...persisted
+        // to avoid injecting corrupted/extra fields from older app versions
         const cleaned = {
-          ...persisted,
           chapterProgress: sanitizeChapterProgress(persisted.chapterProgress),
           xp: (typeof persisted.xp === 'number' && isFinite(persisted.xp)) ? Math.max(0, persisted.xp) : 0,
           level: (typeof persisted.level === 'number' && persisted.level >= 1 && persisted.level <= 8) ? persisted.level : 1,
@@ -640,6 +652,11 @@ export const useQuizStore = create<QuizState>()(
         user: state.user,
       }),
       onRehydrateStorage: () => {
+        // Clean up old storage keys from previous versions
+        if (typeof window !== 'undefined') {
+          try { localStorage.removeItem('patente-b-quiz-storage-v2'); } catch { /* ignore */ }
+          try { localStorage.removeItem('patente-b-quiz-storage-v1'); } catch { /* ignore */ }
+        }
         return (state, error) => {
           if (error) {
             console.error('Failed to rehydrate store, clearing corrupted data:', error);

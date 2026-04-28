@@ -856,9 +856,11 @@ function HomeView({ quizData, onStartSingle, onStartErrors, onStartMulti, onStar
         <div className="grid gap-3">
           {CHAPTERS.map((chapter, index) => {
             const progress = chapterProgress[chapter.slug];
-            const errorCount = progress?.errorQuestionIds.length || 0;
-            const attempted = progress?.totalAttempted || 0;
-            const pct = attempted > 0 ? Math.round((progress!.correctCount / attempted) * 100) : 0;
+            const safeP = progress && typeof progress === 'object' ? progress : null;
+            const errorCount = Array.isArray(safeP?.errorQuestionIds) ? safeP.errorQuestionIds.length : 0;
+            const attempted = typeof safeP?.totalAttempted === 'number' ? safeP.totalAttempted : 0;
+            const correctCount = typeof safeP?.correctCount === 'number' ? safeP.correctCount : 0;
+            const pct = attempted > 0 ? Math.round((correctCount / attempted) * 100) : 0;
             const subtopicCount = quizData[chapter.slug] ? Object.keys(quizData[chapter.slug]).length : 0;
 
             return (
