@@ -1,12 +1,9 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import { ThemeProvider } from "@/components/ThemeProvider";
-import { AuthProvider } from "@/contexts/AuthContext";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import type { Metadata } from 'next';
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: "Quiz Patente B - Allenati per l'Esame di Guida",
-  description: "7.139 quiz ufficiali per la patente B italiana con esame simulato, statistiche avanzate e gamification.",
+  title: 'Quiz Patente B - Allenati per l\'Esame di Guida',
+  description: '7.139 quiz ufficiali per la patente B italiana con selezione flessibile dei capitoli e argomenti.',
 };
 
 export default function RootLayout({
@@ -17,18 +14,7 @@ export default function RootLayout({
   return (
     <html lang="it" suppressHydrationWarning>
       <body className="antialiased bg-background text-foreground">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <AuthProvider>
-            <ErrorBoundary>
-              {children}
-            </ErrorBoundary>
-          </AuthProvider>
-        </ThemeProvider>
+        {children}
       </body>
     </html>
   );

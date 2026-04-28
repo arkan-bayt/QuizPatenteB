@@ -1,98 +1,69 @@
-export interface QuizQuestion {
+// ==========================================
+// DATA LAYER - Type Definitions
+// ==========================================
+
+/** Raw question from quizData.json */
+export interface RawQuestion {
   q: string;
   a: boolean;
   img?: string;
-  id: string;
 }
 
+/** Question with unique ID added at runtime */
+export interface QuizQuestion {
+  id: string;
+  q: string;
+  a: boolean;
+  img?: string;
+}
+
+/** QuizData structure from JSON file */
+export type QuizData = Record<string, Record<string, RawQuestion[]>>;
+
+/** Chapter info */
 export interface ChapterInfo {
   id: string;
   slug: string;
   name: string;
-  description: string;
   icon: string;
   questionCount: number;
 }
 
-export type QuizMode = 'chapter' | 'errors' | 'multi-chapter' | 'full-exam' | 'subtopics' | 'exam';
-
+/** User answer record */
 export interface UserAnswer {
   questionId: string;
-  chapterSlug: string;
-  userAnswer: boolean;
-  correctAnswer: boolean;
-  isCorrect: boolean;
+  answer: boolean;
+  correct: boolean;
   timestamp: number;
 }
 
+/** Session state for resume */
+export interface SessionState {
+  mode: 'chapter' | 'multi' | 'topic' | 'errors';
+  chapterSlugs: string[];
+  topicKey: string | null; // "chapterSlug:topicSlug"
+  questions: QuizQuestion[];
+  currentIndex: number;
+  answers: UserAnswer[];
+  startedAt: number;
+  savedAt: number;
+  title: string;
+}
+
+/** Chapter progress tracking */
 export interface ChapterProgress {
-  chapterSlug: string;
   totalAttempted: number;
   correctCount: number;
   wrongCount: number;
-  errorQuestionIds: string[];
+  errorIds: string[];
   lastAccessed: number;
-  lastQuestionId?: string;
 }
 
-export interface ExamResult {
-  id: string;
-  type: 'exam' | 'chapter' | 'errors' | 'full-exam' | 'multi-chapter';
-  chapterSlug?: string;
-  title: string;
-  totalQuestions: number;
-  correctAnswers: number;
-  wrongAnswers: number;
-  score: number;
-  timeSpent: number;
-  passed: boolean;
-  date: number;
-}
+/** App views */
+export type AppView = 'login' | 'home' | 'select' | 'quiz' | 'admin';
 
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  createdAt: number;
-}
-
-export interface GamificationState {
-  xp: number;
-  level: number;
-  streak: number;
-  lastStudyDate: string;
-  totalStudyDays: number;
-}
-
-export type AppView = 'home' | 'login' | 'register' | 'quiz' | 'exam' | 'exam-result' | 'errors' | 'stats';
-
-export type QuizData = Record<string, Record<string, Array<{ q: string; a: boolean; img?: string }>>>;
-
-/**
- * Represents a saved quiz session that can be resumed later.
- * Stored in localStorage so the user can continue from where they left off.
- */
-export interface SavedQuizSession {
-  /** Unique session identifier based on quiz configuration */
-  sessionKey: string;
-  /** The quiz mode used */
-  quizMode: QuizMode;
-  /** Chapter slug (for single chapter/errors/subtopics modes) */
-  chapterSlug: string | null;
-  /** Selected chapter slugs (for multi-chapter mode) */
-  chapterSlugs: string[] | null;
-  /** Selected subtopics (for subtopics mode) */
-  subtopics: string[] | null;
-  /** Display title for the quiz */
-  quizTitle: string;
-  /** All questions in the session */
-  questions: QuizQuestion[];
-  /** Current question index */
-  currentIndex: number;
-  /** Answers given so far */
-  userAnswers: UserAnswer[];
-  /** Timestamp when session was last saved */
-  savedAt: number;
-  /** Timestamp when session was first created */
-  createdAt: number;
+/** Admin credentials from config */
+export interface AdminConfig {
+  username: string;
+  password: string;
 }
