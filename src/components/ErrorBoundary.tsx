@@ -13,17 +13,13 @@ interface State {
 
 function safeErrorMessage(error: Error | null): string {
   if (!error) return 'Unknown error';
-  // Ensure we always return a string, never an object
   if (typeof error.message === 'string') {
     return error.message;
   }
-  if (typeof error.toString === 'function') {
-    try {
-      const str = error.toString();
-      if (typeof str === 'string' && str !== '[object Object]') return str;
-    } catch { /* ignore */ }
-  }
-  // Fallback: stringify the error, extracting only string-safe info
+  try {
+    const str = error.toString();
+    if (typeof str === 'string' && str !== '[object Object]') return str;
+  } catch { /* ignore */ }
   try {
     return JSON.stringify({ message: error.message, name: error.name });
   } catch {
@@ -37,6 +33,31 @@ function safeErrorStack(error: Error | null): string {
   return '';
 }
 
+/**
+ * Clear ALL quiz-related data from localStorage.
+ * This is the nuclear option for when data corruption causes rendering errors.
+ */
+function clearAllQuizData(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (
+        key.startsWith('patente-b-') ||
+        key.startsWith('quiz-patente-') ||
+        key.startsWith('quiz-session-')
+      )) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => {
+      try { localStorage.removeItem(k); } catch { /* ignore */ }
+    });
+    console.log(`[ErrorBoundary] Cleared ${keysToRemove.length} localStorage keys`);
+  } catch { /* ignore */ }
+}
+
 export default class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
@@ -48,7 +69,14 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    const msg = error.message || '';
+    console.error('ErrorBoundary caught:', msg, errorInfo);
+
+    // Auto-detect React #310 and auto-fix
+    if (msg.includes('Objects are not valid') || msg.includes('#310') || msg.includes('oggetto')) {
+      console.warn('[ErrorBoundary] React #310 detected - auto-clearing corrupted localStorage data');
+      clearAllQuizData();
+    }
   }
 
   handleReset = () => {
@@ -56,26 +84,15 @@ export default class ErrorBoundary extends Component<Props, State> {
   };
 
   handleClearAndReload = () => {
-    if (typeof window !== 'undefined') {
-      // Clear ALL quiz-related localStorage keys
-      const keysToRemove: string[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (key.startsWith('patente-b-') || key.startsWith('quiz-patente-') || key.startsWith('quiz-session-'))) {
-          keysToRemove.push(key);
-        }
-      }
-      keysToRemove.forEach(k => localStorage.removeItem(k));
-      window.location.reload();
-    }
+    clearAllQuizData();
+    window.location.reload();
   };
 
   render() {
     if (this.state.hasError) {
       const errorInfo = safeErrorMessage(this.state.error);
       const errorStack = safeErrorStack(this.state.error);
-
-      const isReact310 = errorInfo.includes('Objects are not valid') || errorInfo.includes('#310');
+      const isReact310 = errorInfo.includes('Objects are not valid') || errorInfo.includes('#310') || errorInfo.includes('oggetto');
 
       return (
         <div className="min-h-screen flex items-center justify-center bg-background px-4">
@@ -87,9 +104,9 @@ export default class ErrorBoundary extends Component<Props, State> {
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Si è verificato un errore</h1>
+            <h1 className="text-2xl font-bold text-foreground">Si e verificato un errore</h1>
             <p className="text-muted-foreground">
-              Qualcosa è andato storto. Prova a ricaricare la pagina.
+              Qualcosa e andato storto. Prova a ricaricare la pagina.
             </p>
             {isReact310 && (
               <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-left">
@@ -97,11 +114,11 @@ export default class ErrorBoundary extends Component<Props, State> {
                   Dati corrotti rilevati - React Error #310
                 </p>
                 <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
-                  I dati salvati nel browser contengono valori non validi. Usa &quot;Cancella dati e ricomincia&quot; per risolvere.
+                  I dati salvati nel browser contengono valori non validi. I dati sono stati puliti automaticamente. Clicca &quot;Ricarica&quot; per continuare.
                 </p>
               </div>
             )}
-            {errorInfo && !isReact310 && (
+            {!isReact310 && errorInfo && (
               <div className="bg-card border rounded-xl p-4 text-left">
                 <p className="text-xs font-mono text-red-500 break-all">
                   {errorInfo}
@@ -115,17 +132,19 @@ export default class ErrorBoundary extends Component<Props, State> {
             )}
             <div className="flex flex-col gap-3 justify-center">
               <button
-                onClick={this.handleReset}
+                onClick={this.handleClearAndReload}
                 className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors"
               >
-                Riprova
+                {isReact310 ? 'Ricarica (dati puliti)' : 'Cancella dati e ricarica'}
               </button>
-              <button
-                onClick={this.handleClearAndReload}
-                className="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
-              >
-                Cancella dati e ricomincia
-              </button>
+              {!isReact310 && (
+                <button
+                  onClick={this.handleReset}
+                  className="px-6 py-3 rounded-xl border hover:bg-accent font-medium transition-colors"
+                >
+                  Riprova
+                </button>
+              )}
             </div>
           </div>
         </div>

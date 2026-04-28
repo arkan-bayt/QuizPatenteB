@@ -559,8 +559,8 @@ export const useQuizStore = create<QuizState>()(
       },
     }),
     {
-      name: 'patente-b-quiz-storage-v7',
-      version: 6,
+      name: 'patente-b-quiz-storage-v8',
+      version: 7,
       migrate: (persisted: any, version: number) => {
         // Always sanitize all persisted fields regardless of version
         const sanitizeUser = (u: any) => {
@@ -634,19 +634,16 @@ export const useQuizStore = create<QuizState>()(
       onRehydrateStorage: () => {
         // Clean up ALL old storage keys from previous versions
         if (typeof window !== 'undefined') {
-          try { localStorage.removeItem('patente-b-quiz-storage-v1'); } catch { /* ignore */ }
-          try { localStorage.removeItem('patente-b-quiz-storage-v2'); } catch { /* ignore */ }
-          try { localStorage.removeItem('patente-b-quiz-storage-v3'); } catch { /* ignore */ }
-          try { localStorage.removeItem('patente-b-quiz-storage-v4'); } catch { /* ignore */ }
-          try { localStorage.removeItem('patente-b-quiz-storage-v5'); } catch { /* ignore */ }
-          try { localStorage.removeItem('patente-b-quiz-storage-v6'); } catch { /* ignore */ }
+          for (let v = 1; v <= 7; v++) {
+            try { localStorage.removeItem(`patente-b-quiz-storage-v${v}`); } catch { /* ignore */ }
+          }
           try { localStorage.removeItem('patente-b-progress-cache'); } catch { /* ignore */ }
           try { localStorage.removeItem('patente-b-pending-sync'); } catch { /* ignore */ }
         }
         return (state, error) => {
           if (error) {
             console.error('Failed to rehydrate store, clearing corrupted data:', error);
-            try { localStorage.removeItem('patente-b-quiz-storage-v7'); } catch { /* ignore */ }
+            try { localStorage.removeItem('patente-b-quiz-storage-v8'); } catch { /* ignore */ }
           }
           if (state) {
             try {
