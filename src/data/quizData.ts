@@ -1,8 +1,6 @@
 // ============================================================
-// DATA LAYER - Quiz Data Loader
-// Reads from quizData.json (7139 questions from Ed0ardo/QuizPatenteB)
+// DATA LAYER - Quiz Data Loader (7139 questions)
 // ============================================================
-
 export interface QuizQuestion {
   id: number;
   chapter: number;
@@ -31,7 +29,6 @@ export interface QuizData {
   totalQuestions: number;
 }
 
-// This will be populated at module load time on client
 let _data: QuizData | null = null;
 
 export async function loadQuizData(): Promise<QuizData> {
@@ -41,15 +38,27 @@ export async function loadQuizData(): Promise<QuizData> {
   return _data!;
 }
 
-export function getQuestionsByChapters(questions: QuizQuestion[], chapterIds: number[]): QuizQuestion[] {
-  return questions.filter((q) => chapterIds.includes(q.chapter));
+export function getQuestionsByChapters(qs: QuizQuestion[], ids: number[]): QuizQuestion[] {
+  return qs.filter((q) => ids.includes(q.chapter));
+}
+
+export function getQuestionsBySubtopic(qs: QuizQuestion[], chapterId: number, subtopic: string): QuizQuestion[] {
+  return qs.filter((q) => q.chapter === chapterId && q.subtopic === subtopic);
 }
 
 export function getUniqueTopics(chapters: Chapter[]): string[] {
-  const topics = new Set(chapters.map((ch) => ch.topic));
-  return Array.from(topics).sort();
+  return Array.from(new Set(chapters.map((c) => c.topic))).sort();
 }
 
 export function getChaptersByTopic(chapters: Chapter[], topic: string): Chapter[] {
-  return chapters.filter((ch) => ch.topic === topic);
+  return chapters.filter((c) => c.topic === topic);
+}
+
+export function getSubtopicsForChapter(qs: QuizQuestion[], chapterId: number): string[] {
+  return Array.from(new Set(qs.filter((q) => q.chapter === chapterId).map((q) => q.subtopic))).sort();
+}
+
+export function getRandomQuestions(qs: QuizQuestion[], count: number): QuizQuestion[] {
+  const shuffled = [...qs].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
 }

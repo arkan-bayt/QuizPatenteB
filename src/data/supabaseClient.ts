@@ -1,7 +1,6 @@
 // ============================================================
-// DATA LAYER - Supabase Client
+// DATA LAYER - Supabase + Types
 // ============================================================
-
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://jdahzuhkwimridgskcqd.supabase.co';
@@ -9,7 +8,28 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-export const DEFAULT_ADMIN = {
-  username: 'arkan',
-  password: '12345',
-};
+export interface AppUser {
+  id: string;
+  username: string;
+  password_hash: string;
+  role: 'admin' | 'user';
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ChapterProgress {
+  answeredIds: number[];
+  correctIds: number[];
+  wrongIds: number[];
+}
+
+export interface UserStats {
+  totalAnswered: number;
+  totalCorrect: number;
+  totalWrong: number;
+  streak: number;
+  bestStreak: number;
+  lastActive: string;
+  examsPassed: number;
+  examsFailed: number;
+}

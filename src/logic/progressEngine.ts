@@ -1,0 +1,115 @@
+// ============================================================
+// LOGIC - Progress Engine (per-user, per-chapter, wrong answers)
+// ============================================================
+import { ChapterProgress, UserStats } from '@/data/supabaseClient';
+
+function key(username: string): string { return `qp_progress_${username}`; }
+function wrongKey(username: string): string { return `qp_wrong_${username}`; }
+function statsKey(username: string): string { return `qp_stats_${username}`; }
+
+// ---- Chapter Progress ----
+export function getChapterProgress(username: string): Record<number, ChapterProgress> {
+  if (typeof window === 'undefined') return {};
+  try { return JSON.parse(localStorage.getItem(key(username)) || '{}'); } catch { return {}; }
+}
+
+export function saveChapterProgress(username: string, chapterId: number, progress: ChapterProgress): void {
+  if (typeof window === 'undefined') return;
+  const all = getChapterProgress(username);
+  all[chapterId] = progress;
+  try { localStorage.setItem(key(username), JSON.stringify(all)); } catch { /* */ }
+}
+
+export function updateChapterProgress(username: string, chapterId: number, questionId: number, isCorrect: boolean): ChapterProgress {
+  const all = getChapterProgress(username);
+  let cp = all[chapterId] || { answeredIds: [], correctIds: [], wrongIds: [] };
+  if (!cp.answeredIds.includes(questionId)) {
+    cp.answeredIds.push(questionId);
+    if (isCorrect) cp.correctIds.push(questionId); else cp.wrongIds.push(questionId);
+  }
+  saveChapterProgress(username, chapterId, cp);
+  return cp;
+}
+
+// ---- Wrong Answers ----
+export function getWrongAnswerIds(username: string): number[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(wrongKey(username)) || '[]'); } catch { return []; }
+}
+
+export function addWrongAnswer(username: string, questionId: number, chapterId: number): void {
+  const ids = getWrongAnswerIds(username);
+  if (!ids.includes(questionId)) {
+    ids.push(questionId);
+    try { localStorage.setItem(wrongKey(username), JSON.stringify(ids)); } catch { /* */ }
+  }
+}
+
+export function removeWrongAnswer(username: string, questionId: number): void {
+  const ids = getWrongAnswerIds(username).filter((id) => id !== questionId);
+  try { localStorage.setItem(wrongKey(username), JSON.stringify(ids)); } catch { /* */ }
+}
+
+// ---- Stats ----
+export function getUserStats(username: string): UserStats {
+  if (typeof window === 'undefined') return { totalAnswered: 0, totalCorrect: 0, totalWrong: 0, streak: 0, bestStreak: 0, lastActive: '', examsPassed: 0, examsFailed: 0 };
+  try {
+    const raw = localStorage.getItem(statsKey(username));
+    if (!raw) return { totalAnswered: 0, totalCorrect: 0, totalWrong: 0, streak: 0, bestStreak: 0, lastActive: '', examsPassed: 0, examsFailed: 0 };
+    return JSON.parse(raw);
+  } catch { return { totalAnswered: 0, totalCorrect: 0, totalWrong: 0, streak: 0, bestStreak: 0, lastActive: '', examsPassed: 0, examsFailed: 0 }; }
+}
+
+export function saveUserStats(username: string, stats: UserStats): void {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(statsKey(username), JSON.stringify(stats)); } catch { /* */ }
+}
+
+export function recordAnswer(username: string, isCorrect: boolean): void {
+  const s = getUserStats(username);
+  const today = new Date().toISOString().split('T')[0];
+  s.totalAnswered++;
+  if (isCorrect) {
+    s.totalCorrect++;
+    s.streak = (s.lastActive === today || s.lastActive === getYesterday()) ? s.streak + 1 : 1;
+    if (s.streak > s.bestStreak) s.bestStreak = s.streak;
+  } else {
+    s.totalWrong++;
+    s.streak = 0;
+  }
+  s.lastActive = today;
+  saveUserStats(username, s);
+}
+
+export function recordExamResult(username: string, passed: boolean): void {
+  const s = getUserStats(username);
+  if (passed) s.examsPassed++; else s.examsFailed++;
+  saveUserStats(username, s);
+}
+
+function getYesterday(): string {
+  const d = new Date(); d.setDate(d.getDate() - 1);
+  return d.toISOString().split('T')[0];
+}
+
+// ---- Resume quiz state ----
+export function saveQuizResume(username: string, data: { chapterIds: number[]; questionIds: number[]; idx: number; correct: number; wrong: number; mode: string }): void {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(`qp_resume_${username}`, JSON.stringify({ ...data, ts: Date.now() })); } catch { /* */ }
+}
+
+export function loadQuizResume(username: string): { chapterIds: number[]; questionIds: number[]; idx: number; correct: number; wrong: number; mode: string } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(`qp_resume_${username}`);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (Date.now() - d.ts > 48 * 60 * 60 * 1000) { localStorage.removeItem(`qp_resume_${username}`); return null; }
+    return d;
+  } catch { return null; }
+}
+
+export function clearQuizResume(username: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(`qp_resume_${username}`);
+}

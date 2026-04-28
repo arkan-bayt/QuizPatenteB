@@ -1,57 +1,57 @@
 'use client';
-
 import React, { useEffect, useState } from 'react';
-import { useAppStore } from '@/store/useAppStore';
+import { useStore } from '@/store/useStore';
 import { loadQuizData } from '@/data/quizData';
-import { verifyCredentials, saveAdminSession, hasAdminSession } from '@/logic/authEngine';
-import { loadProgress } from '@/logic/resumeEngine';
+import { loadSession, clearSession } from '@/logic/authEngine';
 import { preloadVoices } from '@/logic/ttsEngine';
+import { loadQuizResume } from '@/logic/progressEngine';
 import LoginScreen from '@/components/LoginScreen';
-import SelectionScreen from '@/components/SelectionScreen';
+import HomeScreen from '@/components/HomeScreen';
+import ChapterScreen from '@/components/ChapterScreen';
 import QuizScreen from '@/components/QuizScreen';
 import ResultScreen from '@/components/ResultScreen';
-import LoadingScreen from '@/components/LoadingScreen';
+import AdminPanel from '@/components/AdminPanel';
 
-export default function Home() {
-  const { screen, setData, login, setScreen, setShowResumePopup, isLoading } = useAppStore();
+export default function Page() {
+  const store = useStore();
+  const { screen } = store;
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Preload TTS voices
     preloadVoices();
-
-    // Load quiz data
     loadQuizData().then((data) => {
-      setData(data.chapters, data.questions);
+      store.setData(data.chapters, data.questions);
       setReady(true);
-    }).catch((err) => {
-      console.error('Failed to load quiz data:', err);
-      setData([], []);
-      setReady(true);
-    });
-  }, [setData]);
+    }).catch(() => { store.setData([], []); setReady(true); });
+  }, []);
 
   useEffect(() => {
     if (!ready) return;
-    // Check existing admin session
-    if (hasAdminSession()) {
-      login('admin');
-      // Check for resumable progress
-      if (loadProgress()) {
-        setShowResumePopup(true);
-      }
+    const session = loadSession();
+    if (session) {
+      store.setUser(session);
+      store.setScreen('home');
     } else {
-      setScreen('login');
+      store.setScreen('login');
     }
-  }, [ready, login, setScreen, setShowResumePopup]);
+  }, [ready]);
 
-  if (!ready) return <LoadingScreen />;
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
+        <div className="w-6 h-6 rounded-full border-2 border-indigo-500/30 border-t-indigo-500 animate-spin" />
+      </div>
+    );
+  }
 
   switch (screen) {
     case 'login': return <LoginScreen />;
-    case 'select': return <SelectionScreen />;
+    case 'home': return <HomeScreen />;
+    case 'chapter': return <ChapterScreen />;
     case 'quiz': return <QuizScreen />;
+    case 'exam': return <QuizScreen />;
     case 'result': return <ResultScreen />;
+    case 'admin': return <AdminPanel />;
     default: return <LoginScreen />;
   }
 }
