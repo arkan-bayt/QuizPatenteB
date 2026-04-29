@@ -1,12 +1,14 @@
 // ============================================================
 // API Route - Cloud Progress Sync via Supabase
-// Stores all progress as JSONB in user_progress table
+// Uses user_progress table with columns:
+//   username (TEXT PK), stats (JSONB), chapter_progress (JSONB),
+//   wrong_answer_ids (INTEGER[]), updated_at (TIMESTAMPTZ)
 // ============================================================
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = 'https://jdahzuhkwimridgskcqd.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkYWh6dWhrd2ltcmlkZ3NrY3FkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyODc1MDMsImV4cCI6MjA5Mjg2MzUwM30.XKIZZ_n_nb9evzwpBrLzIaFxu6I0nBi_MBlwW1V93zU';
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -18,8 +20,8 @@ export async function GET(request: NextRequest) {
   try {
     const { data, error } = await supabase
       .from('user_progress')
-      .select('progress')
-      .eq('user_id', username)
+      .select('*')
+      .eq('username', username)
       .single();
 
     if (error) {
@@ -37,13 +39,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'DB error' }, { status: 500 });
     }
 
-    const progress = data?.progress || {};
     return NextResponse.json({
       source: 'supabase',
-      stats: progress.stats || {},
-      chapterProgress: progress.chapterProgress || {},
-      wrongAnswerIds: progress.wrongAnswerIds || [],
-      updatedAt: progress.updatedAt || 0,
+      stats: data?.stats || {},
+      chapterProgress: data?.chapter_progress || {},
+      wrongAnswerIds: data?.wrong_answer_ids || [],
+      updatedAt: data?.updated_at ? new Date(data.updated_at).getTime() : 0,
     });
   } catch (e: any) {
     console.error('Progress GET error:', e);
@@ -58,21 +59,16 @@ export async function POST(request: NextRequest) {
     const { username, stats, chapterProgress, wrongAnswerIds } = body;
     if (!username) return NextResponse.json({ error: 'Missing username' }, { status: 400 });
 
-    const progressData = {
-      stats: stats || {},
-      chapterProgress: chapterProgress || {},
-      wrongAnswerIds: wrongAnswerIds || [],
-      updatedAt: Date.now(),
-    };
-
-    // Upsert: insert or update
+    // Upsert: insert or update using username as the primary key
     const { error } = await supabase
       .from('user_progress')
       .upsert({
-        user_id: username,
-        progress: progressData,
+        username,
+        stats: stats || {},
+        chapter_progress: chapterProgress || {},
+        wrong_answer_ids: wrongAnswerIds || [],
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' });
+      }, { onConflict: 'username' });
 
     if (error) {
       console.error('Supabase POST error:', error);
