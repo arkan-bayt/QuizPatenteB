@@ -50,22 +50,37 @@ async function handleExplain(body: {
   const subtopicInfo = subtopic ? `Argomento: ${subtopic}` : '';
   const imageInfo = hasImage ? 'Questa domanda ha un immagine di un segnale stradale.' : '';
 
-  const prompt = `Sei un istruttore di guida esperto per la patente B in Italia. Spiega PERCHÉ la risposta dell'utente è sbagliata in modo semplice e chiaro.
+  const prompt = `Sei un istruttore di patente B esperto in Italia. L'utente ha sbagliato una domanda. Devi spiegare PERCHE' ha sbagliato e dare informazioni utili.
 
-Domanda: "${question}"
-${chapterInfo}
-${subtopicInfo}
-${imageInfo}
-Risposta corretta: ${correctText}
-Risposta dell'utente: ${userText}
+CONTESTO:
+- Domanda: "${question}"
+- Capitolo: ${chapterName || 'Non specificato'}
+- Argomento: ${subtopic || 'Non specificato'}
+- Questa domanda contiene un segnale stradale nell'immagine: ${hasImage ? 'SI' : 'NO'}
+- Risposta corretta: ${correctText}
+- Risposta dell'utente: ${userText}
 
-Regole IMPORTANTI:
+REGOLE DI RISPOSTA (MOLTO IMPORTANTE):
 - Rispondi SEMPRE in italiano
-- Massimo 3 frasi
-- Sii diretto e semplice
-- Spiega la regola del codice della strada in modo chiaro
-- Non usare formule o markdown
-- Inizia direttamente con la spiegazione, no introduzioni`;
+- NON dire mai "rivedi il capitolo" o "studia l'argomento" - Dai INFORMAZIONI REALI
+- Se la domanda parla di un segnale stradale: spiega il NOME del segnale e cosa significa (es. "Questo e' il segnale di divieto di sosta. Indica che non e' possibile parcheggiare in quella zona.")
+- Se la domanda parla di una regola: spiega la regola specifica del codice della strada
+- Spiega PERCHE' la risposta corretta e' ${correctText} con un motivo reale
+- Massimo 4 frasi
+- Sii diretto e pratico
+- Non usare markdown, asterischi o formattazione speciale
+- Usa solo testo semplice e chiaro
+- Inizia direttamente con la spiegazione, senza introduzioni come "La risposta corretta e'"
+
+ESEMPI DI RISPOSTA BUONA:
+- "Il segnale di obbligo di svoltare a destra indica che devi girare a destra. Non puoi proseguire dritto. Appartiene alla categoria dei segnali di obbligo."
+- "Il limite di velocita' in area urbana e' 50 km/h, non 30 km/h. Questo vale per tutte le strade cittadine salvo diversa segnalazione."
+- "I pedoni hanno sempre la precedenza sugli attraversamenti strisciate. Il conducente deve fermarsi e aspettare che completino l'attraversamento."
+
+ESEMPI DI RISPOSTA DA EVITARE:
+- "Ripassa il capitolo dei segnali stradali." (VAGA E INUTILE)
+- "La risposta e' sbagliata, controlla il codice della strada." (NON DAI INFORMAZIONI)
+- "Devi studiare meglio questo argomento." (INUTILE)`;
 
   try {
     const zai = await getZAI();
@@ -73,15 +88,15 @@ Regole IMPORTANTI:
       messages: [
         {
           role: 'system',
-          content: 'Sei un istruttore di patente B italiano. Rispondi sempre in italiano in modo semplice e chiaro. Massimo 3 frasi.'
+          content: 'Sei un istruttore di patente B esperto in Italia. Quando spieghi un errore, dai SEMPRE informazioni reali e specifiche. Se la domanda riguarda un segnale stradale, identifica il segnale e spiega cosa significa. Mai dire "rivedi il capitolo" o "studia l argomento". Rispondi in italiano con massimo 4 frasi semplici e dirette. Non usare markdown.'
         },
         {
           role: 'user',
           content: prompt
         }
       ],
-      temperature: 0.3,
-      max_tokens: 150,
+      temperature: 0.2,
+      max_tokens: 250,
     });
 
     const explanation = completion.choices[0]?.message?.content || 'Spiegazione non disponibile.';
