@@ -129,8 +129,14 @@ export default function ChapterScreen() {
             const stLabel = st.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
             const stComplete = stPct === 100;
 
+            const handleOpenSubtopic = () => {
+              const unanswered = stQs.filter((q) => !chapterProgress.answeredIds.includes(q.id));
+              const qs = unanswered.length > 0 ? unanswered : stQs;
+              store.startQuiz(qs, 'subtopic');
+            };
+
             return (
-              <button key={st} onClick={() => store.openSubtopic(chapter.id, st)}
+              <button key={st} onClick={handleOpenSubtopic}
                 className="glass-hover w-full text-left p-4 flex items-center gap-4 anim-up"
                 style={{ animationDelay: `${i * 40}ms` }}>
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300"
