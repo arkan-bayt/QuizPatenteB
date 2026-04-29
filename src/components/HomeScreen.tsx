@@ -1,17 +1,46 @@
 'use client';
 import React, { useMemo } from 'react';
 import { useStore } from '@/store/useStore';
-import { Chapter, getUniqueTopics, getChaptersByTopic, getQuestionsByChapters, getRandomQuestions } from '@/data/quizData';
+import { getUniqueTopics, getChaptersByTopic, getQuestionsByChapters, getRandomQuestions } from '@/data/quizData';
 import { useOverallStats, useUserStats, useWrongAnswers } from './hooks';
 import { clearSession } from '@/logic/authEngine';
 import { forceSyncToCloud } from '@/logic/progressEngine';
 
-const TOPIC_META: Record<string, { icon: string; color: string; colorVar: string }> = {
-  'Conoscenze generali': { icon: '📖', color: 'icon-box-primary', colorVar: 'var(--primary-light)' },
-  'Segnali stradali': { icon: '🚦', color: 'icon-box-success', colorVar: 'var(--success)' },
-  'Norme di circolazione': { icon: '🛣️', color: 'icon-box-accent', colorVar: 'var(--accent)' },
-  'Equipaggiamento e sicurezza': { icon: '🦺', color: 'icon-box-danger', colorVar: 'var(--danger)' },
-  'Documenti e norme': { icon: '📄', color: 'icon-box-purple', colorVar: 'var(--purple)' },
+// Unique design for each of the 25 chapters
+const CHAPTER_STYLES: Record<number, { icon: string; gradient: string; shadow: string }> = {
+  1:  { icon: '📖', gradient: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', shadow: '0 4px 15px rgba(59,130,246,0.35)' },
+  2:  { icon: '⚠️', gradient: 'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)', shadow: '0 4px 15px rgba(239,68,68,0.35)' },
+  3:  { icon: '🚫', gradient: 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)', shadow: '0 4px 15px rgba(220,38,38,0.35)' },
+  4:  { icon: '🔵', gradient: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)', shadow: '0 4px 15px rgba(37,99,235,0.35)' },
+  5:  { icon: '🔺', gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', shadow: '0 4px 15px rgba(245,158,11,0.35)' },
+  6:  { icon: '📏', gradient: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)', shadow: '0 4px 15px rgba(139,92,246,0.35)' },
+  7:  { icon: '🚦', gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', shadow: '0 4px 15px rgba(16,185,129,0.35)' },
+  8:  { icon: '🪧', gradient: 'linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)', shadow: '0 4px 15px rgba(6,182,212,0.35)' },
+  9:  { icon: '🚧', gradient: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)', shadow: '0 4px 15px rgba(249,115,22,0.35)' },
+  10: { icon: '📋', gradient: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)', shadow: '0 4px 15px rgba(99,102,241,0.35)' },
+  11: { icon: '🏎️', gradient: 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)', shadow: '0 4px 15px rgba(236,72,153,0.35)' },
+  12: { icon: '📏', gradient: 'linear-gradient(135deg, #14B8A6 0%, #0D9488 100%)', shadow: '0 4px 15px rgba(20,184,166,0.35)' },
+  13: { icon: '🛣️', gradient: 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)', shadow: '0 4px 15px rgba(14,165,233,0.35)' },
+  14: { icon: '🔀', gradient: 'linear-gradient(135deg, #A855F7 0%, #9333EA 100%)', shadow: '0 4px 15px rgba(168,85,247,0.35)' },
+  15: { icon: '↗️', gradient: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)', shadow: '0 4px 15px rgba(34,197,94,0.35)' },
+  16: { icon: '🅿️', gradient: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', shadow: '0 4px 15px rgba(59,130,246,0.35)' },
+  17: { icon: '🛤️', gradient: 'linear-gradient(135deg, #64748B 0%, #475569 100%)', shadow: '0 4px 15px rgba(100,116,139,0.35)' },
+  18: { icon: '💡', gradient: 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)', shadow: '0 4px 15px rgba(251,191,36,0.35)' },
+  19: { icon: '🦺', gradient: 'linear-gradient(135deg, #F43F5E 0%, #E11D48 100%)', shadow: '0 4px 15px rgba(244,63,94,0.35)' },
+  20: { icon: '📄', gradient: 'linear-gradient(135deg, #78716C 0%, #57534E 100%)', shadow: '0 4px 15px rgba(120,113,108,0.35)' },
+  21: { icon: '📚', gradient: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)', shadow: '0 4px 15px rgba(124,58,237,0.35)' },
+  22: { icon: '⚗️', gradient: 'linear-gradient(135deg, #BE185D 0%, #9D174D 100%)', shadow: '0 4px 15px rgba(190,24,93,0.35)' },
+  23: { icon: '⚖️', gradient: 'linear-gradient(135deg, #475569 0%, #334155 100%)', shadow: '0 4px 15px rgba(71,85,105,0.35)' },
+  24: { icon: '🌱', gradient: 'linear-gradient(135deg, #059669 0%, #047857 100%)', shadow: '0 4px 15px rgba(5,150,105,0.35)' },
+  25: { icon: '🔧', gradient: 'linear-gradient(135deg, #B45309 0%, #92400E 100%)', shadow: '0 4px 15px rgba(180,83,9,0.35)' },
+};
+
+const TOPIC_META: Record<string, { icon: string; label: string }> = {
+  'Conoscenze generali': { icon: '📖', label: 'Conoscenze generali' },
+  'Segnali stradali': { icon: '🚦', label: 'Segnali stradali' },
+  'Norme di circolazione': { icon: '🛣️', label: 'Norme di circolazione' },
+  'Equipaggiamento e sicurezza': { icon: '🦺', label: 'Equipaggiamento e sicurezza' },
+  'Documenti e norme': { icon: '📄', label: 'Documenti e norme' },
 };
 
 export default function HomeScreen() {
@@ -40,7 +69,6 @@ export default function HomeScreen() {
   };
 
   const handleLogout = () => {
-    // Force sync to cloud before logout
     if (username) forceSyncToCloud(username);
     clearSession();
     store.setUser(null);
@@ -132,7 +160,6 @@ export default function HomeScreen() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Exam Mode */}
           <button onClick={handleExamMode} className="relative overflow-hidden p-5 text-left anim-up transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
             style={{ animationDelay: '150ms', background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', borderRadius: 'var(--radius-xl)', boxShadow: '0 4px 20px rgba(245, 158, 11, 0.25)' }}>
             <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 20% 80%, rgba(255,255,255,0.3), transparent 60%)' }} />
@@ -153,7 +180,6 @@ export default function HomeScreen() {
             </div>
           </button>
 
-          {/* Wrong Retry */}
           <button onClick={handleWrongRetry} className={`relative overflow-hidden p-5 text-left anim-up transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] ${wrong.total === 0 ? 'opacity-40 pointer-events-none' : ''}`}
             style={{ animationDelay: '200ms', background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)', borderRadius: 'var(--radius-xl)', boxShadow: wrong.total > 0 ? '0 4px 20px rgba(239, 68, 68, 0.25)' : 'none' }}>
             <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 80% 20%, rgba(255,255,255,0.3), transparent 60%)' }} />
@@ -175,21 +201,19 @@ export default function HomeScreen() {
           </button>
         </div>
 
-        {/* Chapters by Topic */}
+        {/* Chapters by Topic - Card Grid */}
         {topics.map((topic, ti) => {
-          const tm = TOPIC_META[topic] || { icon: '📚', color: 'icon-box-primary', colorVar: 'var(--primary-light)' };
+          const tm = TOPIC_META[topic] || { icon: '📚', label: topic };
           const topicChapters = getChaptersByTopic(chapters, topic);
           const topicTotal = topicChapters.reduce((s, c) => s + c.questionCount, 0);
           const topicAnswered = topicChapters.reduce((s, c) => { const cs = chapterStats.find((x) => x.id === c.id); return s + (cs?.answered || 0); }, 0);
           const topicPct = topicTotal > 0 ? Math.round((topicAnswered / topicTotal) * 100) : 0;
 
           return (
-            <div key={topic} className="anim-up" style={{ animationDelay: `${(ti * 60) + 200}ms` }}>
+            <div key={topic} className="anim-up" style={{ animationDelay: `${(ti * 80) + 200}ms` }}>
               {/* Topic Header */}
-              <div className="flex items-center gap-3 mb-3 px-1">
-                <div className={`icon-box ${tm.color} w-9 h-9 text-sm`}>
-                  {tm.icon}
-                </div>
+              <div className="flex items-center gap-3 mb-4 px-1">
+                <div className="text-lg">{tm.icon}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h2 className="text-[12px] font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--text-secondary)' }}>{topic}</h2>
@@ -197,46 +221,73 @@ export default function HomeScreen() {
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <div className="w-20 h-1 rounded-full" style={{ background: 'var(--bg-tertiary)' }}>
-                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${topicPct}%`, background: tm.colorVar }} />
+                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${topicPct}%`, background: 'linear-gradient(90deg, var(--primary), var(--primary-light))' }} />
                     </div>
                     <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{topicAnswered}/{topicTotal}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Chapter List */}
-              <div className="space-y-2">
+              {/* Chapter Cards Grid */}
+              <div className="grid grid-cols-3 gap-3">
                 {topicChapters.map((ch, ci) => {
                   const cs = chapterStats.find((x) => x.id === ch.id);
                   const answered = cs?.answered || 0;
                   const totalQ = ch.questionCount;
                   const pctVal = totalQ > 0 ? Math.round((answered / totalQ) * 100) : 0;
                   const isComplete = pctVal === 100;
+                  const style = CHAPTER_STYLES[ch.id] || { icon: '📘', gradient: 'linear-gradient(135deg, #94A3B8, #64748B)', shadow: '0 4px 15px rgba(100,116,139,0.35)' };
 
                   return (
                     <button key={ch.id} onClick={() => store.openChapter(ch.id)}
-                      className="glass-hover w-full text-left p-4 flex items-center gap-4 anim-up"
-                      style={{ animationDelay: `${(ti * 60) + (ci * 30) + 250}ms` }}>
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 ${isComplete ? '' : ''}`}
-                        style={{ background: isComplete ? 'var(--success-100)' : 'var(--bg-tertiary)', border: `1px solid ${isComplete ? 'var(--success-150)' : 'var(--border)'}` }}>
-                        {isComplete
-                          ? <svg className="w-5 h-5" style={{ color: 'var(--success)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                          : <span className="text-[13px] font-bold tabular-nums" style={{ color: 'var(--text-secondary)' }}>{ch.id}</span>
-                        }
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{ch.name}</p>
-                        <div className="flex items-center gap-3 mt-1.5">
-                          <div className="flex-1 progress-bar" style={{ height: '3px' }}>
-                            <div className={`h-full rounded-full transition-all duration-700`}
-                              style={{ width: `${pctVal}%`, background: isComplete ? 'var(--success)' : 'linear-gradient(90deg, var(--primary), var(--primary-light))' }} />
+                      className="relative overflow-hidden transition-all duration-300 hover:scale-[1.05] active:scale-[0.97] anim-up"
+                      style={{
+                        animationDelay: `${(ti * 80) + (ci * 40) + 250}ms`,
+                        borderRadius: 'var(--radius-xl)',
+                        boxShadow: style.shadow,
+                        aspectRatio: '1 / 1',
+                      }}>
+                      {/* Card Background */}
+                      <div className="absolute inset-0" style={{ background: style.gradient }} />
+                      {/* Decorative Circles */}
+                      <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.1)' }} />
+                      <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full" style={{ background: 'rgba(255,255,255,0.05)' }} />
+
+                      {/* Card Content */}
+                      <div className="relative z-10 h-full flex flex-col items-center justify-center p-3 text-center">
+                        {/* Progress Ring Background */}
+                        <div className="relative w-14 h-14 mb-2">
+                          <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+                            <circle cx="28" cy="28" r="24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3" />
+                            <circle cx="28" cy="28" r="24" fill="none" stroke={isComplete ? '#4ADE80' : 'rgba(255,255,255,0.8)'}
+                              strokeWidth="3" strokeLinecap="round"
+                              strokeDasharray={`${2 * Math.PI * 24}`}
+                              strokeDashoffset={`${2 * Math.PI * 24 * (1 - pctVal / 100)}`}
+                              className="transition-all duration-700" />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            {isComplete
+                              ? <svg className="w-6 h-6 text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                              : <span className="text-2xl">{style.icon}</span>
+                            }
                           </div>
-                          <span className="text-[11px] tabular-nums font-medium w-16 text-right" style={{ color: 'var(--text-muted)' }}>{answered}/{totalQ}</span>
                         </div>
+
+                        {/* Chapter Name */}
+                        <p className="text-[10px] font-bold text-white leading-tight line-clamp-2 px-1">{ch.name}</p>
+
+                        {/* Question Count */}
+                        <p className="text-[9px] font-medium mt-1.5 px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.9)' }}>
+                          {answered}/{totalQ}
+                        </p>
                       </div>
-                      <svg className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                      </svg>
+
+                      {/* Completion Overlay */}
+                      {isComplete && (
+                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(74,222,128,0.9)' }}>
+                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                        </div>
+                      )}
                     </button>
                   );
                 })}
