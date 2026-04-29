@@ -1,8 +1,7 @@
 // ============================================================
 // API Route - Cloud Progress Sync via Supabase
 // Uses user_progress table with columns:
-//   username (TEXT PK), stats (JSONB), chapter_progress (JSONB),
-//   wrong_answer_ids (INTEGER[]), updated_at (TIMESTAMPTZ)
+//   user_id (TEXT PK), progress (JSONB), updated_at (TIMESTAMPTZ)
 // ============================================================
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -21,29 +20,28 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from('user_progress')
       .select('*')
-      .eq('username', username)
+      .eq('user_id', username)
       .single();
 
     if (error) {
       // Row doesn't exist yet - return empty
       if (error.code === 'PGRST116') {
         return NextResponse.json({
-          source: 'supabase',
           stats: {},
           chapterProgress: {},
           wrongAnswerIds: [],
-          updatedAt: 0,
         });
       }
       console.error('Supabase GET error:', error);
       return NextResponse.json({ error: 'DB error' }, { status: 500 });
     }
 
+    // Extract from progress JSONB
+    const progress = data?.progress || {};
     return NextResponse.json({
-      source: 'supabase',
-      stats: data?.stats || {},
-      chapterProgress: data?.chapter_progress || {},
-      wrongAnswerIds: data?.wrong_answer_ids || [],
+      stats: progress.stats || {},
+      chapterProgress: progress.chapterProgress || {},
+      wrongAnswerIds: progress.wrongAnswerIds || [],
       updatedAt: data?.updated_at ? new Date(data.updated_at).getTime() : 0,
     });
   } catch (e: any) {
@@ -59,23 +57,29 @@ export async function POST(request: NextRequest) {
     const { username, stats, chapterProgress, wrongAnswerIds } = body;
     if (!username) return NextResponse.json({ error: 'Missing username' }, { status: 400 });
 
-    // Upsert: insert or update using username as the primary key
+    // Build progress object matching the table structure
+    const progress = {
+      stats: stats || {},
+      chapterProgress: chapterProgress || {},
+      wrongAnswerIds: wrongAnswerIds || [],
+      updatedAt: Date.now(),
+    };
+
+    // Upsert using user_id as the key
     const { error } = await supabase
       .from('user_progress')
       .upsert({
-        username,
-        stats: stats || {},
-        chapter_progress: chapterProgress || {},
-        wrong_answer_ids: wrongAnswerIds || [],
+        user_id: username,
+        progress,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'username' });
+      }, { onConflict: 'user_id' });
 
     if (error) {
       console.error('Supabase POST error:', error);
       return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true, source: 'supabase' });
+    return NextResponse.json({ ok: true });
   } catch (e: any) {
     console.error('Progress POST error:', e);
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
