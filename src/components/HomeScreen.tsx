@@ -240,54 +240,41 @@ export default function HomeScreen() {
 
                   return (
                     <button key={ch.id} onClick={() => store.openChapter(ch.id)}
-                      className="relative overflow-hidden transition-all duration-300 hover:scale-[1.05] active:scale-[0.97] anim-up"
+                      className="relative overflow-hidden transition-all duration-300 hover:scale-[1.05] active:scale-[0.97] anim-up text-center"
                       style={{
                         animationDelay: `${(ti * 80) + (ci * 40) + 250}ms`,
                         borderRadius: 'var(--radius-xl)',
                         boxShadow: style.shadow,
-                        aspectRatio: '1 / 1',
                       }}>
                       {/* Card Background */}
-                      <div className="absolute inset-0" style={{ background: style.gradient }} />
-                      {/* Decorative Circles */}
-                      <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.1)' }} />
-                      <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full" style={{ background: 'rgba(255,255,255,0.05)' }} />
+                      <div className="pt-5 pb-4 px-3" style={{ background: style.gradient }}>
+                        {/* Decorative Circle */}
+                        <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.1)' }} />
 
-                      {/* Card Content */}
-                      <div className="relative z-10 h-full flex flex-col items-center justify-center p-3 text-center">
-                        {/* Progress Ring Background */}
-                        <div className="relative w-14 h-14 mb-2">
-                          <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
-                            <circle cx="28" cy="28" r="24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3" />
-                            <circle cx="28" cy="28" r="24" fill="none" stroke={isComplete ? '#4ADE80' : 'rgba(255,255,255,0.8)'}
-                              strokeWidth="3" strokeLinecap="round"
-                              strokeDasharray={`${2 * Math.PI * 24}`}
-                              strokeDashoffset={`${2 * Math.PI * 24 * (1 - pctVal / 100)}`}
-                              className="transition-all duration-700" />
-                          </svg>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            {isComplete
-                              ? <svg className="w-6 h-6 text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                              : <span className="text-2xl">{style.icon}</span>
-                            }
+                        {/* Completion Badge */}
+                        {isComplete && (
+                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(74,222,128,0.9)' }}>
+                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                           </div>
+                        )}
+
+                        {/* Icon */}
+                        <div className="text-3xl mb-2">{style.icon}</div>
+
+                        {/* Chapter Number */}
+                        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.6)' }}>Cap. {ch.id}</span>
+
+                        {/* Progress Bar */}
+                        <div className="w-full h-1.5 rounded-full mt-2 mb-1" style={{ background: 'rgba(255,255,255,0.2)' }}>
+                          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pctVal}%`, background: 'rgba(255,255,255,0.8)' }} />
                         </div>
-
-                        {/* Chapter Name */}
-                        <p className="text-[10px] font-bold text-white leading-tight line-clamp-2 px-1">{ch.name}</p>
-
-                        {/* Question Count */}
-                        <p className="text-[9px] font-medium mt-1.5 px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.9)' }}>
-                          {answered}/{totalQ}
-                        </p>
+                        <span className="text-[9px] font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>{answered}/{totalQ}</span>
                       </div>
 
-                      {/* Completion Overlay */}
-                      {isComplete && (
-                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(74,222,128,0.9)' }}>
-                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                        </div>
-                      )}
+                      {/* Chapter Name - always visible below */}
+                      <div className="px-3 py-3" style={{ background: isComplete ? 'var(--success-100)' : 'var(--bg-card)', borderBottomLeftRadius: 'var(--radius-xl)', borderBottomRightRadius: 'var(--radius-xl)' }}>
+                        <p className="text-[11px] font-semibold leading-tight line-clamp-2" style={{ color: isComplete ? 'var(--success)' : 'var(--text-primary)' }}>{ch.name}</p>
+                      </div>
                     </button>
                   );
                 })}
