@@ -1,5 +1,7 @@
 // ============================================================
 // LOGIC - Progress Engine (localStorage + Cloud sync)
+// Cloud (Supabase) is the Source of Truth
+// localStorage is only a cache for offline access
 // ============================================================
 import { ChapterProgress, UserStats } from '@/data/supabaseClient';
 
@@ -9,21 +11,8 @@ function wrongKey(username: string): string { return `qp_wrong_${username}`; }
 function statsKey(username: string): string { return `qp_stats_${username}`; }
 
 // ---- Cloud Sync State ----
-let _syncEnabled: boolean | null = null; // null = not checked yet
 let _syncTimer: ReturnType<typeof setTimeout> | null = null;
 const SYNC_DELAY = 2000; // Debounce 2s
-
-async function checkSyncAvailable(): Promise<boolean> {
-  if (_syncEnabled !== null) return _syncEnabled;
-  try {
-    const res = await fetch('/api/progress?username=__test__');
-    _syncEnabled = res.ok;
-    return _syncEnabled;
-  } catch {
-    _syncEnabled = false;
-    return false;
-  }
-}
 
 async function cloudLoad(username: string): Promise<{
   stats: UserStats | null;
@@ -65,65 +54,55 @@ function scheduleCloudSync(username: string) {
   }, SYNC_DELAY);
 }
 
-// ---- Load cloud progress and merge into local (call on login) ----
-export async function loadCloudProgress(username: string): Promise<void> {
-  if (typeof window === 'undefined') return;
+// Force immediate sync to cloud (call before leaving page)
+export function forceSyncToCloud(username: string) {
+  if (_syncTimer) clearTimeout(_syncTimer);
+  const stats = getUserStats(username);
+  const cp = getChapterProgress(username);
+  const wrong = getWrongAnswerIds(username);
+  fetch('/api/progress', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username,
+      stats,
+      chapterProgress: cp,
+      wrongAnswerIds: wrong,
+    }),
+  }).catch(() => {});
+}
+
+// ---- Load cloud progress and REPLACE local data (call on login) ----
+export async function loadCloudProgress(username: string): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
   try {
     const cloud = await cloudLoad(username);
-    if (!cloud) return;
+    if (!cloud) return false;
 
-    // Merge stats - take the one with more answers
+    let loaded = false;
+
+    // Cloud stats override local stats (cloud is source of truth)
     if (cloud.stats) {
-      const localStats = getUserStats(username);
-      if (cloud.stats.totalAnswered > localStats.totalAnswered) {
-        saveUserStats(username, cloud.stats);
-      }
+      saveUserStats(username, cloud.stats);
+      loaded = true;
     }
 
-    // Merge chapter progress - merge answered IDs
+    // Cloud chapter progress overrides local
     if (cloud.chapterProgress) {
-      const local = getChapterProgress(username);
-      for (const [chIdStr, cloudCp] of Object.entries(cloud.chapterProgress)) {
-        const chId = Number(chIdStr);
-        const localCp = local[chId] || { answeredIds: [], correctIds: [], wrongIds: [] };
-        // Merge: take union of answeredIds, merge correct/wrong
-        for (const aId of cloudCp.answeredIds) {
-          if (!localCp.answeredIds.includes(aId)) {
-            localCp.answeredIds.push(aId);
-          }
-        }
-        for (const cId of cloudCp.correctIds) {
-          if (!localCp.correctIds.includes(cId)) {
-            localCp.correctIds.push(cId);
-          }
-        }
-        for (const wId of cloudCp.wrongIds) {
-          if (!localCp.wrongIds.includes(wId)) {
-            localCp.wrongIds.push(wId);
-          }
-        }
-        local[chId] = localCp;
-      }
-      if (typeof window !== 'undefined') {
-        try { localStorage.setItem(key(username), JSON.stringify(local)); } catch { /* */ }
-      }
+      try { localStorage.setItem(key(username), JSON.stringify(cloud.chapterProgress)); } catch { /* */ }
+      loaded = true;
     }
 
-    // Merge wrong answers - take union
+    // Cloud wrong answers override local
     if (cloud.wrongAnswerIds) {
-      const localWrong = getWrongAnswerIds(username);
-      let merged = false;
-      for (const wId of cloud.wrongAnswerIds) {
-        if (!localWrong.includes(wId)) {
-          localWrong.push(wId);
-          merged = true;
-        }
-      }
-      if (merged && typeof window !== 'undefined') {
-        try { localStorage.setItem(wrongKey(username), JSON.stringify(localWrong)); } catch { /* */ }
-      }
+      try { localStorage.setItem(wrongKey(username), JSON.stringify(cloud.wrongAnswerIds)); } catch { /* */ }
+      loaded = true;
     }
-  } catch { /* silent */ }
+
+    return loaded;
+  } catch {
+    return false;
+  }
 }
 
 // ---- Chapter Progress ----

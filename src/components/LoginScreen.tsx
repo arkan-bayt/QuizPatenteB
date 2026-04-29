@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { login, saveSession } from '@/logic/authEngine';
+import { loadCloudProgress } from '@/logic/progressEngine';
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
@@ -18,7 +19,15 @@ export default function LoginScreen() {
     setBusy(true);
     const res = await login(username, password);
     setBusy(false);
-    if (res.ok && res.user) { saveSession(res.user); setUser(res.user); setScreen('home'); }
+    if (res.ok && res.user) {
+      saveSession(res.user);
+      setUser(res.user);
+      // Load cloud progress before going to home
+      setBusy(true);
+      await loadCloudProgress(res.user.username);
+      setBusy(false);
+      setScreen('home');
+    }
     else setAuthError(res.msg);
   };
 

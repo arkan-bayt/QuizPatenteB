@@ -4,6 +4,7 @@ import { useStore } from '@/store/useStore';
 import { Chapter, getUniqueTopics, getChaptersByTopic, getQuestionsByChapters, getRandomQuestions } from '@/data/quizData';
 import { useOverallStats, useUserStats, useWrongAnswers } from './hooks';
 import { clearSession } from '@/logic/authEngine';
+import { forceSyncToCloud } from '@/logic/progressEngine';
 
 const TOPIC_META: Record<string, { icon: string; color: string; colorVar: string }> = {
   'Conoscenze generali': { icon: '📖', color: 'icon-box-primary', colorVar: 'var(--primary-light)' },
@@ -39,6 +40,8 @@ export default function HomeScreen() {
   };
 
   const handleLogout = () => {
+    // Force sync to cloud before logout
+    if (username) forceSyncToCloud(username);
     clearSession();
     store.setUser(null);
     store.setScreen('login');
