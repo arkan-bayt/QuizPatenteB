@@ -47,11 +47,15 @@ export function getQuestionsBySubtopic(qs: QuizQuestion[], chapterId: number, su
 }
 
 export function getUniqueTopics(chapters: Chapter[]): string[] {
-  return Array.from(new Set(chapters.map((c) => c.topic))).sort();
+  const topicMinId: Record<string, number> = {};
+  for (const c of chapters) {
+    if (!topicMinId[c.topic] || c.id < topicMinId[c.topic]) topicMinId[c.topic] = c.id;
+  }
+  return Array.from(new Set(chapters.map((c) => c.topic))).sort((a, b) => topicMinId[a] - topicMinId[b]);
 }
 
 export function getChaptersByTopic(chapters: Chapter[], topic: string): Chapter[] {
-  return chapters.filter((c) => c.topic === topic);
+  return chapters.filter((c) => c.topic === topic).sort((a, b) => a.id - b.id);
 }
 
 export function getSubtopicsForChapter(qs: QuizQuestion[], chapterId: number): string[] {
