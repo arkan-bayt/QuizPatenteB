@@ -11,6 +11,7 @@ import ChapterScreen from '@/components/ChapterScreen';
 import QuizScreen from '@/components/QuizScreen';
 import ResultScreen from '@/components/ResultScreen';
 import AdminPanel from '@/components/AdminPanel';
+import AIAnalysisScreen from '@/components/AIAnalysisScreen';
 
 export default function Page() {
   const store = useStore();
@@ -99,6 +100,7 @@ export default function Page() {
     case 'exam': return <QuizScreen />;
     case 'result': return <ResultScreen />;
     case 'admin': return <AdminPanel />;
+    case 'aiAnalysis': return <AIAnalysisScreen />;
     default: return <LoginScreen />;
   }
 }

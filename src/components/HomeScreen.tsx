@@ -158,6 +158,28 @@ export default function HomeScreen() {
           )}
         </div>
 
+        {/* AI Analysis Button */}
+        <button onClick={() => store.setScreen('aiAnalysis')} className="relative overflow-hidden p-5 text-left anim-up transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
+          style={{ animationDelay: '120ms', background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)', borderRadius: 'var(--radius-xl)', boxShadow: '0 4px 20px rgba(139, 92, 246, 0.25)' }}>
+          <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 80% 80%, rgba(255,255,255,0.3), transparent 60%)' }} />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-3" style={{ background: 'rgba(255,255,255,0.2)' }}>
+                  🤖
+                </div>
+                <p className="text-[15px] font-bold text-white">Analisi IA</p>
+                <p className="text-[11px] mt-1 font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>Analizza il tuo livello e scopri dove migliorare</p>
+              </div>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </button>
+
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-3">
           <button onClick={handleExamMode} className="relative overflow-hidden p-5 text-left anim-up transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
