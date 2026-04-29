@@ -192,6 +192,8 @@ export default function ChapterScreen() {
             const stLabel = st.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
             const stComplete = stPct === 100;
             const isSelected = selectedSt.has(st);
+            // Get the first question's image as the subtopic sign
+            const stSignImg = stQs.find((q) => q.image)?.image || null;
 
             const handleOpenSubtopic = () => {
               if (selectMode) {
@@ -205,7 +207,7 @@ export default function ChapterScreen() {
 
             return (
               <button key={st} onClick={handleOpenSubtopic}
-                className="glass-hover w-full text-left p-4 flex items-center gap-3 anim-up transition-all duration-200"
+                className="glass-hover w-full text-left p-3 flex items-center gap-3 anim-up transition-all duration-200"
                 style={{
                   animationDelay: `${i * 30}ms`,
                   borderRadius: 'var(--radius-xl)',
@@ -213,12 +215,10 @@ export default function ChapterScreen() {
                   background: isSelected ? 'rgba(139, 92, 246, 0.06)' : undefined,
                   boxShadow: isSelected ? '0 2px 12px rgba(139, 92, 246, 0.15)' : 'none',
                 }}>
-                {/* Selection checkbox or number/check */}
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300`}
+                {/* Sign image or checkbox/number */}
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 overflow-hidden`}
                   style={{
-                    background: selectMode
-                      ? isSelected ? 'linear-gradient(135deg, #8B5CF6, #6D28D9)' : 'var(--bg-tertiary)'
-                      : stComplete ? 'var(--success-100)' : 'var(--bg-tertiary)',
+                    background: stComplete && !selectMode ? 'var(--success-100)' : 'var(--bg-tertiary)',
                     border: selectMode
                       ? isSelected ? '2px solid #8B5CF6' : '2px solid var(--border)'
                       : `1px solid ${stComplete ? 'var(--success-150)' : 'var(--border)'}`,
@@ -229,6 +229,8 @@ export default function ChapterScreen() {
                       : <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--border)' }} />
                   ) : stComplete ? (
                     <svg className="w-5 h-5" style={{ color: 'var(--success)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                  ) : stSignImg ? (
+                    <img src={stSignImg} alt="" className="w-9 h-9 object-contain" loading="lazy" />
                   ) : (
                     <span className="text-[12px] font-bold tabular-nums" style={{ color: 'var(--text-secondary)' }}>{i + 1}</span>
                   )}
