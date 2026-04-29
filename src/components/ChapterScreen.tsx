@@ -59,10 +59,10 @@ export default function ChapterScreen() {
   const startSelectedQuiz = () => {
     if (selectedSt.size === 0) return;
     let allQs: any[] = [];
-    for (const st of selectedSt) {
+    selectedSt.forEach((st) => {
       const qs = getQuestionsBySubtopic(allQuestions, chapter.id, st);
       allQs = allQs.concat(qs);
-    }
+    });
     // Shuffle
     allQs = [...allQs].sort(() => Math.random() - 0.5);
     if (allQs.length > 0) {
@@ -75,9 +75,9 @@ export default function ChapterScreen() {
   // Count total questions in selected subtopics
   const selectedQCount = (() => {
     let c = 0;
-    for (const st of selectedSt) {
+    selectedSt.forEach((st) => {
       c += getQuestionsBySubtopic(allQuestions, chapter.id, st).length;
-    }
+    });
     return c;
   })();
 
