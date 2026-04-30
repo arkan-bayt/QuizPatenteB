@@ -4,6 +4,7 @@ import { useStore } from '@/store/useStore';
 import { TOPICS_INFO } from '@/data/explanationsData';
 import { getChaptersByTopic } from '@/data/quizData';
 import { useOverallStats } from './hooks';
+import SignIcon from './SignIcon';
 
 const TOPIC_GRADIENTS: Record<string, string> = {
   'Conoscenze generali': 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
@@ -81,8 +82,17 @@ export default function ExplanationScreen() {
           style={{ animationDelay: '50ms', background: 'linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)', borderRadius: 'var(--radius-xl)', boxShadow: '0 4px 20px rgba(6, 182, 212, 0.3)' }}>
           <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 80% 80%, rgba(255,255,255,0.3), transparent 60%)' }} />
           <div className="relative z-10 flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl" style={{ background: 'rgba(255,255,255,0.2)' }}>
-              🚦
+            {/* Preview traffic signs */}
+            <div className="flex items-center -space-x-2">
+              <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                <SignIcon signalId="curva-sinistra" categoryId="pericolo" size={42} />
+              </div>
+              <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                <SignIcon signalId="stop" categoryId="precedenza" size={42} />
+              </div>
+              <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                <SignIcon signalId="limite-velocita" categoryId="divieto" size={42} />
+              </div>
             </div>
             <div className="flex-1">
               <p className="text-[15px] font-bold text-white">Atlante dei Segnali</p>

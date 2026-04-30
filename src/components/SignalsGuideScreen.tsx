@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { SIGNAL_CATEGORIES, type SignalCategory, type SignalInfo } from '@/data/signalsData';
+import SignIcon from './SignIcon';
 
 export default function SignalsGuideScreen() {
   const store = useStore();
@@ -140,10 +141,11 @@ export default function SignalsGuideScreen() {
                 <button
                   onClick={() => setExpandedSignal(isOpen ? null : key)}
                   className="w-full px-4 py-4 text-left">
-                  <div className="flex items-start gap-3">
-                    {/* Signal Icon Area */}
-                    <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${sigCat.color}12` }}>
-                      <span className="text-lg">{sigCat.icon}</span>
+                  <div className="flex items-start gap-4">
+                    {/* Signal Visual Icon */}
+                    <div className="w-[68px] h-[68px] rounded-2xl flex items-center justify-center flex-shrink-0 p-1.5"
+                      style={{ background: `${sigCat.color}08`, border: `1.5px solid ${sigCat.color}20` }}>
+                      <SignIcon signalId={signal.id} categoryId={sigCat.id} size={58} />
                     </div>
 
                     {/* Signal Info */}
@@ -170,8 +172,16 @@ export default function SignalsGuideScreen() {
 
                 {/* Expanded Content */}
                 {isOpen && (
-                  <div className="px-4 pb-4 anim-fade">
-                    <div className="space-y-4" style={{ paddingLeft: '56px' }}>
+                  <div className="anim-fade" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                    {/* Large Signal Image */}
+                    <div className="flex items-center justify-center py-5" style={{ background: 'linear-gradient(180deg, var(--bg-tertiary), transparent)' }}>
+                      <div className="relative">
+                        <div className="absolute -inset-3 rounded-full" style={{ background: `${sigCat.color}08`, filter: 'blur(8px)' }} />
+                        <SignIcon signalId={signal.id} categoryId={sigCat.id} size={120} className="relative" />
+                      </div>
+                    </div>
+
+                    <div className="px-4 pb-5 space-y-4">
                       {/* Description */}
                       <div>
                         <p className="text-[12px] font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Descrizione / الوصف</p>
