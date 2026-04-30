@@ -215,22 +215,16 @@ export default function ChapterScreen() {
                   background: isSelected ? 'rgba(139, 92, 246, 0.06)' : undefined,
                   boxShadow: isSelected ? '0 2px 12px rgba(139, 92, 246, 0.15)' : 'none',
                 }}>
-                {/* Sign image or checkbox/number */}
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 overflow-hidden`}
+                {/* Sign image / number - ALWAYS visible */}
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 overflow-hidden"
                   style={{
-                    background: stComplete && !selectMode ? 'var(--success-100)' : 'var(--bg-tertiary)',
-                    border: selectMode
-                      ? isSelected ? '2px solid #8B5CF6' : '2px solid var(--border)'
-                      : `1px solid ${stComplete ? 'var(--success-150)' : 'var(--border)'}`,
+                    background: stComplete ? 'var(--success-100)' : 'var(--bg-tertiary)',
+                    border: `1px solid ${stComplete ? 'var(--success-150)' : 'var(--border)'}`,
                   }}>
-                  {selectMode ? (
-                    isSelected
-                      ? <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                      : <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--border)' }} />
+                  {stSignImg ? (
+                    <img src={stSignImg} alt="" className="w-9 h-9 object-contain" loading="lazy" />
                   ) : stComplete ? (
                     <svg className="w-5 h-5" style={{ color: 'var(--success)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                  ) : stSignImg ? (
-                    <img src={stSignImg} alt="" className="w-9 h-9 object-contain" loading="lazy" />
                   ) : (
                     <span className="text-[12px] font-bold tabular-nums" style={{ color: 'var(--text-secondary)' }}>{i + 1}</span>
                   )}
@@ -250,6 +244,18 @@ export default function ChapterScreen() {
 
                 {/* Question count badge */}
                 <span className="badge-modern text-[10px] flex-shrink-0">{stQs.length} Q</span>
+
+                {/* Checkbox - only in select mode, FAR RIGHT, separate from image */}
+                {selectMode && (
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-200"
+                    style={{ background: isSelected ? '#8B5CF6' : 'var(--bg-tertiary)', border: `2px solid ${isSelected ? '#8B5CF6' : 'var(--border)'}` }}>
+                    {isSelected && (
+                      <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                      </svg>
+                    )}
+                  </div>
+                )}
 
                 {/* Arrow (non-select mode) */}
                 {!selectMode && (
