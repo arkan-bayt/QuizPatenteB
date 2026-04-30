@@ -2,50 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { TOPICS_INFO, getChaptersByTopicName, type ChapterExplanation } from '@/data/explanationsData';
-import SignIcon from './SignIcon';
-
-// Map chapter IDs to representative traffic sign visuals
-const CHAPTER_SIGN_MAP: Record<number, { signalId: string; categoryId: string }[]> = {
-  2: [ // Segnali di pericolo
-    { signalId: 'curva-sinistra', categoryId: 'pericolo' },
-    { signalId: 'pedoni', categoryId: 'pericolo' },
-    { signalId: 'bambini', categoryId: 'pericolo' },
-  ],
-  3: [ // Segnali di divieto
-    { signalId: 'divieto-accesso', categoryId: 'divieto' },
-    { signalId: 'limite-velocita', categoryId: 'divieto' },
-    { signalId: 'divieto-sosta', categoryId: 'divieto' },
-  ],
-  4: [ // Segnali di obbligo
-    { signalId: 'sens-unico', categoryId: 'obbligo' },
-    { signalId: 'pista-ciclabile', categoryId: 'obbligo' },
-    { signalId: 'dritto', categoryId: 'obbligo' },
-  ],
-  5: [ // Segnali di precedenza
-    { signalId: 'dare-precedenza', categoryId: 'precedenza' },
-    { signalId: 'stop', categoryId: 'precedenza' },
-    { signalId: 'strada-prioritaria', categoryId: 'precedenza' },
-  ],
-  6: [ // Segnali orizzontali
-    { signalId: 'curva-sinistra', categoryId: 'pericolo' },
-  ],
-  7: [ // Semafori - use stop as representative
-    { signalId: 'stop', categoryId: 'precedenza' },
-  ],
-  8: [ // Segnali di indicazione
-    { signalId: 'autostrada', categoryId: 'indicazione' },
-    { signalId: 'parcheggio', categoryId: 'indicazione' },
-    { signalId: 'ospedale', categoryId: 'indicazione' },
-  ],
-  9: [ // Segnali complementari
-    { signalId: 'pannello-distanza', categoryId: 'pannelli' },
-    { signalId: 'pannello-direzione', categoryId: 'pannelli' },
-  ],
-  10: [ // Pannelli integrativi
-    { signalId: 'pannello-distanza', categoryId: 'pannelli' },
-    { signalId: 'pannello-validita', categoryId: 'pannelli' },
-  ],
-};
+import { getChapterPreviewImages } from '@/data/chapterImages';
 
 export default function TopicExplanationScreen() {
   const store = useStore();
@@ -142,7 +99,7 @@ export default function TopicExplanationScreen() {
         {/* Chapter Cards */}
         <div className="space-y-3">
           {filteredChapters.map((ch, ci) => (
-            <ChapterCard key={ch.id} chapter={ch} color={topicInfo.color} index={ci} onClick={() => {
+            <ChapterCard key={ch.id} chapter={ch} color={topicInfo.color} index={ci} allQuestions={store.allQuestions} onClick={() => {
               useStore.setState({ activeChapterId: ch.id });
               store.setScreen('explanationChapter');
             }} />
@@ -160,14 +117,17 @@ export default function TopicExplanationScreen() {
   );
 }
 
-function ChapterCard({ chapter, color, index, onClick }: {
+function ChapterCard({ chapter, color, index, allQuestions, onClick }: {
   chapter: ChapterExplanation;
   color: string;
   index: number;
+  allQuestions: any[];
   onClick: () => void;
 }) {
-  const signs = CHAPTER_SIGN_MAP[chapter.id] || [];
-  const hasSigns = signs.length > 0;
+  // Get real preview images from quiz data
+  const previewImages = useMemo(() => {
+    return getChapterPreviewImages(chapter.id, allQuestions, 3);
+  }, [chapter.id, allQuestions]);
 
   return (
     <button
@@ -207,13 +167,19 @@ function ChapterCard({ chapter, color, index, onClick }: {
           </div>
         </div>
 
-        {/* Sign Preview Icons */}
-        {hasSigns && (
-          <div className="flex items-center -space-x-1.5 flex-shrink-0 mt-1">
-            {signs.slice(0, 3).map((sign, si) => (
-              <div key={si} className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center p-0.5"
-                style={{ background: `${color}08`, border: `1px solid ${color}15` }}>
-                <SignIcon signalId={sign.signalId} categoryId={sign.categoryId} size={30} />
+        {/* Real Sign Preview Images from Quiz */}
+        {previewImages.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
+            {previewImages.map((img, si) => (
+              <div key={si} className="w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center"
+                style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)' }}>
+                <img
+                  src={img}
+                  alt=""
+                  className="w-full h-full object-contain"
+                  loading="lazy"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
               </div>
             ))}
           </div>

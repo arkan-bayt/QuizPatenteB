@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { SIGNAL_CATEGORIES, type SignalCategory, type SignalInfo } from '@/data/signalsData';
-import SignIcon from './SignIcon';
+import { getSignalImages } from '@/data/signalImageMap';
 
 export default function SignalsGuideScreen() {
   const store = useStore();
@@ -83,7 +83,7 @@ export default function SignalsGuideScreen() {
           )}
         </div>
 
-        {/* Category Tabs - Only show when not searching */}
+        {/* Category Tabs */}
         {!search.trim() && (
           <div className="anim-up" style={{ animationDelay: '60ms' }}>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
@@ -132,6 +132,9 @@ export default function SignalsGuideScreen() {
           {displaySignals.map(({ signal, category: sigCat }, si) => {
             const key = signal.id;
             const isOpen = expandedSignal === key;
+            const signalImages = getSignalImages(signal.id);
+            const mainImage = signalImages[0] || '';
+
             return (
               <div
                 key={key}
@@ -142,10 +145,19 @@ export default function SignalsGuideScreen() {
                   onClick={() => setExpandedSignal(isOpen ? null : key)}
                   className="w-full px-4 py-4 text-left">
                   <div className="flex items-start gap-4">
-                    {/* Signal Visual Icon */}
-                    <div className="w-[68px] h-[68px] rounded-2xl flex items-center justify-center flex-shrink-0 p-1.5"
-                      style={{ background: `${sigCat.color}08`, border: `1.5px solid ${sigCat.color}20` }}>
-                      <SignIcon signalId={signal.id} categoryId={sigCat.id} size={58} />
+                    {/* Real Sign Image from Quiz */}
+                    <div className="w-[68px] h-[68px] rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden"
+                      style={{ background: 'var(--bg-tertiary)', border: `1.5px solid var(--border-subtle)` }}>
+                      {mainImage ? (
+                        <img
+                          src={mainImage}
+                          alt={signal.nameIt}
+                          className="w-full h-full object-contain p-1"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span className="text-lg">{sigCat.icon}</span>
+                      )}
                     </div>
 
                     {/* Signal Info */}
@@ -173,13 +185,33 @@ export default function SignalsGuideScreen() {
                 {/* Expanded Content */}
                 {isOpen && (
                   <div className="anim-fade" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                    {/* Large Signal Image */}
+                    {/* Large Sign Image */}
                     <div className="flex items-center justify-center py-5" style={{ background: 'linear-gradient(180deg, var(--bg-tertiary), transparent)' }}>
                       <div className="relative">
-                        <div className="absolute -inset-3 rounded-full" style={{ background: `${sigCat.color}08`, filter: 'blur(8px)' }} />
-                        <SignIcon signalId={signal.id} categoryId={sigCat.id} size={120} className="relative" />
+                        <div className="absolute -inset-4 rounded-2xl" style={{ background: `${sigCat.color}08`, filter: 'blur(10px)' }} />
+                        <div className="relative w-28 h-28 rounded-2xl flex items-center justify-center overflow-hidden"
+                          style={{ background: 'var(--bg-card)', border: `2px solid var(--border-subtle)` }}>
+                          {mainImage ? (
+                            <img src={mainImage} alt={signal.nameIt} className="w-full h-full object-contain p-2" />
+                          ) : (
+                            <span className="text-4xl">{sigCat.icon}</span>
+                          )}
+                        </div>
                       </div>
                     </div>
+
+                    {/* Extra images if available */}
+                    {signalImages.length > 1 && (
+                      <div className="px-5 pb-2 flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                        <span className="text-[10px] font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>Varianti:</span>
+                        {signalImages.slice(1).map((img, i) => (
+                          <div key={i} className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0"
+                            style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)' }}>
+                            <img src={img} alt="" className="w-full h-full object-contain p-0.5" loading="lazy" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     <div className="px-4 pb-5 space-y-4">
                       {/* Description */}

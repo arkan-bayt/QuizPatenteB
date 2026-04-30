@@ -2,57 +2,13 @@
 import React, { useMemo, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { getChapterExplanation, TOPICS_INFO } from '@/data/explanationsData';
-import SignIcon from './SignIcon';
-
-// Map chapter IDs to representative traffic sign previews
-const CHAPTER_SIGNS: Record<number, { signalId: string; categoryId: string }[]> = {
-  2: [
-    { signalId: 'curva-sinistra', categoryId: 'pericolo' },
-    { signalId: 'pedoni', categoryId: 'pericolo' },
-    { signalId: 'incrocio', categoryId: 'pericolo' },
-    { signalId: 'galleria', categoryId: 'pericolo' },
-  ],
-  3: [
-    { signalId: 'divieto-accesso', categoryId: 'divieto' },
-    { signalId: 'limite-velocita', categoryId: 'divieto' },
-    { signalId: 'divieto-sosta', categoryId: 'divieto' },
-    { signalId: 'divieto-sorpasso', categoryId: 'divieto' },
-  ],
-  4: [
-    { signalId: 'sens-unico', categoryId: 'obbligo' },
-    { signalId: 'pista-ciclabile', categoryId: 'obbligo' },
-    { signalId: 'dritto', categoryId: 'obbligo' },
-    { signalId: 'catene-neve', categoryId: 'obbligo' },
-  ],
-  5: [
-    { signalId: 'dare-precedenza', categoryId: 'precedenza' },
-    { signalId: 'stop', categoryId: 'precedenza' },
-    { signalId: 'strada-prioritaria', categoryId: 'precedenza' },
-    { signalId: 'fine-prioritaria', categoryId: 'precedenza' },
-  ],
-  7: [
-    { signalId: 'stop', categoryId: 'precedenza' },
-  ],
-  8: [
-    { signalId: 'autostrada', categoryId: 'indicazione' },
-    { signalId: 'parcheggio', categoryId: 'indicazione' },
-    { signalId: 'ospedale', categoryId: 'indicazione' },
-    { signalId: 'area-servizio', categoryId: 'indicazione' },
-  ],
-  9: [
-    { signalId: 'pannello-distanza', categoryId: 'pannelli' },
-    { signalId: 'pannello-direzione', categoryId: 'pannelli' },
-  ],
-  10: [
-    { signalId: 'pannello-distanza', categoryId: 'pannelli' },
-    { signalId: 'pannello-validita', categoryId: 'pannelli' },
-  ],
-};
+import { getChapterImages, getChapterImageCount } from '@/data/chapterImages';
 
 export default function ChapterExplanationScreen() {
   const store = useStore();
-  const { activeChapterId } = store;
+  const { activeChapterId, allQuestions } = store;
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [showAllImages, setShowAllImages] = useState(false);
 
   const chapter = useMemo(() => {
     if (!activeChapterId) return undefined;
@@ -63,6 +19,20 @@ export default function ChapterExplanationScreen() {
     if (!chapter) return undefined;
     return TOPICS_INFO.find((t) => t.nameIt === chapter.topicIt);
   }, [chapter]);
+
+  // Get real sign images grouped by subtopic
+  const subtopicImages = useMemo(() => {
+    if (!activeChapterId) return [];
+    return getChapterImages(activeChapterId, allQuestions || []);
+  }, [activeChapterId, allQuestions]);
+
+  const totalImages = useMemo(() => {
+    if (!activeChapterId) return 0;
+    return getChapterImageCount(activeChapterId, allQuestions || []);
+  }, [activeChapterId, allQuestions]);
+
+  // Show limited images initially, expand on button click
+  const displayedImages = showAllImages ? subtopicImages : subtopicImages.slice(0, 6);
 
   if (!chapter || !topicInfo) {
     return (
@@ -115,41 +85,62 @@ export default function ChapterExplanationScreen() {
           </div>
         </div>
 
-        {/* Traffic Signs Preview - for signal-related chapters */}
-        {CHAPTER_SIGNS[chapter.id] && (
+        {/* Real Sign Images from Quiz - ALL signals grouped by subtopic */}
+        {subtopicImages.length > 0 && (
           <div className="glass p-5 anim-up" style={{ animationDelay: '40ms' }}>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${chapter.color}15` }}>
-                <svg className="w-4 h-4" style={{ color: chapter.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${chapter.color}15` }}>
+                  <svg className="w-4 h-4" style={{ color: chapter.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>Segnali del capitolo / إشارات الفصل</h3>
+                  <p className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>{totalImages} segnali unici &middot; {subtopicImages.length} categorie</p>
+                </div>
               </div>
-              <h3 className="text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>Esempi di segnali / أمثلة على الإشارات</h3>
             </div>
-            <div className="flex items-center justify-start gap-3 overflow-x-auto pb-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
-              {CHAPTER_SIGNS[chapter.id].map((sign, si) => (
-                <div key={si} className="flex-shrink-0 flex flex-col items-center gap-2">
-                  <div className="w-16 h-16 rounded-xl flex items-center justify-center p-1 transition-transform duration-200 hover:scale-110"
-                    style={{ background: 'var(--bg-tertiary)', border: `1.5px solid var(--border-subtle)` }}>
-                    <SignIcon signalId={sign.signalId} categoryId={sign.categoryId} size={52} />
+
+            {/* Signs Grid grouped by subtopic */}
+            <div className="space-y-3">
+              {displayedImages.map((group, gi) => (
+                <div key={gi}>
+                  {/* Subtopic label */}
+                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2 px-1" style={{ color: 'var(--text-muted)' }}>
+                    {group.subtopic}
+                  </p>
+                  {/* Images for this subtopic */}
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+                    {group.images.map((img, ii) => (
+                      <div key={ii} className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center transition-transform duration-200 hover:scale-110"
+                        style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)' }}>
+                        <img
+                          src={img}
+                          alt={group.subtopic}
+                          className="w-full h-full object-contain p-0.5"
+                          loading="lazy"
+                        />
+                      </div>
+                    ))}
                   </div>
-                  <span className="text-[9px] font-medium text-center max-w-[64px] truncate" style={{ color: 'var(--text-muted)' }}>
-                    {sign.signalId.replace(/-/g, ' ')}
-                  </span>
                 </div>
               ))}
             </div>
-            <div className="mt-3 flex items-center gap-2">
-              <svg className="w-3.5 h-3.5" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-              </svg>
+
+            {/* Show more / less button */}
+            {subtopicImages.length > 6 && (
               <button
-                onClick={() => store.setScreen('signalsGuide')}
-                className="text-[11px] font-semibold" style={{ color: 'var(--primary-light)' }}>
-                Vedi tutti i segnali nell&apos;Atlante / شاهد جميع الإشارات في الأطلس
+                onClick={() => setShowAllImages(!showAllImages)}
+                className="mt-3 w-full py-2 text-[11px] font-semibold rounded-lg transition-colors duration-200"
+                style={{ background: `${chapter.color}10`, color: chapter.color }}>
+                {showAllImages
+                  ? `Mostra meno / عرض أقل`
+                  : `Mostra tutti (${subtopicImages.length} categorie) / عرض الكل`
+                }
               </button>
-            </div>
+            )}
           </div>
         )}
 
