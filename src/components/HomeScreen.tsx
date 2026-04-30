@@ -158,9 +158,35 @@ export default function HomeScreen() {
           )}
         </div>
 
-        {/* AI Analysis Button */}
+        {/* AI Features Grid */}
+        <div className="grid grid-cols-2 gap-3 anim-up" style={{ animationDelay: '120ms' }}>
+          <button onClick={() => store.setScreen('aiChat')} className="relative overflow-hidden p-4 text-left transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
+            style={{ background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)', borderRadius: 'var(--radius-xl)', boxShadow: '0 4px 20px rgba(139, 92, 246, 0.25)' }}>
+            <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 80% 80%, rgba(255,255,255,0.3), transparent 60%)' }} />
+            <div className="relative z-10">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg mb-2" style={{ background: 'rgba(255,255,255,0.2)' }}>
+                💬
+              </div>
+              <p className="text-[13px] font-bold text-white">Chiedi all&apos;IA</p>
+              <p className="text-[10px] mt-0.5 font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>Domande su segnali e regole</p>
+            </div>
+          </button>
+
+          <button onClick={() => store.setScreen('studyPlan')} className="relative overflow-hidden p-4 text-left transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
+            style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', borderRadius: 'var(--radius-xl)', boxShadow: '0 4px 20px rgba(16, 185, 129, 0.25)' }}>
+            <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 20% 80%, rgba(255,255,255,0.3), transparent 60%)' }} />
+            <div className="relative z-10">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg mb-2" style={{ background: 'rgba(255,255,255,0.2)' }}>
+                📋
+              </div>
+              <p className="text-[13px] font-bold text-white">Piano di Studio</p>
+              <p className="text-[10px] mt-0.5 font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>Piano personalizzato IA</p>
+            </div>
+          </button>
+        </div>
+
         <button onClick={() => store.setScreen('aiAnalysis')} className="relative overflow-hidden p-5 text-left anim-up transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
-          style={{ animationDelay: '120ms', background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)', borderRadius: 'var(--radius-xl)', boxShadow: '0 4px 20px rgba(139, 92, 246, 0.25)' }}>
+          style={{ animationDelay: '140ms', background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)', borderRadius: 'var(--radius-xl)', boxShadow: '0 4px 20px rgba(99, 102, 241, 0.25)' }}>
           <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 80% 80%, rgba(255,255,255,0.3), transparent 60%)' }} />
           <div className="relative z-10">
             <div className="flex items-center justify-between">
@@ -168,7 +194,7 @@ export default function HomeScreen() {
                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-3" style={{ background: 'rgba(255,255,255,0.2)' }}>
                   🤖
                 </div>
-                <p className="text-[15px] font-bold text-white">Analisi IA</p>
+                <p className="text-[15px] font-bold text-white">Analisi IA Completa</p>
                 <p className="text-[11px] mt-1 font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>Analizza il tuo livello e scopri dove migliorare</p>
               </div>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.15)' }}>

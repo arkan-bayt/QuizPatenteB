@@ -16,6 +16,9 @@ export default function QuizScreen() {
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiExplained, setAiExplained] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
+  const [hintLoading, setHintLoading] = useState(false);
+  const [hintUsed, setHintUsed] = useState(false);
   const prevIdxRef = useRef(currentIdx);
 
   useEffect(() => { setImgErr(false); setAnswerAnim(false); }, [currentIdx]);
@@ -26,6 +29,9 @@ export default function QuizScreen() {
       setAiExplanation(null);
       setAiLoading(false);
       setAiExplained(false);
+      setHint(null);
+      setHintLoading(false);
+      setHintUsed(false);
       prevIdxRef.current = currentIdx;
     }
   }, [currentIdx]);
@@ -133,7 +139,37 @@ export default function QuizScreen() {
     setAiExplanation(null);
     setAiLoading(false);
     setAiExplained(false);
+    setHint(null);
+    setHintLoading(false);
+    setHintUsed(false);
     store.goNext();
+  };
+
+  const handleHint = () => {
+    if (hint || hintLoading || showFeedback) return;
+    const q = quizQuestions[currentIdx];
+    if (!q) return;
+    setHintLoading(true);
+    fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'hint',
+        question: q.question,
+        chapterName: q.chapterName,
+        subtopic: q.subtopic,
+        hasImage: !!q.image,
+      }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        setHint(data.hint || null);
+        setHintUsed(true);
+        setHintLoading(false);
+      })
+      .catch(() => {
+        setHintLoading(false);
+      });
   };
 
   return (
@@ -201,14 +237,31 @@ export default function QuizScreen() {
               <span className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{question.chapterName}</span>
             </div>
             {!showFeedback && (
-              <button onClick={() => { stopSpeech(); speakText(question.question, 'it-IT'); }}
-                className="w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-105"
-                style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
-                title="Ascolta">
-                <svg className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
-                </svg>
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => { stopSpeech(); speakText(question.question, 'it-IT'); }}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-105"
+                  style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
+                  title="Ascolta">
+                  <svg className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+                  </svg>
+                </button>
+                <button onClick={handleHint} disabled={!!hint || hintLoading}
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-105 ${hintUsed ? 'ring-2 ring-amber-400/50' : ''}`}
+                  style={{ background: hint ? 'var(--accent-100)' : 'var(--bg-tertiary)', border: `1px solid ${hint ? 'var(--accent-200)' : 'var(--border)'}` }}
+                  title="Indizio IA">
+                  {hintLoading ? (
+                    <svg className="w-4 h-4 animate-spin" style={{ color: 'var(--accent)' }} fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" style={{ color: hint ? 'var(--accent)' : 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             )}
           </div>
 
@@ -222,6 +275,24 @@ export default function QuizScreen() {
               <div className="mb-5 text-center anim-fade">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={question.image} alt="" className="quiz-img" onError={() => setImgErr(true)} loading="lazy" />
+              </div>
+            )}
+
+            {/* Hint Card */}
+            {hint && !showFeedback && (
+              <div className="mb-4 p-3.5 rounded-2xl anim-fade" style={{ background: 'var(--accent-50)', border: '1.5px solid var(--accent-200)' }}>
+                <div className="flex items-start gap-2.5">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'var(--accent-100)' }}>
+                    <span className="text-sm">💡</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[11px] font-bold" style={{ color: 'var(--accent)' }}>Indizio IA</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-100)', color: 'var(--accent)' }}>TIP</span>
+                    </div>
+                    <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{hint}</p>
+                  </div>
+                </div>
               </div>
             )}
 

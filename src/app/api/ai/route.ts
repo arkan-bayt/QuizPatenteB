@@ -1,6 +1,7 @@
 // ============================================================
-// AI API - Explain wrong answers + Analyze user performance
-// Uses z-ai-web-dev-sdk for free AI inference
+// AI API - Full AI Suite for Quiz Patente B
+// Actions: explain, analyze, chat, hint, studyPlan
+// Uses z-ai-web-dev-sdk for free AI inference with smart fallbacks
 // ============================================================
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
@@ -10,26 +11,26 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { action } = body;
 
-    if (action === 'explain') {
-      return handleExplain(body);
-    } else if (action === 'analyze') {
-      return handleAnalyze(body);
-    } else {
-      return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-    }
+    if (action === 'explain') return handleExplain(body);
+    if (action === 'analyze') return handleAnalyze(body);
+    if (action === 'chat') return handleChat(body);
+    if (action === 'hint') return handleHint(body);
+    if (action === 'studyPlan') return handleStudyPlan(body);
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
-// ---- Smart local explanation engine (no AI needed) ----
+// ============================================================
+// SMART LOCAL EXPLANATION ENGINE (works offline)
+// ============================================================
 function generateSmartExplanation(question: string, correctAnswer: boolean, userAnswer: boolean, chapterName: string | undefined, subtopic: string | undefined, hasImage: boolean): string {
   const q = question.toLowerCase();
   const correctText = correctAnswer ? 'VERO' : 'FALSO';
   const parts: string[] = [];
 
-  // If there's an image, it's likely about a road sign
   if (hasImage) {
     if (q.includes('obbligo') || q.includes('obbligatorio') || q.includes('dovere')) {
       parts.push('Il segnale nell\'immagine e\' un segnale di obbligo.');
@@ -86,13 +87,24 @@ function generateSmartExplanation(question: string, correctAnswer: boolean, user
       parts.push('Questo segnale indica un\'area di sosta o campeggio.');
       parts.push('Puoi fermarti e sostare in quest\'area per un periodo limitato.');
       parts.push('Non e\' una zona di parcheggio normale, rispetta le regole specifiche dell\'area.');
+    } else if (q.includes('fine') || q.includes('fine del')) {
+      parts.push('Questo segnale indica la fine di una restrizione precedente.');
+      parts.push('Da questo punto in poi, la regola indicata non si applica piu\'.');
+      parts.push(`La risposta corretta e' ${correctText}.`);
+    } else if (q.includes('direzion') || q.includes('freccia') || q.includes('indicazione')) {
+      parts.push('Questo segnale di indicazione fornisce informazioni sulla direzione o destinazione.');
+      parts.push('Segui le indicazioni per raggiungere la destinazione desiderata.');
+      parts.push(`La risposta corretta e' ${correctText}.`);
+    } else if (q.includes('pericolo') || q.includes('peligro') || q.includes('attenzione')) {
+      parts.push('Questo e\' un segnale di pericolo (triangolo con bordo bianco e sfondo giallo/rosso).');
+      parts.push('Indica un pericolo potenziale sulla strada. Devi prestare attenzione e ridurre la velocita\'.');
+      parts.push(`La risposta corretta e' ${correctText}.`);
     } else {
       parts.push('Questo segnale stradale fornisce un\'informazione o un\'indicazione importante.');
       parts.push('Osserva bene la forma e il colore del segnale per capirne la categoria.');
       parts.push(`La risposta corretta e' ${correctText}.`);
     }
   } else {
-    // No image - explain based on question keywords
     if (q.includes('velocita') || q.includes('km/h') || q.includes('kmh') || q.includes('limite')) {
       if (q.includes('urbana') || q.includes('citta') || q.includes('centro')) {
         parts.push('Il limite di velocita\' in area urbana e\' 50 km/h.');
@@ -115,6 +127,10 @@ function generateSmartExplanation(question: string, correctAnswer: boolean, user
       parts.push('Il tasso di alcol consentito in Italia per chi guida e\' 0.5 g/l.');
       parts.push('Per i neopatentati e i conducenti professionali il limite e\' 0.0 g/l (tasso zero).');
       parts.push('Superare il limite e\' un reato penale e comporta la revoca della patente.');
+    } else if (q.includes('drog') || q.includes('sostanz') || q.includes('spinell') || q.includes('cannabin')) {
+      parts.push('Guidare sotto l\'effetto di sostanze stupefacenti e\' un reato grave.');
+      parts.push('La patente viene sospesa da 6 mesi a 2 anni e ci sono sanzioni penali.');
+      parts.push('I test possono essere effettuati con prelievo di sangue, urina o saliva.');
     } else if (q.includes('cintura') || q.includes('seggiolino') || q.includes('casco') || q.includes('protezione')) {
       if (q.includes('cintura')) {
         parts.push('La cintura di sicurezza e\' obbligatoria per tutti i passeggeri, sia davanti che dietro.');
@@ -128,7 +144,7 @@ function generateSmartExplanation(question: string, correctAnswer: boolean, user
     } else if (q.includes('telefono') || q.includes('cellulare') || q.includes('smartphone') || q.includes('chiamare')) {
       parts.push('E\' vietato usare il telefono cellulare mentre si guida.');
       parts.push('Puoi usare il viva-voce o auricolari, ma non puoi tenere il telefono in mano.');
-      parts.push('La violazione comporta una multa e la decurtazione di punti dalla patente.');
+      parts.push('La violazione comporta una multa di 165-660 euro e la decurtazione di 5 punti dalla patente.');
     } else if (q.includes('pedone') || q.includes('attraversamento') || q.includes('striscia')) {
       parts.push('I pedoni hanno sempre la precedenza sugli attraversamenti strisciate.');
       parts.push('Il conducente deve fermarsi e aspettare che il pedone completi l\'attraversamento.');
@@ -187,7 +203,7 @@ function generateSmartExplanation(question: string, correctAnswer: boolean, user
       parts.push('La sosta e\' la fermata prolungata del veicolo.');
       parts.push('La fermata e\' la temporanea interruzione della marcia per salire/scendere passeggeri.');
       parts.push('Non puoi parcheggiare nei passi carrabili, sugli attraversamenti pedonali o in doppia fila.');
-    } else if (q.includes('frena') || q.includes('fren') || q.includes('distanza') && q.includes('sicurezza')) {
+    } else if (q.includes('frena') || q.includes('fren') || (q.includes('distanza') && q.includes('sicurezza'))) {
       parts.push('La distanza di sicurezza dipende dalla velocita\' e dalle condizioni della strada.');
       parts.push('A 50 km/h servono almeno 25 metri, a 130 km/h almeno 130 metri.');
       parts.push('In caso di pioggia o neve, la distanza deve essere almeno il doppio.');
@@ -199,14 +215,33 @@ function generateSmartExplanation(question: string, correctAnswer: boolean, user
       parts.push('Estintore, triangolo di emergenza e giubbotto riflettente sono obbligatori in alcuni casi.');
       parts.push('Il triangolo va posizionato almeno 50 metri prima del veicolo in caso di fermata d\'emergenza.');
       parts.push('Il giubbotto riflettente deve essere usato quando scendi dal veicolo di notte o in galleria.');
+    } else if (q.includes('punto') && (q.includes('patente') || q.includes('decurtazione') || q.includes('recupero'))) {
+      parts.push('La patente ha 20 punti iniziali per i neopatentati e 20 punti per tutti.');
+      parts.push('Ogni infrazione toglie da 2 a 10 punti. Sotto i 20 punti ci sono corsi di recupero.');
+      parts.push('Se i punti arrivano a zero, la patente viene revocata.');
+    } else if (q.includes('galleria') || q.includes('tunnel')) {
+      parts.push('In galleria sono obbligatori gli anabbaglianti accesi.');
+      parts.push('Rispetta il limite di velocita\' indicato e mantieni la distanza di sicurezza.');
+      parts.push('Non fermarti in galleria se non per emergenza assoluta.');
+    } else if (q.includes('marciapiede') || q.includes('cordolo') || q.includes('banchina')) {
+      parts.push('E\' vietato circolare sul marciapiede, eccetto per accesso a proprietà o garage.');
+      parts.push('La banchina non e\' parte della carreggiata e non va usata per la circolazione.');
+      parts.push(`La risposta corretta e' ${correctText}.`);
+    } else if (q.includes('autobus') || q.includes('tram') || q.includes('mezzi pubblici')) {
+      parts.push('I mezzi pubblici hanno precedenza quando ripartono dalla fermata.');
+      parts.push('Non puoi sorpassare un autobus fermato per far salire/scendere passeggeri.');
+      parts.push(`La risposta corretta e' ${correctText}.`);
+    } else if (q.includes('ambulanza') || q.includes('vigili') || q.includes('polizia') || q.includes('emergenza') || q.includes('sirena')) {
+      parts.push('I veicoli d\'emergenza con sirena accesa hanno sempre la precedenza.');
+      parts.push('Devi fare strada e fermarti se necessario per lasciarli passare.');
+      parts.push('Non seguirli mai a breve distanza.');
+    } else if (q.includes('targa') || q.includes('numero') || q.includes('riconoscimento')) {
+      parts.push('La targa deve essere ben leggibile, non coperta e non sporca.');
+      parts.push('Le targhe sono obbligatorie sia davanti che dietro per le auto.');
+      parts.push(`La risposta corretta e' ${correctText}.`);
     } else {
-      // Generic but contextual fallback
-      if (chapterName) {
-        parts.push(`Questa domanda fa parte del capitolo "${chapterName}".`);
-      }
-      if (subtopic && subtopic !== chapterName) {
-        parts.push(`L'argomento trattato e' "${subtopic}".`);
-      }
+      if (chapterName) parts.push(`Questa domanda fa parte del capitolo "${chapterName}".`);
+      if (subtopic && subtopic !== chapterName) parts.push(`L'argomento trattato e' "${subtopic}".`);
       parts.push(`La risposta corretta e' ${correctText}, non ${userAnswer === true ? 'VERO' : 'FALSO'}.`);
       parts.push('Leggi attentamente la domanda e ricorda le regole del codice della strada relative a questo argomento.');
     }
@@ -215,7 +250,280 @@ function generateSmartExplanation(question: string, correctAnswer: boolean, user
   return parts.join(' ');
 }
 
-// ---- Explain why an answer is wrong ----
+// ============================================================
+// HINT ENGINE - Smart hints for current question
+// ============================================================
+function generateSmartHint(question: string, chapterName: string | undefined, subtopic: string | undefined, hasImage: boolean): string {
+  const q = question.toLowerCase();
+  const parts: string[] = [];
+
+  if (hasImage) {
+    parts.push('Osserva attentamente il segnale nell\'immagine.');
+    if (q.includes('obbligo') || q.includes('obbligatorio')) {
+      parts.push('I segnali di obbligo hanno forma circolare con sfondo blu.');
+      parts.push('Indicano qualcosa che DEVI fare, non che e\' vietato.');
+    } else if (q.includes('divieto') || q.includes('vietato')) {
+      parts.push('I segnali di divieto sono rotondi con bordo rosso e sfondo bianco/rosso.');
+      parts.push('Indicano qualcosa che NON puoi fare.');
+    } else if (q.includes('precedenza')) {
+      parts.push('Il segnale di precedenza e\' un triangolo rovesciato con bordo rosso.');
+      parts.push('Pensa a chi deve dare la precedenza.');
+    } else {
+      parts.push('Presta attenzione alla forma (cerchio, triangolo, rettangolo) e al colore del segnale.');
+      parts.push('Il colore e la forma ti dicono la categoria del segnale.');
+    }
+  } else {
+    if (q.includes('velocita') || q.includes('km/h')) {
+      parts.push('Ricorda i limiti di velocita\' base:');
+      parts.push('Zona urbana: 50 km/h - Extraurbana secondaria: 90 km/h - Extraurbana principale: 110 km/h - Autostrada: 130 km/h.');
+      parts.push('In caso di pioggia, autostrada scende a 110 km/h e extraurbane di 20 km/h.');
+    } else if (q.includes('sempre') || q.includes('mai')) {
+      parts.push('Attenzione alle parole assolute! "Sempre" e "mai" rendono la domanda molto rigida.');
+      parts.push('Pensa se esiste almeno un\'eccezione. Se si, la risposta e\' probabilmente FALSO.');
+    } else if (q.includes('alcol')) {
+      parts.push('Limite normale: 0.5 g/l. Neopatentati e professionisti: 0.0 g/l.');
+      parts.push('Chi supera il limite commette un reato.');
+    } else if (q.includes('precedenza') || q.includes('incrocio')) {
+      parts.push('Regola generale: precedenza a destra se non ci sono segnali.');
+      parts.push('Nella rotatoria, chi e\' gia\' dentro ha la precedenza.');
+      parts.push('Il segnale STOP richiede sempre la fermata completa.');
+    } else if (q.includes('parchegg') || q.includes('sosta')) {
+      parts.push('Sosta = fermata prolungata. Fermata = salire/scendere passeggeri o carico/scarico.');
+      parts.push('Non puoi parcheggiare su passi carrabili, strisce pedonali, curve, incroci.');
+    } else if (q.includes('luci') || q.includes('fari')) {
+      parts.push('Anabbaglianti: sempre in citta\', gallerie, nebbia, pioggia.');
+      parts.push('Abbaglianti: solo fuori centro e senza veicoli davanti.');
+    } else {
+      parts.push('Pensa alla situazione reale di guida.');
+      parts.push('Concentrati sulle parole chiave della domanda.');
+      if (subtopic) parts.push(`L'argomento e': ${subtopic}.`);
+    }
+  }
+
+  return parts.join(' ');
+}
+
+// ============================================================
+// CHAT KNOWLEDGE BASE - Smart answers for common questions
+// ============================================================
+function generateChatAnswer(userMessage: string): string {
+  const msg = userMessage.toLowerCase();
+  const parts: string[] = [];
+
+  // Speed limits
+  if (msg.includes('velocita') || msg.includes('km/h') || msg.includes('limite di velocita')) {
+    parts.push('Ecco i limiti di velocita\' in Italia per la patente B:');
+    parts.push('- Zona urbana: 50 km/h');
+    parts.push('- Strada extraurbana secondaria: 90 km/h');
+    parts.push('- Strada extraurbana principale: 110 km/h');
+    parts.push('- Autostrada: 130 km/h (110 km/h in caso di pioggia)');
+    parts.push('- Neopatentati: 100 km/h su strade extraurbane e autostrada');
+    parts.push('Superare il limite comporta multe da 42 a 3.366 euro e decurtazione punti.');
+  }
+  // Alcohol
+  else if (msg.includes('alcol') || msg.includes('bere') || msg.includes('birra') || msg.includes('vino') || msg.includes('tasso')) {
+    parts.push('Norme sull\'alcol alla guida in Italia:');
+    parts.push('- Tasso normale consentito: 0.5 g/l');
+    parts.push('- Neopatentati e conducenti professionali: 0.0 g/l (tasso zero assoluto)');
+    parts.push('- Da 0.5 a 0.8 g/l: multa e 5 punti in meno');
+    parts.push('- Da 0.8 a 1.5 g/l: multa, 10 punti, sospensione patente fino a 6 mesi');
+    parts.push('- Oltre 1.5 g/l: reato penale, arresto, revoca patente');
+    parts.push('Il tasso si misura con l\'etilometro. Puoi rifiutarti ma la sanzione e\' piu\' grave.');
+  }
+  // Documents
+  else if (msg.includes('document') || msg.includes('patente') || msg.includes('assicurazione') || msg.includes('libretto')) {
+    parts.push('Documenti obbligatori per guidare:');
+    parts.push('1. Patente di guida in corso di validita\'');
+    parts.push('2. Libretto di circolazione (carta di circolazione)');
+    parts.push('3. Certificato di assicurazione RCA');
+    parts.push('La mancanza di documenti comporta:');
+    parts.push('- Senza patente: sanzione da 5.000 a 30.000 euro e sequestro del veicolo');
+    parts.push('- Senza assicurazione: multa da 866 a 3.466 euro e sequestro del veicolo');
+  }
+  // Road signs categories
+  else if (msg.includes('segnal') || msg.includes('cartello') || msg.includes('tipo') || msg.includes('categoria')) {
+    parts.push('Le categorie dei segnali stradali italiani:');
+    parts.push('1. Segnali di obbligo - forma circolare, sfondo blu (es. senso obbligatorio, direzione obbligatoria)');
+    parts.push('2. Segnali di divieto - forma circolare, bordo rosso, sfondo bianco (es. divieto di accesso, divieto di sosta)');
+    parts.push('3. Segnali di pericolo - forma triangolare, bordo bianco, sfondo rosso (es. curva, strettoia, passaggio a livello)');
+    parts.push('4. Segnali di precedenza - triangolo rovesciato (dare precedenza) o ottagono (STOP)');
+    parts.push('5. Segnali di indicazione - rettangolari, forniscono informazioni utili');
+    parts.push('6. Pannelli integrativi - rettangolari, completano il segnale principale');
+    parts.push('7. Segnali temporanei - sfondo giallo, usati in cantieri');
+  }
+  // Parking
+  else if (msg.includes('parchegg') || msg.includes('sosta') || msg.includes('dove posso')) {
+    parts.push('Regole su parcheggio e sosta:');
+    parts.push('E\' VIETATO parcheggiare:');
+    parts.push('- Sui passi carrabili');
+    parts.push('- Sugli attraversamenti pedonali (strisce)');
+    parts.push('- In doppia fila');
+    parts.push('- Nei pressi di curve, incroci e passaggi a livello');
+    parts.push('- Davanti a rampe per disabili');
+    parts.push('- In zone con strisce gialle (sosta riservata)');
+    parts.push('Le strisce blu indicano parcheggio a pagamento, le bianche parcheggio libero.');
+    parts.push('La sosta e\' consentita nel senso di marcia, non contromano.');
+  }
+  // Priority / right of way
+  else if (msg.includes('precedenza') || msg.includes('chi passa') || msg.includes('incrocio') || msg.includes('rotatoria')) {
+    parts.push('Regole di precedenza:');
+    parts.push('1. Precedenza a DESTRA: vale negli incroci non regolamentati (senza segnali)');
+    parts.push('2. Segnale STOP: devi FERMARTI completamente e dare la precedenza');
+    parts.push('3. Segnale "Dare precedenza": rallenta e dai strada, senza fermarti obbligatoriamente');
+    parts.push('4. ROTATORIA: chi e\' gia\' dentro ha la precedenza su chi vuole entrare');
+    parts.push('5. Strada prioritaria: indicata dal segnale quadrato diamantato');
+    parts.push('6. Mezzi d\'emergenza (ambulanza, vigili, polizia) con sirena: sempre precedenza');
+    parts.push('7. Autobus: hanno precedenza quando ripartono dalla fermata');
+    parts.push('8. Pedoni: sempre precedenza sugli attraversamenti pedonali');
+  }
+  // Lights
+  else if (msg.includes('luci') || msg.includes('fari') || msg.includes('abbagliant') || msg.includes('anabbagliant')) {
+    parts.push('Regole sull\'uso delle luci:');
+    parts.push('ANABBAGLIANTI (obbligatori):');
+    parts.push('- Tra il tramonto e l\'alba');
+    parts.push('- In gallerie');
+    parts.push('- In caso di nebbia, pioggia, neve');
+    parts.push('- In tutti i casi di visibilita\' ridotta');
+    parts.push('ABBAGLIANTI (solo quando possibile):');
+    parts.push('- Fuori dai centri abitati se non ci sono veicoli davanti');
+    parts.push('- NON usarli in nebbia (creano effetto specchio)');
+    parts.push('- NON usarli se ci sono veicoli davanti o in senso opposto');
+    parts.push('LUCI DI POSIZIONE: usate solo in sosta o fermata');
+  }
+  // Safety equipment
+  else if (msg.includes('cintura') || msg.includes('seggiolino') || msg.includes('casco') || msg.includes('equipaggiamento') || msg.includes('giubbotto')) {
+    parts.push('Equipaggiamento di sicurezza obbligatorio:');
+    parts.push('CINTURA DI SICUREZZA:');
+    parts.push('- Obbligatoria per tutti i passeggeri (davanti e dietro)');
+    parts.push('- Bambini sotto 150 cm: seggiolino omologato');
+    parts.push('- Multa: 80-323 euro + 5 punti');
+    parts.push('CASCO:');
+    parts.push('- Obbligatorio per ciclomotori e motocicli');
+    parts.push('- Deve essere omologato ECE 22.05');
+    parts.push('GIUBBOTTO RIFLETTENTE:');
+    parts.push('- Obbligatorio fuori dal centro abitato, di notte o in galleria');
+    parts.push('- Deve essere indossato quando si scende dal veicolo');
+    parts.push('TRIANGOLO D\'EMERGENZA: almeno 50 metri prima del veicolo');
+    parts.push('ESTINTORE: obbligatorio per veicoli con piu\' di 9 posti');
+  }
+  // Exam info
+  else if (msg.includes('esame') || msg.includes('quiz') || msg.includes('prova') || msg.includes('come si')) {
+    parts.push('L\'esame della patente B:');
+    parts.push('1. Quiz teorico: 30 domande vero/falso');
+    parts.push('2. Tempo: 30 minuti');
+    parts.push('3. Per superare: max 3 errori (devi farne almeno 27 giuste)');
+    parts.push('4. Argomenti: segnali, norme, precedenze, velocita\', documenti, primo soccorso');
+    parts.push('5. Se fallisci puoi riprovare dopo 1 mese');
+    parts.push('6. Puoi esercitarti con i quiz ministeriali ufficiali');
+    parts.push('Consiglio: rispondi con calma, leggi bene le parole "sempre" e "mai".');
+  }
+  // Tires
+  else if (msg.includes('gomma') || msg.includes('pneumatico') || msg.includes('ruota') || msg.includes('inverno')) {
+    parts.push('Regole sui pneumatici:');
+    parts.push('- Battistrada minimo: 1.6 mm di profondita\'');
+    parts.push('- Gomme lisce: rischio di aquaplaning e aumento spazio di frenata');
+    parts.push('- Gomme invernali: obbligatorie dal 15 novembre al 15 aprile in molte zone');
+    parts.push('- Catene da neve: alternative alle gomme invernali, da tenere sul veicolo');
+    parts.push('- Pressione: controlla almeno una volta al mese');
+    parts.push('- Gomme mischiate (estate+inverno): vietate sullo stesso asse');
+  }
+  // Distance
+  else if (msg.includes('distanza') || msg.includes('fren') || msg.includes('spazio')) {
+    parts.push('Distanze di sicurezza e frenata:');
+    parts.push('La distanza di sicurezza MINIMA e\':');
+    parts.push('- A 50 km/h: 25 metri');
+    parts.push('- A 90 km/h: 60 metri');
+    parts.push('- A 110 km/h: 100 metri');
+    parts.push('- A 130 km/h: 130 metri');
+    parts.push('In caso di pioggia o neve, raddoppia la distanza!');
+    parts.push('Regola pratica: mantieni almeno 2 secondi di distanza dal veicolo precedente.');
+  }
+  // General help
+  else {
+    parts.push('Ciao! Sono il tuo assistente per la patente B. Posso aiutarti con:');
+    parts.push('- Limiti di velocita\'');
+    parts.push('- Segnali stradali e le loro categorie');
+    parts.push('- Regole di precedenza e rotatorie');
+    parts.push('- Norme su alcol e droghe');
+    parts.push('- Documenti necessari');
+    parts.push('- Regole di parcheggio e sosta');
+    parts.push('- Luci e loro uso corretto');
+    parts.push('- Equipaggiamento di sicurezza (cintura, casco, giubbotto)');
+    parts.push('- Pneumatici e gomme');
+    parts.push('- Informazioni sull\'esame');
+    parts.push('Chiedimi pure su qualsiasi argomento!');
+  }
+
+  return parts.join('\n');
+}
+
+// ============================================================
+// STUDY PLAN ENGINE
+// ============================================================
+function generateStudyPlan(chapters: { id: number; name: string; answered: number; correct: number; wrong: number; total: number; pct: number }[], totalAnswered: number, accuracy: number): { plan: { day: string; chapterId: number; chapterName: string; reason: string; questionCount: number }[]; summary: string } {
+  // Sort by error rate (chapters with most errors first)
+  const weak = chapters.filter(c => c.wrong > 0 && c.answered > 0).sort((a, b) => {
+    const rateA = a.wrong / a.answered;
+    const rateB = b.wrong / b.answered;
+    return rateB - rateA;
+  });
+
+  const unstarted = chapters.filter(c => c.answered === 0);
+
+  const days = ['Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi', 'Sabato', 'Domenica'];
+  const plan: { day: string; chapterId: number; chapterName: string; reason: string; questionCount: number }[] = [];
+
+  // Priority 1: Chapters with most errors (repeat them)
+  for (const ch of weak.slice(0, 3)) {
+    const errRate = Math.round((ch.wrong / ch.answered) * 100);
+    plan.push({
+      day: days[plan.length % 7],
+      chapterId: ch.id,
+      chapterName: ch.name,
+      reason: `Tasso di errore: ${errRate}% (${ch.wrong} errori su ${ch.answered} domande). Ripassa per migliorare.`,
+      questionCount: ch.total,
+    });
+  }
+
+  // Priority 2: Unstarted chapters
+  for (const ch of unstarted.slice(0, 2)) {
+    plan.push({
+      day: days[plan.length % 7],
+      chapterId: ch.id,
+      chapterName: ch.name,
+      reason: 'Non hai ancora risposto a nessuna domanda di questo capitolo. Inizia a esercitarti!',
+      questionCount: ch.total,
+    });
+  }
+
+  // Priority 3: Chapters with partial progress
+  const partial = chapters.filter(c => c.pct > 0 && c.pct < 100 && !weak.includes(c)).sort((a, b) => a.pct - b.pct);
+  for (const ch of partial.slice(0, 2)) {
+    plan.push({
+      day: days[plan.length % 7],
+      chapterId: ch.id,
+      chapterName: ch.name,
+      reason: `Hai completato solo il ${ch.pct}% di questo capitolo. Continua per finirlo.`,
+      questionCount: ch.total - ch.answered,
+    });
+  }
+
+  const summary = accuracy >= 80
+    ? 'Ottimo lavoro! Il tuo livello e\' gia\' avanzato. Concentrati solo sui capitoli deboli e fai test simulati regolarmente.'
+    : accuracy >= 60
+    ? 'Buon livello! Segui il piano di studio per consolidare i tuoi punti deboli e raggiungere il livello da esame.'
+    : accuracy >= 30
+    ? 'Sei a meta\' strada. Segui il piano di studio giorno per giorno per costruire le tue conoscenze.'
+    : 'Non preoccuparti, tutti iniziano da qui! Segui il piano e vedrai miglioramenti rapidi. Rispondi ad almeno 20 domande al giorno.';
+
+  return { plan, summary };
+}
+
+// ============================================================
+// API HANDLERS
+// ============================================================
+
+// ---- 1. Explain wrong answer ----
 async function handleExplain(body: {
   action: string;
   question: string;
@@ -226,173 +534,167 @@ async function handleExplain(body: {
   hasImage: boolean;
 }) {
   const { question, correctAnswer, userAnswer, chapterName, subtopic, hasImage } = body;
-
   const correctText = correctAnswer ? 'VERO' : 'FALSO';
   const userText = userAnswer ? 'VERO' : 'FALSO';
 
-  // ---- Try AI first ----
-  try {
-    const zai = await ZAI.create(); // Fresh instance for serverless
-    const completion = await zai.chat.completions.create({
-      messages: [
-        {
-          role: 'system',
-          content: `Sei un istruttore di patente B esperto. Quando spieghi un errore, dai SEMPRE informazioni reali e specifiche. Se la domanda riguarda un segnale stradale (ha immagine), identifica il segnale e spiega cosa significa e il suo nome. Se parla di una regola, spiega la regola. Mai dire "rivedi il capitolo" o "studia l'argomento". Rispondi in italiano, massimo 4 frasi, testo semplice, nessun markdown. Dai solo la spiegazione, niente introduzioni.`
-        },
-        {
-          role: 'user',
-          content: `Domanda: "${question}"\nCapitolo: ${chapterName || '-'}\nArgomento: ${subtopic || '-'}\nHa immagine di segnale: ${hasImage ? 'SI' : 'NO'}\nRisposta corretta: ${correctText}\nRisposta utente: ${userText}\n\nSpiega PERCHE' la risposta corretta e' ${correctText}. Se c'e' un segnale, spiega il nome del segnale e cosa significa. Dai informazioni reali e utili.`
-        }
-      ],
-      temperature: 0.2,
-      max_tokens: 250,
-    });
-
-    const explanation = completion.choices[0]?.message?.content;
-    if (explanation && explanation.trim().length > 20 && !explanation.toLowerCase().includes('ripass') && !explanation.toLowerCase().includes('rivedi')) {
-      return NextResponse.json({
-        explanation: explanation.trim(),
-        correctAnswer: correctText,
-      });
-    }
-    // AI gave a bad response, use smart fallback
-    console.log('AI gave weak response, using smart fallback');
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    console.error('AI SDK error, using smart fallback:', msg);
-  }
-
-  // ---- Smart fallback: contextual explanation without AI ----
-  const smartExplanation = generateSmartExplanation(question, correctAnswer, userAnswer, chapterName, subtopic, hasImage);
-
-  return NextResponse.json({
-    explanation: smartExplanation,
-    correctAnswer: correctText,
-    fallback: true,
-  });
-}
-
-// ---- Analyze user performance ----
-async function handleAnalyze(body: {
-  action: string;
-  username: string;
-  stats: {
-    totalAnswered: number;
-    totalCorrect: number;
-    totalWrong: number;
-    streak: number;
-    bestStreak: number;
-    examsPassed: number;
-    examsFailed: number;
-  };
-  chapters: {
-    id: number;
-    name: string;
-    answered: number;
-    correct: number;
-    wrong: number;
-    total: number;
-    pct: number;
-  }[];
-  wrongTopics: string[];
-}) {
-  const { username, stats, chapters, wrongTopics } = body;
-
-  const accuracy = stats.totalAnswered > 0 ? Math.round((stats.totalCorrect / stats.totalAnswered) * 100) : 0;
-
-  const weakChapters = chapters
-    .filter(c => c.wrong > 0)
-    .sort((a, b) => (b.wrong / b.total) - (a.wrong / a.total))
-    .slice(0, 5);
-
-  const strongChapters = chapters
-    .filter(c => c.answered > 0 && c.correct > 0)
-    .sort((a, b) => (b.correct / b.total) - (a.correct / a.total))
-    .slice(0, 5);
-
-  const chaptersList = chapters.map(c => `Cap.${c.id} ${c.name}: ${c.answered}/${c.total} risposte, ${c.correct} corrette, ${c.wrong} sbagliate (${c.total > 0 && c.answered > 0 ? Math.round((c.correct / c.answered) * 100) : 0}%)`).join('\n');
-
-  // ---- Try AI first ----
   try {
     const zai = await ZAI.create();
     const completion = await zai.chat.completions.create({
       messages: [
-        {
-          role: 'system',
-          content: 'Sei un istruttore di patente B italiano esperto nell\'analisi delle prestazioni. Rispondi solo con JSON valido, senza markdown o backticks.'
-        },
-        {
-          role: 'user',
-          content: `Analizza le prestazioni dello studente ${username}.
-Risposte: ${stats.totalAnswered}, Corrette: ${stats.totalCorrect}, Sbagliate: ${stats.totalWrong}, Accuratezza: ${accuracy}%
-Serie migliore: ${stats.bestStreak}, Esami: ${stats.examsPassed}/${stats.examsPassed + stats.examsFailed}
-Argomenti con piu\' errori: ${wrongTopics.join(', ') || 'Nessuno'}
-${chaptersList}
+        { role: 'system', content: `Sei un istruttore di patente B esperto. Quando spieghi un errore, dai SEMPRE informazioni reali e specifiche. Se la domanda riguarda un segnale stradale (ha immagine), identifica il segnale e spiega cosa significa e il suo nome. Se parla di una regola, spiega la regola. Mai dire "rivedi il capitolo" o "studia l'argomento". Rispondi in italiano, massimo 4 frasi, testo semplice, nessun markdown. Dai solo la spiegazione, niente introduzioni.` },
+        { role: 'user', content: `Domanda: "${question}"\nCapitolo: ${chapterName || '-'}\nArgomento: ${subtopic || '-'}\nHa immagine di segnale: ${hasImage ? 'SI' : 'NO'}\nRisposta corretta: ${correctText}\nRisposta utente: ${userText}\n\nSpiega PERCHE' la risposta corretta e' ${correctText}. Se c'e' un segnale, spiega il nome del segnale e cosa significa. Dai informazioni reali e utili.` }
+      ],
+      temperature: 0.2,
+      max_tokens: 250,
+    });
+    const explanation = completion.choices[0]?.message?.content;
+    if (explanation && explanation.trim().length > 20 && !explanation.toLowerCase().includes('ripass') && !explanation.toLowerCase().includes('rivedi')) {
+      return NextResponse.json({ explanation: explanation.trim(), correctAnswer: correctText });
+    }
+  } catch (error: unknown) {
+    console.error('AI Explain error:', error instanceof Error ? error.message : 'Unknown');
+  }
 
-Rispondi in JSON valido con questo formato:
-{"level":"principiante|intermedio|avanzato|esperto","levelEmoji":"emoji","levelTitle":"titolo","overallScore":0-100,"summary":"riassunto","strengths":[{"chapter":"nome","text":"testo"}],"weaknesses":[{"chapter":"nome","text":"testo"}],"recommendations":["r1","r2","r3"],"tips":["t1","t2"],"motivation":"frase"}
-Tutto in italiano. Massimo 3 strengths e 3 weaknesses.`
-        }
+  const smartExplanation = generateSmartExplanation(question, correctAnswer, userAnswer, chapterName, subtopic, hasImage);
+  return NextResponse.json({ explanation: smartExplanation, correctAnswer: correctText, fallback: true });
+}
+
+// ---- 2. Analyze user performance ----
+async function handleAnalyze(body: {
+  action: string;
+  username: string;
+  stats: { totalAnswered: number; totalCorrect: number; totalWrong: number; streak: number; bestStreak: number; examsPassed: number; examsFailed: number };
+  chapters: { id: number; name: string; answered: number; correct: number; wrong: number; total: number; pct: number }[];
+  wrongTopics: string[];
+}) {
+  const { username, stats, chapters, wrongTopics } = body;
+  const accuracy = stats.totalAnswered > 0 ? Math.round((stats.totalCorrect / stats.totalAnswered) * 100) : 0;
+  const weakChapters = chapters.filter(c => c.wrong > 0).sort((a, b) => (b.wrong / b.total) - (a.wrong / a.total)).slice(0, 5);
+  const strongChapters = chapters.filter(c => c.answered > 0 && c.correct > 0).sort((a, b) => (b.correct / b.total) - (a.correct / a.total)).slice(0, 5);
+  const chaptersList = chapters.map(c => `Cap.${c.id} ${c.name}: ${c.answered}/${c.total} risposte, ${c.correct} corrette, ${c.wrong} sbagliate (${c.total > 0 && c.answered > 0 ? Math.round((c.correct / c.answered) * 100) : 0}%)`).join('\n');
+
+  try {
+    const zai = await ZAI.create();
+    const completion = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: 'Sei un istruttore di patente B italiano esperto nell\'analisi delle prestazioni. Rispondi solo con JSON valido, senza markdown o backticks.' },
+        { role: 'user', content: `Analizza le prestazioni dello studente ${username}.\nRisposte: ${stats.totalAnswered}, Corrette: ${stats.totalCorrect}, Sbagliate: ${stats.totalWrong}, Accuratezza: ${accuracy}%\nSerie migliore: ${stats.bestStreak}, Esami: ${stats.examsPassed}/${stats.examsPassed + stats.examsFailed}\nArgomenti con piu\' errori: ${wrongTopics.join(', ') || 'Nessuno'}\n${chaptersList}\n\nRispondi in JSON valido con questo formato:\n{"level":"principiante|intermedio|avanzato|esperto","levelEmoji":"emoji","levelTitle":"titolo","overallScore":0-100,"summary":"riassunto","strengths":[{"chapter":"nome","text":"testo"}],"weaknesses":[{"chapter":"nome","text":"testo"}],"recommendations":["r1","r2","r3"],"tips":["t1","t2"],"motivation":"frase","examScore":0-30}\nTutto in italiano. Massimo 3 strengths e 3 weaknesses. examScore e\' il punteggio previsto all\'esame (su 30 domande, 30 = perfetto).` }
       ],
       temperature: 0.4,
       max_tokens: 1000,
     });
-
     let content = completion.choices[0]?.message?.content || '';
     content = content.trim();
-    if (content.startsWith('```')) {
-      content = content.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
-    }
-
+    if (content.startsWith('```')) content = content.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
     const analysis = JSON.parse(content);
-    if (analysis.level && analysis.summary) {
-      return NextResponse.json(analysis);
-    }
+    if (analysis.level && analysis.summary) return NextResponse.json(analysis);
     throw new Error('Invalid AI response');
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    console.error('AI Analyze error, using smart fallback:', msg);
+    console.error('AI Analyze error:', error instanceof Error ? error.message : 'Unknown');
   }
 
-  // ---- Smart fallback ----
   const level = accuracy < 30 ? 'principiante' : accuracy < 60 ? 'intermedio' : accuracy < 80 ? 'avanzato' : 'esperto';
   const levelEmoji = accuracy < 30 ? '\uD83C\uDF31' : accuracy < 60 ? '\uD83D\uDCC8' : accuracy < 80 ? '\uD83C\uDFAF' : '\uD83C\uDFC6';
+  const predictedExamScore = accuracy >= 90 ? 30 : accuracy >= 85 ? 29 : accuracy >= 80 ? 28 : accuracy >= 75 ? 26 : accuracy >= 70 ? 24 : accuracy >= 60 ? 20 : accuracy >= 50 ? 16 : 10;
 
   return NextResponse.json({
-    level,
-    levelEmoji,
+    level, levelEmoji,
     levelTitle: `Livello ${level.charAt(0).toUpperCase() + level.slice(1)}`,
     overallScore: accuracy,
+    examScore: predictedExamScore,
     summary: stats.totalAnswered < 50
       ? `Hai risposto solo ${stats.totalAnswered} domande finora. Esercitati di piu' per avere un'analisi precisa! Al momento la tua accuratezza e' del ${accuracy}%.`
       : `Hai risposto a ${stats.totalAnswered} domande con un'accuratezza del ${accuracy}%. ${accuracy >= 70 ? 'Ottimo lavoro! Sei sulla strada giusta per superare l\'esame.' : 'Continua a esercitarti, concentrati sui capitoli piu\' difficili.'}`,
-    strengths: strongChapters.slice(0, 3).map(c => ({
-      chapter: c.name,
-      text: `Ottima performance: ${Math.round((c.correct / c.answered) * 100)}% di risposte corrette su ${c.answered} domande.`
-    })),
-    weaknesses: weakChapters.slice(0, 3).map(c => ({
-      chapter: c.name,
-      text: `${c.wrong} errori su ${c.answered} domande (${Math.round((c.wrong / c.answered) * 100)}% di errori). Concentrati su questo capitolo.`
-    })),
+    strengths: strongChapters.slice(0, 3).map(c => ({ chapter: c.name, text: `Ottima performance: ${Math.round((c.correct / c.answered) * 100)}% di risposte corrette su ${c.answered} domande.` })),
+    weaknesses: weakChapters.slice(0, 3).map(c => ({ chapter: c.name, text: `${c.wrong} errori su ${c.answered} domande (${Math.round((c.wrong / c.answered) * 100)}% di errori). Concentrati su questo capitolo.` })),
     recommendations: weakChapters.length > 0
-      ? [
-          `Pratica il capitolo "${weakChapters[0].name}" che ha il tasso di errore piu' alto`,
-          `Ripeti le ${stats.totalWrong > 0 ? stats.totalWrong : ''} domande che hai sbagliato`,
-          stats.totalAnswered < 50 ? 'Rispondi ad almeno 50 domande per una valutazione piu\' precisa' : 'Fai un test simulato di 30 domande per verificare il tuo livello',
-        ]
-      : [
-          'Continua a esercitarti su tutti i capitoli',
-          'Fai almeno 30 domande al giorno',
-          'Ripeti periodicamente le domande sbagliate',
-        ],
-    tips: [
-      'Presta attenzione alle parole chiave nella domanda come "sempre", "mai", "eccezione"',
-      'Quando vedi un segnale stradale, osserva la forma, il colore e la categoria',
-      'Immagina la situazione reale di guida mentre rispondi alla domanda',
-    ],
-    motivation: accuracy >= 70
-      ? 'Sei quasi pronto per l\'esame! Un\'ultimo sforzo e ce la farai!'
-      : 'Ogni domanda che rispondi ti avvicina al tuo obiettivo. Non arrenderti!',
+      ? [`Pratica il capitolo "${weakChapters[0].name}" che ha il tasso di errore piu' alto`, `Ripeti le domande che hai sbagliato`, stats.totalAnswered < 50 ? 'Rispondi ad almeno 50 domande per una valutazione piu\' precisa' : 'Fai un test simulato di 30 domande per verificare il tuo livello']
+      : ['Continua a esercitarti su tutti i capitoli', 'Fai almeno 30 domande al giorno', 'Ripeti periodicamente le domande sbagliate'],
+    tips: ['Presta attenzione alle parole chiave nella domanda come "sempre", "mai", "eccezione"', 'Quando vedi un segnale stradale, osserva la forma, il colore e la categoria', 'Immagina la situazione reale di guida mentre rispondi alla domanda'],
+    motivation: accuracy >= 70 ? 'Sei quasi pronto per l\'esame! Un\'ultimo sforzo e ce la farai!' : 'Ogni domanda che rispondi ti avvicina al tuo obiettivo. Non arrenderti!',
     fallback: true,
+  });
+}
+
+// ---- 3. AI Chat ----
+async function handleChat(body: { action: string; message: string; history?: { role: string; content: string }[] }) {
+  const { message, history = [] } = body;
+  const systemPrompt = `Sei un assistente virtuale esperto per l'esame della patente B in Italia.
+Rispondi SEMPRE in italiano.
+Sei specializzato in: codice della strada, segnali stradali, limiti di velocità, precedenze, norme di circolazione, documenti, primo soccorso, equipaggiamento di sicurezza.
+Dai risposte precise, concise e facili da ricordare.
+Usa elenchi puntati quando utile.
+Non inventare informazioni: se non sei sicuro, dillo.
+Se la domanda non riguarda la guida, rispondi cortesemente che puoi aiutare solo con argomenti legati alla patente B.`;
+
+  try {
+    const zai = await ZAI.create();
+    const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
+      { role: 'system', content: systemPrompt },
+      ...history.slice(-6) as { role: 'system' | 'user' | 'assistant'; content: string }[], // Keep last 6 messages for context
+      { role: 'user', content: message },
+    ];
+    const completion = await zai.chat.completions.create({
+      messages,
+      temperature: 0.4,
+      max_tokens: 500,
+    });
+    const reply = completion.choices[0]?.message?.content;
+    if (reply && reply.trim().length > 10) {
+      return NextResponse.json({ reply: reply.trim(), fallback: false });
+    }
+  } catch (error: unknown) {
+    console.error('AI Chat error:', error instanceof Error ? error.message : 'Unknown');
+  }
+
+  // Smart fallback
+  const smartReply = generateChatAnswer(message);
+  return NextResponse.json({ reply: smartReply, fallback: true });
+}
+
+// ---- 4. Hint for current question ----
+async function handleHint(body: { action: string; question: string; chapterName?: string; subtopic?: string; hasImage: boolean }) {
+  const { question, chapterName, subtopic, hasImage } = body;
+
+  try {
+    const zai = await ZAI.create();
+    const completion = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: `Sei un istruttore di patente B. Dai un INDIZIO breve per aiutare lo studente a rispondere correttamente. NON dire la risposta corretta (VERO/FALSO). Usa max 2 frasi. Rispondi in italiano. Se c'e' un'immagine di segnale, suggerisci di osservare la forma e il colore. Nessun markdown.` },
+        { role: 'user', content: `Domanda: "${question}"\nCapitolo: ${chapterName || '-'}\nArgomento: ${subtopic || '-'}\nHa immagine: ${hasImage ? 'SI' : 'NO'}\n\nDai un indizio breve che aiuti a capire la risposta senza rivelarla.` }
+      ],
+      temperature: 0.3,
+      max_tokens: 150,
+    });
+    const hint = completion.choices[0]?.message?.content;
+    if (hint && hint.trim().length > 15 && !hint.toLowerCase().includes('vero') && !hint.toLowerCase().includes('falso')) {
+      return NextResponse.json({ hint: hint.trim(), fallback: false });
+    }
+  } catch (error: unknown) {
+    console.error('AI Hint error:', error instanceof Error ? error.message : 'Unknown');
+  }
+
+  const smartHint = generateSmartHint(question, chapterName, subtopic, hasImage);
+  return NextResponse.json({ hint: smartHint, fallback: true });
+}
+
+// ---- 5. Study Plan ----
+async function handleStudyPlan(body: {
+  action: string;
+  username: string;
+  stats: { totalAnswered: number; totalCorrect: number; totalWrong: number; streak: number; bestStreak: number; examsPassed: number; examsFailed: number };
+  chapters: { id: number; name: string; answered: number; correct: number; wrong: number; total: number; pct: number }[];
+  wrongTopics: string[];
+}) {
+  const { stats, chapters } = body;
+  const accuracy = stats.totalAnswered > 0 ? Math.round((stats.totalCorrect / stats.totalAnswered) * 100) : 0;
+  const { plan, summary } = generateStudyPlan(chapters, stats.totalAnswered, accuracy);
+
+  return NextResponse.json({
+    plan,
+    summary,
+    accuracy,
+    totalAnswered: stats.totalAnswered,
+    fallback: false,
   });
 }

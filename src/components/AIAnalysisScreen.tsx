@@ -10,6 +10,7 @@ interface AIAnalysis {
   levelEmoji: string;
   levelTitle: string;
   overallScore: number;
+  examScore?: number;
   summary: string;
   strengths: { chapter: string; text: string }[];
   weaknesses: { chapter: string; text: string }[];
@@ -234,18 +235,24 @@ export default function AIAnalysisScreen() {
           <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{analysis.summary}</p>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-3 gap-3 mt-4">
-            <div className="text-center p-3 rounded-xl" style={{ background: 'var(--bg-tertiary)' }}>
-              <p className="text-lg font-extrabold" style={{ color: 'var(--primary-light)' }}>{totalAnswered}</p>
-              <p className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Risposte</p>
+          <div className="grid grid-cols-4 gap-2 mt-4">
+            <div className="text-center p-2.5 rounded-xl" style={{ background: 'var(--bg-tertiary)' }}>
+              <p className="text-base font-extrabold" style={{ color: 'var(--primary-light)' }}>{totalAnswered}</p>
+              <p className="text-[9px] font-semibold" style={{ color: 'var(--text-muted)' }}>Risposte</p>
             </div>
-            <div className="text-center p-3 rounded-xl" style={{ background: 'var(--bg-tertiary)' }}>
-              <p className="text-lg font-extrabold" style={{ color: 'var(--success)' }}>{accuracy}%</p>
-              <p className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Accuratezza</p>
+            <div className="text-center p-2.5 rounded-xl" style={{ background: 'var(--bg-tertiary)' }}>
+              <p className="text-base font-extrabold" style={{ color: 'var(--success)' }}>{accuracy}%</p>
+              <p className="text-[9px] font-semibold" style={{ color: 'var(--text-muted)' }}>Accuratezza</p>
             </div>
-            <div className="text-center p-3 rounded-xl" style={{ background: 'var(--bg-tertiary)' }}>
-              <p className="text-lg font-extrabold" style={{ color: 'var(--accent)' }}>{stats.bestStreak}</p>
-              <p className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Serie migliore</p>
+            <div className="text-center p-2.5 rounded-xl" style={{ background: 'var(--bg-tertiary)' }}>
+              <p className="text-base font-extrabold" style={{ color: 'var(--accent)' }}>{stats.bestStreak}</p>
+              <p className="text-[9px] font-semibold" style={{ color: 'var(--text-muted)' }}>Serie</p>
+            </div>
+            <div className="text-center p-2.5 rounded-xl" style={{ background: 'var(--bg-tertiary)' }}>
+              <p className="text-base font-extrabold" style={{ color: analysis.examScore && analysis.examScore >= 27 ? 'var(--success)' : analysis.examScore && analysis.examScore >= 21 ? 'var(--accent)' : 'var(--danger)' }}>
+                {analysis.examScore || '-'}/30
+              </p>
+              <p className="text-[9px] font-semibold" style={{ color: 'var(--text-muted)' }}>Esame Prev.</p>
             </div>
           </div>
         </div>
@@ -351,12 +358,12 @@ export default function AIAnalysisScreen() {
         </div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-3 anim-up" style={{ animationDelay: '350ms' }}>
+        <div className="grid grid-cols-3 gap-3 anim-up" style={{ animationDelay: '350ms' }}>
           <button onClick={() => store.setScreen('home')}
             className="p-4 rounded-2xl text-center transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
             style={{ background: 'linear-gradient(135deg, var(--primary), var(--primary-light))', boxShadow: '0 4px 20px rgba(30, 58, 138, 0.25)' }}>
             <div className="text-xl mb-1">📚</div>
-            <p className="text-[13px] font-bold text-white">Continua a Studiare</p>
+            <p className="text-[12px] font-bold text-white">Studia</p>
           </button>
           {wrong.total > 0 && (
             <button onClick={() => {
@@ -367,9 +374,15 @@ export default function AIAnalysisScreen() {
               className="p-4 rounded-2xl text-center transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
               style={{ background: 'linear-gradient(135deg, #EF4444, #DC2626)', boxShadow: '0 4px 20px rgba(239, 68, 68, 0.25)' }}>
               <div className="text-xl mb-1">🔄</div>
-              <p className="text-[13px] font-bold text-white">Ripeti Errori ({wrong.total})</p>
+              <p className="text-[12px] font-bold text-white">Errori ({wrong.total})</p>
             </button>
           )}
+          <button onClick={() => store.setScreen('studyPlan')}
+            className="p-4 rounded-2xl text-center transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
+            style={{ background: 'linear-gradient(135deg, #10B981, #059669)', boxShadow: '0 4px 20px rgba(16, 185, 129, 0.25)' }}>
+            <div className="text-xl mb-1">📋</div>
+            <p className="text-[12px] font-bold text-white">Piano Studio</p>
+          </button>
         </div>
       </div>
     </div>

@@ -12,6 +12,8 @@ import QuizScreen from '@/components/QuizScreen';
 import ResultScreen from '@/components/ResultScreen';
 import AdminPanel from '@/components/AdminPanel';
 import AIAnalysisScreen from '@/components/AIAnalysisScreen';
+import AIChatScreen from '@/components/AIChatScreen';
+import StudyPlanScreen from '@/components/StudyPlanScreen';
 
 export default function Page() {
   const store = useStore();
@@ -101,6 +103,8 @@ export default function Page() {
     case 'result': return <ResultScreen />;
     case 'admin': return <AdminPanel />;
     case 'aiAnalysis': return <AIAnalysisScreen />;
+    case 'aiChat': return <AIChatScreen />;
+    case 'studyPlan': return <StudyPlanScreen />;
     default: return <LoginScreen />;
   }
 }
