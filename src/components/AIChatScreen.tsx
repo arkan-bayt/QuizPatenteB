@@ -9,7 +9,13 @@ interface ChatMessage {
   fallback?: boolean;
 }
 
-const QUICK_QUESTIONS = [
+// Helper: detect if text contains Arabic
+function isArabicMessage(text: string): boolean {
+  const arabicRegex = /[\u0600-\u06FF]/;
+  return arabicRegex.test(text);
+}
+
+const QUICK_QUESTIONS_IT = [
   { icon: '🚗', text: 'Limiti di velocita\'' },
   { icon: '🛑', text: 'Segnali stradali' },
   { icon: '🔄', text: 'Regole di precedenza' },
@@ -20,11 +26,25 @@ const QUICK_QUESTIONS = [
   { icon: '🛡️', text: 'Equipaggiamento sicurezza' },
 ];
 
+const QUICK_QUESTIONS_AR = [
+  { icon: '🚗', text: 'حدود السرعة' },
+  { icon: '🛑', text: 'العلامات المرورية' },
+  { icon: '🔄', text: 'قواعد الأفضلية' },
+  { icon: '🍺', text: 'الكحول والقيادة' },
+  { icon: '📝', text: 'امتحان رخصة B' },
+  { icon: '🅿️', text: 'قواعد الركن' },
+  { icon: '💡', text: 'الأنوار' },
+  { icon: '🛡️', text: 'معدات السلامة' },
+  { icon: '📱', text: 'استخدام الهاتف' },
+  { icon: '↔️', text: 'علامات الاتجاه الإلزامي' },
+];
+
 export default function AIChatScreen() {
   const store = useStore();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isArabic, setIsArabic] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -38,13 +58,21 @@ export default function AIChatScreen() {
       setMessages([{
         id: 'welcome',
         role: 'assistant',
-        content: 'Ciao! Sono il tuo assistente IA per la patente B. Chiedimi qualsiasi cosa sui segnali stradali, le regole di circolazione, i limiti di velocita\', l\'esame e molto altro! Come posso aiutarti?',
+        content: 'مرحباً! أنا مساعدك الذكي لرخصة القيادة B 🇮🇹\n\nيمكنك سؤالي بأي لغة!\n- اكتب بالعربي ← أجيب بالعربي\n- اكتب بالايطالي ← أجيب بالايطالي\n- اكتب "بالايتالي" ← أجيب بالايطالي حتى لو كتبت بالعربي\n\nاسألني عن العلامات، السرعة، الأفضلية، الامتحان وأي شيء آخر!',
       }]);
     }
   }, []);
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
+    // Auto-detect language
+    const arabicRegex = /[\u0600-\u06FF]/;
+    const arWords = ['شرح', 'ايش', 'ماذا', 'كيف', 'لماذا', 'متى', 'اين', 'هل', 'السرعة', 'العلامات', 'الرخصة', 'الامتحان', 'حدود', 'قواعد', 'الكحول', 'الأنوار', 'معدات', 'الاتجاه'];
+    if (arabicRegex.test(text) || arWords.some(w => text.includes(w))) {
+      setIsArabic(true);
+    } else if (!/[\u0600-\u06FF]/.test(text) && /[a-zA-ZàèéìòùÀÈÉÌÒÙ]/.test(text)) {
+      setIsArabic(false);
+    }
     const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', content: text.trim() };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
@@ -110,6 +138,12 @@ export default function AIChatScreen() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
             </svg>
           </button>
+          {/* Language Toggle */}
+          <button onClick={() => { setIsArabic(!isArabic); setMessages([]); }}
+            className="text-xs px-3 py-2 rounded-xl transition-all duration-200 hover:scale-105 font-bold"
+            style={{ color: isArabic ? '#8B5CF6' : 'var(--text-muted)', background: isArabic ? 'rgba(139,92,246,0.15)' : 'var(--bg-tertiary)', border: isArabic ? '1px solid rgba(139,92,246,0.3)' : '1px solid transparent' }}>
+            {isArabic ? 'عربي' : 'IT'}
+          </button>
         </div>
       </div>
 
@@ -139,7 +173,8 @@ export default function AIChatScreen() {
                   </div>
                 )}
                 <p className={`text-[13px] leading-relaxed whitespace-pre-line ${msg.role === 'user' ? 'font-medium' : ''}`}
-                  style={{ color: msg.role === 'user' ? 'white' : 'var(--text-primary)' }}>
+                  style={{ color: msg.role === 'user' ? 'white' : 'var(--text-primary)', direction: isArabicMessage(msg.content) ? 'rtl' : 'ltr', textAlign: isArabicMessage(msg.content) ? 'right' : 'left' }}
+                  dir={isArabicMessage(msg.content) ? 'rtl' : 'ltr'}>
                   {msg.content}
                 </p>
               </div>
@@ -172,7 +207,7 @@ export default function AIChatScreen() {
           {/* Quick Questions */}
           {messages.length <= 2 && (
             <div className="flex flex-wrap gap-2 mb-3 anim-up">
-              {QUICK_QUESTIONS.map((q, i) => (
+              {(isArabic ? QUICK_QUESTIONS_AR : QUICK_QUESTIONS_IT).map((q, i) => (
                 <button key={i} onClick={() => sendMessage(q.text)}
                   className="px-3 py-2 rounded-xl text-[11px] font-medium transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-1.5"
                   style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)', animationDelay: `${i * 50}ms` }}>
@@ -190,7 +225,7 @@ export default function AIChatScreen() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Chiedi qualsiasi cosa sulla patente..."
+              placeholder={isArabic ? 'اسأل أي شيء عن رخصة القيادة...' : 'Chiedi qualsiasi cosa sulla patente...'}
               className="flex-1 px-4 py-3.5 rounded-2xl text-[14px] outline-none transition-all duration-200"
               style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)', color: 'var(--text-primary)' }}
               onFocus={(e) => e.target.style.borderColor = '#8B5CF6'}

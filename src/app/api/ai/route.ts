@@ -304,154 +304,365 @@ function generateSmartHint(question: string, chapterName: string | undefined, su
 }
 
 // ============================================================
-// CHAT KNOWLEDGE BASE - Smart answers for common questions
+// LANGUAGE DETECTION ENGINE
+// ============================================================
+function detectLanguage(msg: string): 'ar' | 'it' {
+  const arabicRegex = /[\u0600-\u06FF]/;
+  const arabicWords = ['شرح', 'ايش', 'اي', 'ماذا', 'كيف', 'لماذا', 'متى', 'اين', 'هل', 'السرعة', 'العلامات', 'الرخصة', 'الامتحان', 'الامان', 'الحزام', 'الكرسي', 'الخوذة', 'الاتجاه', 'المرور', 'السائق', 'الشارع', 'الطريق', 'عربي', 'بالايطالي', 'بالايطال'];
+  const lower = msg.toLowerCase();
+  if (arabicRegex.test(msg) || arabicWords.some(w => lower.includes(w))) return 'ar';
+  return 'it';
+}
+
+function wantsArabicResponse(msg: string): boolean {
+  const lower = msg.toLowerCase();
+  const arabicIndicators = ['بالايطالي', 'بالايطال'];
+  if (arabicIndicators.some(w => lower.includes(w))) return false;
+  return detectLanguage(msg) === 'ar';
+}
+
+// ============================================================
+// ARABIC KEYWORDS MAP (Arabic topic → Italian topic)
+// ============================================================
+const ARABIC_TOPIC_MAP: Record<string, string[]> = {
+  speed: ['سرعة', 'السرعة', 'كيلو', 'كم/س', 'محدود', 'حد السرعة', 'سريع'],
+  alcohol: ['كحول', 'خمر', 'بيرة', 'نبيذ', 'شراب', 'سكران', 'الكحول'],
+  documents: ['وثيقة', 'رخصة', 'تأمين', 'وثائق', 'ورق', 'الرخصة'],
+  signs: ['علامة', 'لافتة', 'اشارة', 'إشارة', 'اشارات', 'العلامات', 'لافتات'],
+  parking: ['موقف', 'ركن', 'باركينج', 'صف', 'وقوف', 'المواقف', 'مواقف'],
+  priority: ['أولوية', 'اولوية', 'دور', 'تقاطع', 'دوار', 'الأولوية', 'الافضلية'],
+  lights: ['نور', 'أنوار', 'إضاءة', 'اضاءة', 'فوانيس', 'النور', 'مصابيح'],
+  safety: ['حزام', 'أمان', 'خوذة', 'جاكيت', 'طفاية', 'مثلث', 'الأمان', 'سلامة'],
+  exam: ['امتحان', 'اختبار', 'كويز', 'الامتحان', 'الاختبار', 'متت'],
+  tires: ['إطار', 'اطار', 'كفر', 'كفارات', 'الإطارات', 'الاطارات'],
+  distance: ['مسافة', 'فرامل', 'توقف', 'مسافة أمان', 'فرملة', 'المسافة'],
+  phone: ['هاتف', 'جوال', 'موبايل', 'اتصال', 'الهاتف', 'الجوال'],
+  children: ['أطفال', 'اطفال', 'كرسي', 'الأطفال', 'مقعد'],
+  drugs: ['مخدرات', 'حبوب', 'حشيش', 'المخدرات'],
+  tunnel: ['نفق', 'أنفاق', 'النفق', 'الأنفاق'],
+  bus: ['حافلة', 'أوتوبوس', 'باص', 'نقل', 'الحافلة'],
+  emergency: ['إسعاف', 'اسعاف', 'شرطة', 'طوارئ', 'سيرينا', 'الطوارئ'],
+  overtaking: ['تجاوز', 'التفاف', 'تجاوز', 'دوران'],
+  pedestrian: ['مشاة', 'رصيف', 'مشي', 'المشاة', 'عابر'],
+  weather: ['ضباب', 'مطر', 'ثلج', 'جليد', 'الضباب', 'المطر'],
+  direction: ['اتجاه', 'الاتجاه', 'إتجاه', 'احادي', 'احادي الاتجاه', 'واحد'],
+};
+
+function matchArabicTopic(msg: string): string | null {
+  for (const [topic, keywords] of Object.entries(ARABIC_TOPIC_MAP)) {
+    if (keywords.some(k => msg.includes(k))) return topic;
+  }
+  return null;
+}
+
+// ============================================================
+// BILINGUAL KNOWLEDGE BASE
 // ============================================================
 function generateChatAnswer(userMessage: string): string {
   const msg = userMessage.toLowerCase();
+  const lang = detectLanguage(userMessage);
+  const replyArabic = wantsArabicResponse(userMessage);
+  const topic = matchArabicTopic(userMessage);
   const parts: string[] = [];
 
-  // Speed limits
-  if (msg.includes('velocita') || msg.includes('km/h') || msg.includes('limite di velocita')) {
-    parts.push('Ecco i limiti di velocita\' in Italia per la patente B:');
-    parts.push('- Zona urbana: 50 km/h');
-    parts.push('- Strada extraurbana secondaria: 90 km/h');
-    parts.push('- Strada extraurbana principale: 110 km/h');
-    parts.push('- Autostrada: 130 km/h (110 km/h in caso di pioggia)');
-    parts.push('- Neopatentati: 100 km/h su strade extraurbane e autostrada');
-    parts.push('Superare il limite comporta multe da 42 a 3.366 euro e decurtazione punti.');
-  }
-  // Alcohol
-  else if (msg.includes('alcol') || msg.includes('bere') || msg.includes('birra') || msg.includes('vino') || msg.includes('tasso')) {
-    parts.push('Norme sull\'alcol alla guida in Italia:');
-    parts.push('- Tasso normale consentito: 0.5 g/l');
-    parts.push('- Neopatentati e conducenti professionali: 0.0 g/l (tasso zero assoluto)');
-    parts.push('- Da 0.5 a 0.8 g/l: multa e 5 punti in meno');
-    parts.push('- Da 0.8 a 1.5 g/l: multa, 10 punti, sospensione patente fino a 6 mesi');
-    parts.push('- Oltre 1.5 g/l: reato penale, arresto, revoca patente');
-    parts.push('Il tasso si misura con l\'etilometro. Puoi rifiutarti ma la sanzione e\' piu\' grave.');
-  }
-  // Documents
-  else if (msg.includes('document') || msg.includes('patente') || msg.includes('assicurazione') || msg.includes('libretto')) {
-    parts.push('Documenti obbligatori per guidare:');
-    parts.push('1. Patente di guida in corso di validita\'');
-    parts.push('2. Libretto di circolazione (carta di circolazione)');
-    parts.push('3. Certificato di assicurazione RCA');
-    parts.push('La mancanza di documenti comporta:');
-    parts.push('- Senza patente: sanzione da 5.000 a 30.000 euro e sequestro del veicolo');
-    parts.push('- Senza assicurazione: multa da 866 a 3.466 euro e sequestro del veicolo');
-  }
-  // Road signs categories
-  else if (msg.includes('segnal') || msg.includes('cartello') || msg.includes('tipo') || msg.includes('categoria')) {
-    parts.push('Le categorie dei segnali stradali italiani:');
-    parts.push('1. Segnali di obbligo - forma circolare, sfondo blu (es. senso obbligatorio, direzione obbligatoria)');
-    parts.push('2. Segnali di divieto - forma circolare, bordo rosso, sfondo bianco (es. divieto di accesso, divieto di sosta)');
-    parts.push('3. Segnali di pericolo - forma triangolare, bordo bianco, sfondo rosso (es. curva, strettoia, passaggio a livello)');
-    parts.push('4. Segnali di precedenza - triangolo rovesciato (dare precedenza) o ottagono (STOP)');
-    parts.push('5. Segnali di indicazione - rettangolari, forniscono informazioni utili');
-    parts.push('6. Pannelli integrativi - rettangolari, completano il segnale principale');
-    parts.push('7. Segnali temporanei - sfondo giallo, usati in cantieri');
-  }
-  // Parking
-  else if (msg.includes('parchegg') || msg.includes('sosta') || msg.includes('dove posso')) {
-    parts.push('Regole su parcheggio e sosta:');
-    parts.push('E\' VIETATO parcheggiare:');
-    parts.push('- Sui passi carrabili');
-    parts.push('- Sugli attraversamenti pedonali (strisce)');
-    parts.push('- In doppia fila');
-    parts.push('- Nei pressi di curve, incroci e passaggi a livello');
-    parts.push('- Davanti a rampe per disabili');
-    parts.push('- In zone con strisce gialle (sosta riservata)');
-    parts.push('Le strisce blu indicano parcheggio a pagamento, le bianche parcheggio libero.');
-    parts.push('La sosta e\' consentita nel senso di marcia, non contromano.');
-  }
-  // Priority / right of way
-  else if (msg.includes('precedenza') || msg.includes('chi passa') || msg.includes('incrocio') || msg.includes('rotatoria')) {
-    parts.push('Regole di precedenza:');
-    parts.push('1. Precedenza a DESTRA: vale negli incroci non regolamentati (senza segnali)');
-    parts.push('2. Segnale STOP: devi FERMARTI completamente e dare la precedenza');
-    parts.push('3. Segnale "Dare precedenza": rallenta e dai strada, senza fermarti obbligatoriamente');
-    parts.push('4. ROTATORIA: chi e\' gia\' dentro ha la precedenza su chi vuole entrare');
-    parts.push('5. Strada prioritaria: indicata dal segnale quadrato diamantato');
-    parts.push('6. Mezzi d\'emergenza (ambulanza, vigili, polizia) con sirena: sempre precedenza');
-    parts.push('7. Autobus: hanno precedenza quando ripartono dalla fermata');
-    parts.push('8. Pedoni: sempre precedenza sugli attraversamenti pedonali');
-  }
-  // Lights
-  else if (msg.includes('luci') || msg.includes('fari') || msg.includes('abbagliant') || msg.includes('anabbagliant')) {
-    parts.push('Regole sull\'uso delle luci:');
-    parts.push('ANABBAGLIANTI (obbligatori):');
-    parts.push('- Tra il tramonto e l\'alba');
-    parts.push('- In gallerie');
-    parts.push('- In caso di nebbia, pioggia, neve');
-    parts.push('- In tutti i casi di visibilita\' ridotta');
-    parts.push('ABBAGLIANTI (solo quando possibile):');
-    parts.push('- Fuori dai centri abitati se non ci sono veicoli davanti');
-    parts.push('- NON usarli in nebbia (creano effetto specchio)');
-    parts.push('- NON usarli se ci sono veicoli davanti o in senso opposto');
-    parts.push('LUCI DI POSIZIONE: usate solo in sosta o fermata');
-  }
-  // Safety equipment
-  else if (msg.includes('cintura') || msg.includes('seggiolino') || msg.includes('casco') || msg.includes('equipaggiamento') || msg.includes('giubbotto')) {
-    parts.push('Equipaggiamento di sicurezza obbligatorio:');
-    parts.push('CINTURA DI SICUREZZA:');
-    parts.push('- Obbligatoria per tutti i passeggeri (davanti e dietro)');
-    parts.push('- Bambini sotto 150 cm: seggiolino omologato');
-    parts.push('- Multa: 80-323 euro + 5 punti');
-    parts.push('CASCO:');
-    parts.push('- Obbligatorio per ciclomotori e motocicli');
-    parts.push('- Deve essere omologato ECE 22.05');
-    parts.push('GIUBBOTTO RIFLETTENTE:');
-    parts.push('- Obbligatorio fuori dal centro abitato, di notte o in galleria');
-    parts.push('- Deve essere indossato quando si scende dal veicolo');
-    parts.push('TRIANGOLO D\'EMERGENZA: almeno 50 metri prima del veicolo');
-    parts.push('ESTINTORE: obbligatorio per veicoli con piu\' di 9 posti');
-  }
-  // Exam info
-  else if (msg.includes('esame') || msg.includes('quiz') || msg.includes('prova') || msg.includes('come si')) {
-    parts.push('L\'esame della patente B:');
-    parts.push('1. Quiz teorico: 30 domande vero/falso');
-    parts.push('2. Tempo: 30 minuti');
-    parts.push('3. Per superare: max 3 errori (devi farne almeno 27 giuste)');
-    parts.push('4. Argomenti: segnali, norme, precedenze, velocita\', documenti, primo soccorso');
-    parts.push('5. Se fallisci puoi riprovare dopo 1 mese');
-    parts.push('6. Puoi esercitarti con i quiz ministeriali ufficiali');
-    parts.push('Consiglio: rispondi con calma, leggi bene le parole "sempre" e "mai".');
-  }
-  // Tires
-  else if (msg.includes('gomma') || msg.includes('pneumatico') || msg.includes('ruota') || msg.includes('inverno')) {
-    parts.push('Regole sui pneumatici:');
-    parts.push('- Battistrada minimo: 1.6 mm di profondita\'');
-    parts.push('- Gomme lisce: rischio di aquaplaning e aumento spazio di frenata');
-    parts.push('- Gomme invernali: obbligatorie dal 15 novembre al 15 aprile in molte zone');
-    parts.push('- Catene da neve: alternative alle gomme invernali, da tenere sul veicolo');
-    parts.push('- Pressione: controlla almeno una volta al mese');
-    parts.push('- Gomme mischiate (estate+inverno): vietate sullo stesso asse');
-  }
-  // Distance
-  else if (msg.includes('distanza') || msg.includes('fren') || msg.includes('spazio')) {
-    parts.push('Distanze di sicurezza e frenata:');
-    parts.push('La distanza di sicurezza MINIMA e\':');
-    parts.push('- A 50 km/h: 25 metri');
-    parts.push('- A 90 km/h: 60 metri');
-    parts.push('- A 110 km/h: 100 metri');
-    parts.push('- A 130 km/h: 130 metri');
-    parts.push('In caso di pioggia o neve, raddoppia la distanza!');
-    parts.push('Regola pratica: mantieni almeno 2 secondi di distanza dal veicolo precedente.');
-  }
-  // General help
-  else {
-    parts.push('Ciao! Sono il tuo assistente per la patente B. Posso aiutarti con:');
-    parts.push('- Limiti di velocita\'');
-    parts.push('- Segnali stradali e le loro categorie');
-    parts.push('- Regole di precedenza e rotatorie');
-    parts.push('- Norme su alcol e droghe');
-    parts.push('- Documenti necessari');
-    parts.push('- Regole di parcheggio e sosta');
-    parts.push('- Luci e loro uso corretto');
-    parts.push('- Equipaggiamento di sicurezza (cintura, casco, giubbotto)');
-    parts.push('- Pneumatici e gomme');
-    parts.push('- Informazioni sull\'esame');
-    parts.push('Chiedimi pure su qualsiasi argomento!');
+  if (replyArabic) {
+    // === ARABIC RESPONSES ===
+    if (topic === 'speed' || msg.includes('velocita') || msg.includes('km/h')) {
+      parts.push('حدود السرعة في إيطاليا لرخصة القيادة B:');
+      parts.push('- المناطق السكنية: 50 كم/س');
+      parts.push('- الطرق الخارجية الثانوية: 90 كم/س');
+      parts.push('- الطرق الخارجية الرئيسية: 110 كم/س');
+      parts.push('- الطرق السريعة: 130 كم/س (110 كم/س في حال المطر)');
+      parts.push('- حاملو الرخصة الجديدة: 100 كم/س على الطرق الخارجية والسريعة');
+      parts.push('تجاوز الحد يعني غرامة من 42 إلى 3,366 يورو وخصم نقاط.');
+    } else if (topic === 'alcohol' || msg.includes('alcol') || msg.includes('bere')) {
+      parts.push('قواعد الكحول والقيادة في إيطاليا:');
+      parts.push('- الحد المسموح العادي: 0.5 غ/ل');
+      parts.push('- حاملو الرخصة الجديدة والسائقون المحترفون: 0.0 غ/ل (صفر مطلق)');
+      parts.push('- من 0.5 إلى 0.8: غرامة وخصم 5 نقاط');
+      parts.push('- من 0.8 إلى 1.5: غرامة، 10 نقاط، تعليق الرخصة حتى 6 أشهر');
+      parts.push('- أكثر من 1.5: جريمة جنائية، اعتقال، سحب الرخصة');
+    } else if (topic === 'documents' || msg.includes('document') || msg.includes('assicurazione')) {
+      parts.push('الوثائق الإجبارية للقيادة:');
+      parts.push('1. رخصة القيادة سارية المفعول');
+      parts.push('2. دفتر السيارة (Carta di circolazione)');
+      parts.push('3. شهادة التأمين RCA');
+      parts.push('العقوبات في حالة عدم وجود الوثائق:');
+      parts.push('- بدون رخصة: غرامة من 5,000 إلى 30,000 يورو ومصادرة السيارة');
+      parts.push('- بدون تأمين: غرامة من 866 إلى 3,466 يورو ومصادرة السيارة');
+    } else if (topic === 'signs' || msg.includes('segnal') || msg.includes('cartello')) {
+      parts.push('أنواع العلامات المرورية في إيطاليا:');
+      parts.push('1. علامات إلزامية - شكل دائري، خلفية زرقاء (مثل: اتجاه إلزامي، طريق واحد)');
+      parts.push('2. علامات منع - شكل دائري، حافة حمراء، خلفية بيضاء (مثل: منع الدخول، منع الوقوف)');
+      parts.push('3. علامات خطر - شكل مثلث، حافة بيضاء، خلفية حمراء (مثل: منعطف، ضيق، ممر سكة حديدية)');
+      parts.push('4. علامات الأفضلية - مثلث مقلوب (أعط الأفضلية) أو ثماني (STOP)');
+      parts.push('5. علامات إرشادية - مستطيلة، توفر معلومات مفيدة');
+      parts.push('6. لوحات تكميلية - مستطيلة، تكمل العلامة الرئيسية');
+      parts.push('7. علامات مؤقتة - خلفية صفراء، تُستخدم في مواقع العمل');
+    } else if (topic === 'parking' || msg.includes('parchegg') || msg.includes('sosta')) {
+      parts.push('قواعد الوقوف والركن:');
+      parts.push('يُمنع الركن في:');
+      parts.push('- مداخل المباني (Passi carrabili)');
+      parts.push('- ممرات المشاة (الخطوط)');
+      parts.push('- الصف المزدوج');
+      parts.push('- بالقرب من المنعطفات والتقاطعات');
+      parts.push('- أمام منحدرات ذوي الإعاقة');
+      parts.push('- المناطق ذات الخطوط الصفراء (وقوف محجوز)');
+      parts.push('الخطوط الزرقاء = موقف مدفوع، الخطوط البيضاء = موقف مجاني.');
+    } else if (topic === 'priority' || msg.includes('precedenza') || msg.includes('rotatoria')) {
+      parts.push('قواعد الأفضلية:');
+      parts.push('1. الأفضلية لليمين: في التقاطعات بدون إشارات');
+      parts.push('2. إشارة STOP: يجب التوقف تماماً وإعطاء الأفضلية');
+      parts.push('3. إشارة "أعط الأفضلية": ابطئ وأعط الطريق بدون توقف إجباري');
+      parts.push('4. الدوار: من هو بالداخل له الأفضلية على من يريد الدخول');
+      parts.push('5. الطريق ذو الأولوية: يُشير إليه إشارة مربعة مائلة');
+      parts.push('6. مركبات الطوارئ مع السيرينا: دائماً لهم الأفضلية');
+      parts.push('7. الحافلات: لهم الأفضلية عند الانطلاق من المحطة');
+      parts.push('8. المشاة: دائماً الأفضلية على ممرات المشاة');
+    } else if (topic === 'lights' || msg.includes('luci') || msg.includes('fari')) {
+      parts.push('قواعد استخدام الأنوار:');
+      parts.push('أنوار التمانح (إجبارية):');
+      parts.push('- من الغسق إلى الفجر');
+      parts.push('- في الأنفاق');
+      parts.push('- في حال الضباب والمطر والثلج');
+      parts.push('أنوار المواجهة (عند الإمكان فقط):');
+      parts.push('- خارج المناطق السكنية بدون سيارات أمامك');
+      parts.push('- لا تستخدمها في الضباب (تسبب انعكاس)');
+      parts.push('- لا تستخدمها مع سيارات أمامية أو قادمة من الاتجاه المعاكس');
+      parts.push('أنوار التمييز: تُستخدم فقط عند الوقوف');
+    } else if (topic === 'safety' || msg.includes('cintura') || msg.includes('casco')) {
+      parts.push('معدات السلامة الإجبارية:');
+      parts.push('حزام الأمان:');
+      parts.push('- إجباري لجميع الركاب (أمام وخلف)');
+      parts.push('- الأطفال أقل من 150 سم: مقعد مناسب');
+      parts.push('- الغرامة: 80-323 يورو + 5 نقاط');
+      parts.push('الخوذة: إجبارية للدراجات النارية والسكوتر');
+      parts.push('الجاكيت العاكس: إجباري خارج المناطق السكنية ليلاً وفي الأنفاق');
+      parts.push('مثلث الطوارئ: على الأقل 50 متر قبل السيارة');
+    } else if (topic === 'exam' || msg.includes('esame') || msg.includes('quiz')) {
+      parts.push('امتحان رخصة القيادة B:');
+      parts.push('1. اختبار نظري: 30 سؤال صح/خطأ');
+      parts.push('2. الوقت: 30 دقيقة');
+      parts.push('3. للنجاح: أقصى 3 أخطاء (يجب الإجابة على 27 صح على الأقل)');
+      parts.push('4. المواضيع: العلامات، القواعد، الأفضلية، السرعة، الوثائق، الإسعافات الأولية');
+      parts.push('5. إذا رسخت يمكنك إعادة المحاولة بعد شهر واحد');
+      parts.push('نصيحة: أجب بهدوء، اقرأ كلمات "دائماً" و"أبداً" بعناية.');
+    } else if (topic === 'tires' || msg.includes('gomma') || msg.includes('pneumatico')) {
+      parts.push('قواعد الإطارات:');
+      parts.push('- الحد الأدنى لعمق المداس: 1.6 مم');
+      parts.push('- الإطارات البالية: خطر الانزلاق على الماء وزيادة مسافة الفرملة');
+      parts.push('- إطارات الشتاء: إجبارية من 15 نوفمبر إلى 15 أبريل في مناطق كثيرة');
+      parts.push('- سلاسل الثلج: بديل لإطارات الشتاء');
+      parts.push('- ضغط الهواء: تحقق مرة واحدة شهرياً على الأقل');
+    } else if (topic === 'distance' || msg.includes('distanza') || msg.includes('fren')) {
+      parts.push('مسافات الأمان والفرملة:');
+      parts.push('مسافة الأمان الدنيا:');
+      parts.push('- عند 50 كم/س: 25 متر');
+      parts.push('- عند 90 كم/س: 60 متر');
+      parts.push('- عند 110 كم/س: 100 متر');
+      parts.push('- عند 130 كم/س: 130 متر');
+      parts.push('في حال المطر أو الثلج، اضرب المسافة في 2!');
+      parts.push('القاعدة العملية: حافظ على مسافة ثانيتين على الأقل من السيارة التي أمامك.');
+    } else if (topic === 'phone' || msg.includes('telefon') || msg.includes('cellular')) {
+      parts.push('قواعد استخدام الهاتف أثناء القيادة:');
+      parts.push('- يُمنع استخدام الهاتف المحمول باليد أثناء القيادة');
+      parts.push('- يمكنك استخدام السماعة أو البلوتوث');
+      parts.push('- الغرامة: 165-660 يورو وخصم 5 نقاط');
+      parts.push('- في حالة تكرار المخالفة: تعليق الرخصة حتى 3 أشهر');
+    } else if (topic === 'direction') {
+      parts.push('علامات الاتجاه الإلزامي:');
+      parts.push('- شكلها دائري بخلفية زرقاء');
+      parts.push('- اتجاه واحد (Senso unico): يجب أن تسلك الاتجاه المشار إليه');
+      parts.push('- الانعطاف الإلزامي لليمين/اليسار: يجب الانعطاف بالاتجاه المحدد');
+      parts.push('- المضي قدماً إلزامياً: يجب المتابعة بشكل مستقيم');
+      parts.push('اسمها بالايطالي: Segnali di obbligo');
+    } else if (topic === 'children' || msg.includes('bambin') || msg.includes('seggiolin')) {
+      parts.push('قواعد الأطفال في السيارة:');
+      parts.push('- الأطفال أقل من 150 سم يجب أن يجلسوا في مقعد مناسب');
+      parts.push('- لا تستخدم المقعد أماماً إذا كان الوسادة الهوائية مفعلة');
+      parts.push('- الأطفال أقل من 12 سنة لا يجلسون أماماً إلا في حالات محددة');
+    } else if (topic === 'drugs' || msg.includes('drog')) {
+      parts.push('المخدرات والقيادة:');
+      parts.push('- القيادة تحت تأثير المخدرات جريمة خطيرة');
+      parts.push('- تعليق الرخصة من 6 أشهر إلى سنتين');
+      parts.push('- يتم الفحص بتحليل الدم أو البول أو اللعاب');
+      parts.push('- عقوبات جنائية وغرامات كبيرة');
+    } else if (topic === 'tunnel' || msg.includes('galleria')) {
+      parts.push('قواعد الأنفاق:');
+      parts.push('- أنوار التمانح إجبارية');
+      parts.push('- احترم حد السرعة المشار إليه');
+      parts.push('- حافظ على مسافة الأمان');
+      parts.push('- لا تتوقف داخل النفق إلا للطوارئ');
+    } else if (topic === 'bus' || msg.includes('autobus')) {
+      parts.push('قواعد وسائل النقل العام:');
+      parts.push('- الحافلات لها الأفضلية عند الانطلاق من المحطة');
+      parts.push('- لا تتجاوز حافلة متوقفة لصعود/نزول الركاب');
+    } else if (topic === 'emergency' || msg.includes('emergenza') || msg.includes('ambulanza')) {
+      parts.push('مركبات الطوارئ:');
+      parts.push('- الإسعاف والشرطة والدرك مع السيرينا: دائماً الأفضلية');
+      parts.push('- يجب التنحي والتوقف عند الضرورة');
+      parts.push('- لا تتبعها أبداً عن قرب');
+    } else if (topic === 'overtaking' || msg.includes('sorpass')) {
+      parts.push('قواعد التجاوز:');
+      parts.push('- التجاوز دائماً من اليسار');
+      parts.push('- يُمنع التجاوز في المنعطفات والتقاطعات والخط المستمر');
+      parts.push('- استخدم مؤشر الاتجاه قبل وبعد التجاوز');
+    } else if (topic === 'pedestrian' || msg.includes('pedon')) {
+      parts.push('قواعد المشاة:');
+      parts.push('- المشاة لهم دائماً الأفضلية على ممرات المشاة');
+      parts.push('- يجب التوقف وانتظار إكمال العبور');
+    } else if (topic === 'weather' || msg.includes('nebbia') || msg.includes('pioggia')) {
+      parts.push('القيادة في الظروف الجوية السيئة:');
+      parts.push('- ضباب: استخدم أنوار التمانح، قلل السرعة، زد مسافة الأمان');
+      parts.push('- مطر: السرعة على الطريق السريعة تنخفض إلى 110 كم/س');
+      parts.push('- لا تستخدم أنوار المواجهة في الضباب');
+    } else {
+      parts.push('مرحباً! أنا مساعدك لرخصة القيادة B. يمكنني مساعدتك في:');
+      parts.push('- حدود السرعة');
+      parts.push('- العلامات المرورية وأنواعها');
+      parts.push('- قواعد الأفضلية والدوارات');
+      parts.push('- الكحول والمخدرات');
+      parts.push('- الوثائق المطلوبة');
+      parts.push('- قواعد الوقوف والركن');
+      parts.push('- الأنوار واستخدامها');
+      parts.push('- معدات السلامة');
+      parts.push('- الإطارات');
+      parts.push('- معلومات الامتحان');
+      parts.push('اسألني عن أي موضوع! اكتب "بالايتالي" إذا تريد الرد بالايطالية.');
+    }
+  } else {
+    // === ITALIAN RESPONSES ===
+    if (topic === 'speed' || msg.includes('velocita') || msg.includes('km/h') || msg.includes('limite di velocita')) {
+      parts.push('Ecco i limiti di velocita\' in Italia per la patente B:');
+      parts.push('- Zona urbana: 50 km/h');
+      parts.push('- Strada extraurbana secondaria: 90 km/h');
+      parts.push('- Strada extraurbana principale: 110 km/h');
+      parts.push('- Autostrada: 130 km/h (110 km/h in caso di pioggia)');
+      parts.push('- Neopatentati: 100 km/h su strade extraurbane e autostrada');
+      parts.push('Superare il limite comporta multe da 42 a 3.366 euro e decurtazione punti.');
+    } else if (topic === 'alcohol' || msg.includes('alcol') || msg.includes('bere') || msg.includes('birra') || msg.includes('vino') || msg.includes('tasso')) {
+      parts.push('Norme sull\'alcol alla guida in Italia:');
+      parts.push('- Tasso normale consentito: 0.5 g/l');
+      parts.push('- Neopatentati e conducenti professionali: 0.0 g/l (tasso zero assoluto)');
+      parts.push('- Da 0.5 a 0.8 g/l: multa e 5 punti in meno');
+      parts.push('- Da 0.8 a 1.5 g/l: multa, 10 punti, sospensione patente fino a 6 mesi');
+      parts.push('- Oltre 1.5 g/l: reato penale, arresto, revoca patente');
+      parts.push('Il tasso si misura con l\'etilometro. Puoi rifiutarti ma la sanzione e\' piu\' grave.');
+    } else if (topic === 'documents' || msg.includes('document') || msg.includes('assicurazione') || msg.includes('libretto')) {
+      parts.push('Documenti obbligatori per guidare:');
+      parts.push('1. Patente di guida in corso di validita\'');
+      parts.push('2. Libretto di circolazione (carta di circolazione)');
+      parts.push('3. Certificato di assicurazione RCA');
+      parts.push('La mancanza di documenti comporta:');
+      parts.push('- Senza patente: sanzione da 5.000 a 30.000 euro e sequestro del veicolo');
+      parts.push('- Senza assicurazione: multa da 866 a 3.466 euro e sequestro del veicolo');
+    } else if (topic === 'signs' || msg.includes('segnal') || msg.includes('cartello') || msg.includes('tipo') || msg.includes('categoria')) {
+      parts.push('Le categorie dei segnali stradali italiani:');
+      parts.push('1. Segnali di obbligo - forma circolare, sfondo blu (es. senso obbligatorio, direzione obbligatoria)');
+      parts.push('2. Segnali di divieto - forma circolare, bordo rosso, sfondo bianco (es. divieto di accesso, divieto di sosta)');
+      parts.push('3. Segnali di pericolo - forma triangolare, bordo bianco, sfondo rosso (es. curva, strettoia, passaggio a livello)');
+      parts.push('4. Segnali di precedenza - triangolo rovesciato (dare precedenza) o ottagono (STOP)');
+      parts.push('5. Segnali di indicazione - rettangolari, forniscono informazioni utili');
+      parts.push('6. Pannelli integrativi - rettangolari, completano il segnale principale');
+      parts.push('7. Segnali temporanei - sfondo giallo, usati in cantieri');
+    } else if (topic === 'parking' || msg.includes('parchegg') || msg.includes('sosta') || msg.includes('dove posso')) {
+      parts.push('Regole su parcheggio e sosta:');
+      parts.push('E\' VIETATO parcheggiare:');
+      parts.push('- Sui passi carrabili');
+      parts.push('- Sugli attraversamenti pedonali (strisce)');
+      parts.push('- In doppia fila');
+      parts.push('- Nei pressi di curve, incroci e passaggi a livello');
+      parts.push('- Davanti a rampe per disabili');
+      parts.push('- In zone con strisce gialle (sosta riservata)');
+      parts.push('Le strisce blu indicano parcheggio a pagamento, le bianche parcheggio libero.');
+      parts.push('La sosta e\' consentita nel senso di marcia, non contromano.');
+    } else if (topic === 'priority' || msg.includes('precedenza') || msg.includes('chi passa') || msg.includes('incrocio') || msg.includes('rotatoria')) {
+      parts.push('Regole di precedenza:');
+      parts.push('1. Precedenza a DESTRA: vale negli incroci non regolamentati (senza segnali)');
+      parts.push('2. Segnale STOP: devi FERMARTI completamente e dare la precedenza');
+      parts.push('3. Segnale "Dare precedenza": rallenta e dai strada, senza fermarti obbligatoriamente');
+      parts.push('4. ROTATORIA: chi e\' gia\' dentro ha la precedenza su chi vuole entrare');
+      parts.push('5. Strada prioritaria: indicata dal segnale quadrato diamantato');
+      parts.push('6. Mezzi d\'emergenza (ambulanza, vigili, polizia) con sirena: sempre precedenza');
+      parts.push('7. Autobus: hanno precedenza quando ripartono dalla fermata');
+      parts.push('8. Pedoni: sempre precedenza sugli attraversamenti pedonali');
+    } else if (topic === 'lights' || msg.includes('luci') || msg.includes('fari') || msg.includes('abbagliant') || msg.includes('anabbagliant')) {
+      parts.push('Regole sull\'uso delle luci:');
+      parts.push('ANABBAGLIANTI (obbligatori):');
+      parts.push('- Tra il tramonto e l\'alba');
+      parts.push('- In gallerie');
+      parts.push('- In caso di nebbia, pioggia, neve');
+      parts.push('- In tutti i casi di visibilita\' ridotta');
+      parts.push('ABBAGLIANTI (solo quando possibile):');
+      parts.push('- Fuori dai centri abitati se non ci sono veicoli davanti');
+      parts.push('- NON usarli in nebbia (creano effetto specchio)');
+      parts.push('- NON usarli se ci sono veicoli davanti o in senso opposto');
+      parts.push('LUCI DI POSIZIONE: usate solo in sosta o fermata');
+    } else if (topic === 'safety' || msg.includes('cintura') || msg.includes('seggiolino') || msg.includes('casco') || msg.includes('equipaggiamento') || msg.includes('giubbotto')) {
+      parts.push('Equipaggiamento di sicurezza obbligatorio:');
+      parts.push('CINTURA DI SICUREZZA:');
+      parts.push('- Obbligatoria per tutti i passeggeri (davanti e dietro)');
+      parts.push('- Bambini sotto 150 cm: seggiolino omologato');
+      parts.push('- Multa: 80-323 euro + 5 punti');
+      parts.push('CASCO:');
+      parts.push('- Obbligatorio per ciclomotori e motocicli');
+      parts.push('- Deve essere omologato ECE 22.05');
+      parts.push('GIUBBOTTO RIFLETTENTE:');
+      parts.push('- Obbligatorio fuori dal centro abitato, di notte o in galleria');
+      parts.push('- Deve essere indossato quando si scende dal veicolo');
+      parts.push('TRIANGOLO D\'EMERGENZA: almeno 50 metri prima del veicolo');
+      parts.push('ESTINTORE: obbligatorio per veicoli con piu\' di 9 posti');
+    } else if (topic === 'exam' || msg.includes('esame') || msg.includes('quiz') || msg.includes('prova') || msg.includes('come si')) {
+      parts.push('L\'esame della patente B:');
+      parts.push('1. Quiz teorico: 30 domande vero/falso');
+      parts.push('2. Tempo: 30 minuti');
+      parts.push('3. Per superare: max 3 errori (devi farne almeno 27 giuste)');
+      parts.push('4. Argomenti: segnali, norme, precedenze, velocita\', documenti, primo soccorso');
+      parts.push('5. Se fallisci puoi riprovare dopo 1 mese');
+      parts.push('6. Puoi esercitarti con i quiz ministeriali ufficiali');
+      parts.push('Consiglio: rispondi con calma, leggi bene le parole "sempre" e "mai".');
+    } else if (topic === 'tires' || msg.includes('gomma') || msg.includes('pneumatico') || msg.includes('ruota') || msg.includes('inverno')) {
+      parts.push('Regole sui pneumatici:');
+      parts.push('- Battistrada minimo: 1.6 mm di profondita\'');
+      parts.push('- Gomme lisce: rischio di aquaplaning e aumento spazio di frenata');
+      parts.push('- Gomme invernali: obbligatorie dal 15 novembre al 15 aprile in molte zone');
+      parts.push('- Catene da neve: alternative alle gomme invernali, da tenere sul veicolo');
+      parts.push('- Pressione: controlla almeno una volta al mese');
+      parts.push('- Gomme mischiate (estate+inverno): vietate sullo stesso asse');
+    } else if (topic === 'distance' || msg.includes('distanza') || msg.includes('fren') || msg.includes('spazio')) {
+      parts.push('Distanze di sicurezza e frenata:');
+      parts.push('La distanza di sicurezza MINIMA e\':');
+      parts.push('- A 50 km/h: 25 metri');
+      parts.push('- A 90 km/h: 60 metri');
+      parts.push('- A 110 km/h: 100 metri');
+      parts.push('- A 130 km/h: 130 metri');
+      parts.push('In caso di pioggia o neve, raddoppia la distanza!');
+      parts.push('Regola pratica: mantieni almeno 2 secondi di distanza dal veicolo precedente.');
+    } else if (topic === 'phone' || msg.includes('telefon')) {
+      parts.push('Regole sull\'uso del telefono:');
+      parts.push('- Vietato usare il cellulare in mano mentre si guida');
+      parts.push('- Puoi usare viva-voce o auricolari Bluetooth');
+      parts.push('- Multa: 165-660 euro + 5 punti');
+    } else if (topic === 'direction') {
+      parts.push('Segnali di obbligo direzionale:');
+      parts.push('- Forma circolare con sfondo blu');
+      parts.push('- Senso unico: devi seguire la direzione indicata');
+      parts.push('- Curva obbligatoria destra/sinistra: devi girare nella direzione indicata');
+      parts.push('- Dritto obbligatorio: devi proseguire in avanti');
+    } else {
+      parts.push('Ciao! Sono il tuo assistente per la patente B. Posso aiutarti con:');
+      parts.push('- Limiti di velocita\'');
+      parts.push('- Segnali stradali e le loro categorie');
+      parts.push('- Regole di precedenza e rotatorie');
+      parts.push('- Norme su alcol e droghe');
+      parts.push('- Documenti necessari');
+      parts.push('- Regole di parcheggio e sosta');
+      parts.push('- Luci e loro uso corretto');
+      parts.push('- Equipaggiamento di sicurezza (cintura, casco, giubbotto)');
+      parts.push('- Pneumatici e gomme');
+      parts.push('- Informazioni sull\'esame');
+      parts.push('Scrivi in arabo se vuoi la risposta in arabo!');
+    }
   }
 
   return parts.join('\n');
@@ -619,7 +830,19 @@ async function handleAnalyze(body: {
 // ---- 3. AI Chat ----
 async function handleChat(body: { action: string; message: string; history?: { role: string; content: string }[] }) {
   const { message, history = [] } = body;
-  const systemPrompt = `Sei un assistente virtuale esperto per l'esame della patente B in Italia.
+  const lang = detectLanguage(message);
+  const replyArabic = wantsArabicResponse(message);
+  
+  const systemPrompt = replyArabic
+    ? `أنت مساعد افتراضي متخصص في امتحان رخصة القيادة B في إيطاليا.
+أجب دائماً باللغة العربية.
+تخصصك: قانون الطريق، العلامات المرورية، حدود السرعة، الأفضلية، قواعد المرور، الوثائق، الإسعافات الأولية، معدات السلامة.
+أعطِ إجابات دقيقة وموجزة وسهلة التذكر.
+استخدم النقاط عندما يكون ذلك مفيداً.
+لا تخترع معلومات: إذا لم تكن متأكداً، قل ذلك.
+إذا كانت الأسئلة عن مواضيع أخرى، أجب بلباقة أنك تساعد فقط في مواضيع رخصة القيادة B.
+ملاحظة: أذكر أيضاً المصطلحات الإيطالية بين قوسين للمساعدة في التعلم.`
+    : `Sei un assistente virtuale esperto per l'esame della patente B in Italia.
 Rispondi SEMPRE in italiano.
 Sei specializzato in: codice della strada, segnali stradali, limiti di velocità, precedenze, norme di circolazione, documenti, primo soccorso, equipaggiamento di sicurezza.
 Dai risposte precise, concise e facili da ricordare.
@@ -641,7 +864,12 @@ Se la domanda non riguarda la guida, rispondi cortesemente che puoi aiutare solo
     });
     const reply = completion.choices[0]?.message?.content;
     if (reply && reply.trim().length > 10) {
-      return NextResponse.json({ reply: reply.trim(), fallback: false });
+      // Check: if user wrote Arabic but reply has NO Arabic → reject and use fallback
+      if (replyArabic && !/[\u0600-\u06FF]/.test(reply)) {
+        console.log('AI replied in wrong language, using Arabic fallback');
+      } else {
+        return NextResponse.json({ reply: reply.trim(), fallback: false });
+      }
     }
   } catch (error: unknown) {
     console.error('AI Chat error:', error instanceof Error ? error.message : 'Unknown');
