@@ -2,6 +2,50 @@
 import React, { useMemo, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { TOPICS_INFO, getChaptersByTopicName, type ChapterExplanation } from '@/data/explanationsData';
+import SignIcon from './SignIcon';
+
+// Map chapter IDs to representative traffic sign visuals
+const CHAPTER_SIGN_MAP: Record<number, { signalId: string; categoryId: string }[]> = {
+  2: [ // Segnali di pericolo
+    { signalId: 'curva-sinistra', categoryId: 'pericolo' },
+    { signalId: 'pedoni', categoryId: 'pericolo' },
+    { signalId: 'bambini', categoryId: 'pericolo' },
+  ],
+  3: [ // Segnali di divieto
+    { signalId: 'divieto-accesso', categoryId: 'divieto' },
+    { signalId: 'limite-velocita', categoryId: 'divieto' },
+    { signalId: 'divieto-sosta', categoryId: 'divieto' },
+  ],
+  4: [ // Segnali di obbligo
+    { signalId: 'sens-unico', categoryId: 'obbligo' },
+    { signalId: 'pista-ciclabile', categoryId: 'obbligo' },
+    { signalId: 'dritto', categoryId: 'obbligo' },
+  ],
+  5: [ // Segnali di precedenza
+    { signalId: 'dare-precedenza', categoryId: 'precedenza' },
+    { signalId: 'stop', categoryId: 'precedenza' },
+    { signalId: 'strada-prioritaria', categoryId: 'precedenza' },
+  ],
+  6: [ // Segnali orizzontali
+    { signalId: 'curva-sinistra', categoryId: 'pericolo' },
+  ],
+  7: [ // Semafori - use stop as representative
+    { signalId: 'stop', categoryId: 'precedenza' },
+  ],
+  8: [ // Segnali di indicazione
+    { signalId: 'autostrada', categoryId: 'indicazione' },
+    { signalId: 'parcheggio', categoryId: 'indicazione' },
+    { signalId: 'ospedale', categoryId: 'indicazione' },
+  ],
+  9: [ // Segnali complementari
+    { signalId: 'pannello-distanza', categoryId: 'pannelli' },
+    { signalId: 'pannello-direzione', categoryId: 'pannelli' },
+  ],
+  10: [ // Pannelli integrativi
+    { signalId: 'pannello-distanza', categoryId: 'pannelli' },
+    { signalId: 'pannello-validita', categoryId: 'pannelli' },
+  ],
+};
 
 export default function TopicExplanationScreen() {
   const store = useStore();
@@ -122,6 +166,9 @@ function ChapterCard({ chapter, color, index, onClick }: {
   index: number;
   onClick: () => void;
 }) {
+  const signs = CHAPTER_SIGN_MAP[chapter.id] || [];
+  const hasSigns = signs.length > 0;
+
   return (
     <button
       onClick={onClick}
@@ -159,6 +206,18 @@ function ChapterCard({ chapter, color, index, onClick }: {
             )}
           </div>
         </div>
+
+        {/* Sign Preview Icons */}
+        {hasSigns && (
+          <div className="flex items-center -space-x-1.5 flex-shrink-0 mt-1">
+            {signs.slice(0, 3).map((sign, si) => (
+              <div key={si} className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center p-0.5"
+                style={{ background: `${color}08`, border: `1px solid ${color}15` }}>
+                <SignIcon signalId={sign.signalId} categoryId={sign.categoryId} size={30} />
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Arrow */}
         <svg className="w-4 h-4 flex-shrink-0 mt-1 opacity-40 group-hover:opacity-70 transition-opacity" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

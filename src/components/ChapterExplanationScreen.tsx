@@ -2,6 +2,52 @@
 import React, { useMemo, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { getChapterExplanation, TOPICS_INFO } from '@/data/explanationsData';
+import SignIcon from './SignIcon';
+
+// Map chapter IDs to representative traffic sign previews
+const CHAPTER_SIGNS: Record<number, { signalId: string; categoryId: string }[]> = {
+  2: [
+    { signalId: 'curva-sinistra', categoryId: 'pericolo' },
+    { signalId: 'pedoni', categoryId: 'pericolo' },
+    { signalId: 'incrocio', categoryId: 'pericolo' },
+    { signalId: 'galleria', categoryId: 'pericolo' },
+  ],
+  3: [
+    { signalId: 'divieto-accesso', categoryId: 'divieto' },
+    { signalId: 'limite-velocita', categoryId: 'divieto' },
+    { signalId: 'divieto-sosta', categoryId: 'divieto' },
+    { signalId: 'divieto-sorpasso', categoryId: 'divieto' },
+  ],
+  4: [
+    { signalId: 'sens-unico', categoryId: 'obbligo' },
+    { signalId: 'pista-ciclabile', categoryId: 'obbligo' },
+    { signalId: 'dritto', categoryId: 'obbligo' },
+    { signalId: 'catene-neve', categoryId: 'obbligo' },
+  ],
+  5: [
+    { signalId: 'dare-precedenza', categoryId: 'precedenza' },
+    { signalId: 'stop', categoryId: 'precedenza' },
+    { signalId: 'strada-prioritaria', categoryId: 'precedenza' },
+    { signalId: 'fine-prioritaria', categoryId: 'precedenza' },
+  ],
+  7: [
+    { signalId: 'stop', categoryId: 'precedenza' },
+  ],
+  8: [
+    { signalId: 'autostrada', categoryId: 'indicazione' },
+    { signalId: 'parcheggio', categoryId: 'indicazione' },
+    { signalId: 'ospedale', categoryId: 'indicazione' },
+    { signalId: 'area-servizio', categoryId: 'indicazione' },
+  ],
+  9: [
+    { signalId: 'pannello-distanza', categoryId: 'pannelli' },
+    { signalId: 'pannello-direzione', categoryId: 'pannelli' },
+  ],
+  10: [
+    { signalId: 'pannello-distanza', categoryId: 'pannelli' },
+    { signalId: 'pannello-validita', categoryId: 'pannelli' },
+  ],
+};
 
 export default function ChapterExplanationScreen() {
   const store = useStore();
@@ -68,6 +114,44 @@ export default function ChapterExplanationScreen() {
             </div>
           </div>
         </div>
+
+        {/* Traffic Signs Preview - for signal-related chapters */}
+        {CHAPTER_SIGNS[chapter.id] && (
+          <div className="glass p-5 anim-up" style={{ animationDelay: '40ms' }}>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${chapter.color}15` }}>
+                <svg className="w-4 h-4" style={{ color: chapter.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <h3 className="text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>Esempi di segnali / أمثلة على الإشارات</h3>
+            </div>
+            <div className="flex items-center justify-start gap-3 overflow-x-auto pb-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+              {CHAPTER_SIGNS[chapter.id].map((sign, si) => (
+                <div key={si} className="flex-shrink-0 flex flex-col items-center gap-2">
+                  <div className="w-16 h-16 rounded-xl flex items-center justify-center p-1 transition-transform duration-200 hover:scale-110"
+                    style={{ background: 'var(--bg-tertiary)', border: `1.5px solid var(--border-subtle)` }}>
+                    <SignIcon signalId={sign.signalId} categoryId={sign.categoryId} size={52} />
+                  </div>
+                  <span className="text-[9px] font-medium text-center max-w-[64px] truncate" style={{ color: 'var(--text-muted)' }}>
+                    {sign.signalId.replace(/-/g, ' ')}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <svg className="w-3.5 h-3.5" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+              </svg>
+              <button
+                onClick={() => store.setScreen('signalsGuide')}
+                className="text-[11px] font-semibold" style={{ color: 'var(--primary-light)' }}>
+                Vedi tutti i segnali nell&apos;Atlante / شاهد جميع الإشارات في الأطلس
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Overview Section */}
         <div className="glass p-5 anim-up" style={{ animationDelay: '60ms' }}>
