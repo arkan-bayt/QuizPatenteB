@@ -4,46 +4,40 @@ import { useStore } from '@/store/useStore';
 import { speakText, stopSpeech } from '@/logic/ttsEngine';
 import { recordExamResult, recordAnswer, updateChapterProgress, addWrongAnswer, removeWrongAnswer, saveQuizResume, clearQuizResume } from '@/logic/progressEngine';
 
-// Only these road/traffic Italian keywords are tappable for translation
-const TAPPABLE_WORDS = new Set([
-  'destra', 'sinistra', 'avanti', 'indietro', 'rettilineo', 'curva', 'tornante',
-  'svolta', 'svoltare', 'girare', 'direzione', 'senso', 'verso', 'entrare', 'uscire',
-  'attraversare', 'salita', 'discesa', 'superare', 'sorpasso', 'sorpassare',
-  'veicolo', 'auto', 'automobile', 'autobus', 'tram', 'camion', 'moto', 'motociclo',
-  'ciclomotore', 'bicicletta', 'furgone', 'rimorchio', 'carrello',
-  'strada', 'carreggiata', 'corsia', 'marciapiede', 'banchina', 'cordolo',
-  'incrocio', 'rotatoria', 'svincolo', 'autostrada', 'viadotto', 'ponte',
-  'galleria', 'tunnel', 'rampa',
-  'segnale', 'cartello', 'segnali', 'divieto', 'vietato', 'obbligo',
-  'obbligatorio', 'precedenza', 'pericolo', 'attenzione', 'indicazione',
-  'velocita', 'veloce', 'lento', 'limite', 'accelerare', 'rallentare',
-  'frenare', 'freno', 'frenata',
-  'distanza', 'spazio', 'vicino', 'lontano', 'metri', 'metro',
-  'sicurezza', 'casco', 'cintura', 'giubbotto', 'seggiolino', 'airbag',
-  'estintore', 'triangolo', 'emergenza',
-  'parcheggio', 'sosta', 'fermare', 'fermata', 'parcheggiare', 'posteggio',
-  'luci', 'fari', 'abbaglianti', 'anabbaglianti', 'frecce', 'indicatori',
-  'pedone', 'pedoni', 'strisce', 'passaggio',
-  'patente', 'documento', 'libretto', 'assicurazione', 'targa',
-  'nebbia', 'pioggia', 'neve', 'ghiaccio', 'vento', 'visibilita',
-  'alcol', 'droga', 'tasso',
-  'sempre', 'mai', 'permesso', 'consentito',
-  'multa', 'sanzione', 'infrazione', 'incidente',
-  'traffico', 'congestione', 'coda',
-  'integrato', 'dispositivo', 'sistema', 'controllo', 'rilevatore', 'autovelox',
-  'stradale', 'urbano', 'extraurbano', 'sterrata', 'asfalto', 'ghiaia',
-  'retromarcia', 'inversione',
-  'continuo', 'discontinuo',
-  'bambini', 'bambino', 'minore',
-  'passeggero', 'conducente', 'guidatore',
-  'pneumatico', 'gomma', 'ruota', 'motore', 'carburante',
-  'specchio', 'retrovisore', 'parabrezza', 'portiera', 'finestrino',
-  'ambulanza', 'polizia', 'vigili', 'carabinieri',
-  'accessibile', 'accessibilita', 'disabili', 'handicap',
-  'restringimento', 'allargamento', 'sovrappasso', 'sottopasso',
-  'livello', 'ferroviario', 'barriere',
-  'bretella', 'raccordo',
+// Italian prepositions, articles, conjunctions - these are NOT tappable
+const SKIP_WORDS = new Set([
+  'il', 'lo', 'la', 'le', 'gli', 'i', 'un', 'uno', 'una',
+  'di', 'del', 'della', 'dei', 'degli', 'delle', 'de',
+  'a', 'al', 'alla', 'ai', 'alle', 'ad', 'in', 'nel', 'nella', 'nei', 'nelle',
+  'da', 'dal', 'dalla', 'dai', 'dalle', 'su', 'sul', 'sulla', 'sui', 'sulle',
+  'con', 'col', 'coi', 'per', 'tra', 'fra',
+  'che', 'e', 'ed', 'o', 'ma', 'se', 'ne', 'ci', 'vi', 'mi', 'ti', 'si', 'gli',
+  'non', 'no', 'ni', 'anche', 'ancora', 'gia', 'piu', 'meno', 'molto',
+  'tanto', 'quanto', 'come', 'dove', 'quando', 'finche', 'mentre',
+  'pero', 'dunque', 'quindi', 'inoltre', 'oppure', 'ovvero',
+  'questo', 'questa', 'quello', 'quella', 'questi', 'queste', 'quelli', 'quelle',
+  'suo', 'sua', 'suoi', 'sue', 'tuo', 'tua', 'tuoi', 'tue',
+  'mio', 'mia', 'miei', 'mie', 'nostro', 'nostra', 'vostro', 'vostra',
+  'essere', 'avere', 'fare', 'stare', 'andare', 'venire', 'dovere', 'potere', 'volere',
+  'sono', 'sei', 'siamo', 'siete', 'ho', 'hai', 'ha',
+  'faccio', 'fai', 'fa', 'sto', 'stai', 'sta', 'vado', 'vai', 'va',
+  'puo', 'devi', 'vuoi', 'posso', 'dobbiamo', 'devo', 'deve',
+  'era', 'ero', 'aveva', 'fui', 'fatto', 'stato', 'fatta', 'stati', 'state',
+  'vero', 'falso',
+  'tutti', 'nessuno', 'altro', 'tutto', 'nulla',
+  'ogni', 'alcuno', 'qualche', 'nessun', 'nessuna',
+  'prima', 'dopo', 'durante', 'fino',
+  'sotto', 'sopra', 'dentro', 'fuori',
+  'hanno', 'abbiamo', 'avete', 'fanno', 'stiamo', 'stanno',
+  'possibile',
 ]);
+
+// Check if a word is skippable (preposition/article/number)
+function isSkipWord(cleaned: string): boolean {
+  if (cleaned.length <= 1) return true;
+  if (/[0-9]/.test(cleaned)) return true;
+  return SKIP_WORDS.has(cleaned);
+}
 
 // Translation cache (persisted in localStorage)
 const translationCache: Record<string, string> = {};
@@ -118,8 +112,8 @@ export default function QuizScreen() {
     if (word.length <= 1 || /[0-9]/.test(word)) return;
     const cleaned = word.replace(/[.,;:!?"'()]/g, '').toLowerCase();
     if (cleaned.length <= 1) return;
-    // Only allow tappable keywords
-    if (!TAPPABLE_WORDS.has(cleaned)) return;
+    // Skip prepositions, articles, numbers
+    if (isSkipWord(cleaned)) return;
 
     // If already showing same word, close it
     if (selectedWord === cleaned && wordTranslation) {
@@ -420,7 +414,7 @@ export default function QuizScreen() {
                 const isSpace = /^\s+$/.test(part);
                 if (isSpace) return <span key={i}>{part}</span>;
                 const cleaned = part.replace(/[.,;:!?"'()]/g, '').toLowerCase();
-                const isTappable = !showFeedback && cleaned.length > 1 && !/[0-9]/.test(cleaned) && TAPPABLE_WORDS.has(cleaned);
+                const isTappable = !showFeedback && !isSkipWord(cleaned);
                 const isSelected = selectedWord === cleaned;
                 return (
                   <span
