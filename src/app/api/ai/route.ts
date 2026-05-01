@@ -1,6 +1,6 @@
 // ============================================================
 // AI API - Full AI Suite for Quiz Patente B
-// Actions: explain, analyze, chat, hint, studyPlan
+// Actions: explain, analyze, chat, hint, studyPlan, translate
 // Uses z-ai-web-dev-sdk for free AI inference with smart fallbacks
 // ============================================================
 import { NextRequest, NextResponse } from 'next/server';
@@ -518,18 +518,24 @@ function generateChatAnswer(userMessage: string): string {
       parts.push('- مطر: السرعة على الطريق السريعة تنخفض إلى 110 كم/س');
       parts.push('- لا تستخدم أنوار المواجهة في الضباب');
     } else {
-      parts.push('مرحباً! أنا مساعدك لرخصة القيادة B. يمكنني مساعدتك في:');
-      parts.push('- حدود السرعة');
-      parts.push('- العلامات المرورية وأنواعها');
-      parts.push('- قواعد الأفضلية والدوارات');
-      parts.push('- الكحول والمخدرات');
-      parts.push('- الوثائق المطلوبة');
-      parts.push('- قواعد الوقوف والركن');
-      parts.push('- الأنوار واستخدامها');
-      parts.push('- معدات السلامة');
-      parts.push('- الإطارات');
-      parts.push('- معلومات الامتحان');
-      parts.push('اسألني عن أي موضوع! اكتب "بالايتالي" إذا تريد الرد بالايطالية.');
+      // Smart conversational fallback - try to extract any useful context
+      const greetings = ['مرحبا', 'مرحب', 'سلام', 'هلا', 'اهلا', 'أهلا', 'مساء', 'صباح', 'هاي', 'الو'];
+      const isGreeting = greetings.some(g => msg.includes(g));
+
+      if (isGreeting) {
+        parts.push('أهلاً وسهلاً! 🙋‍♂️');
+        parts.push('أنا جاهز لمساعدتك في رخصة القيادة B الإيطالية!');
+        parts.push('يمكنك سؤالي عن أي موضوع مثل: السرعة، العلامات، الأفضلية، الامتحان، الكحول، الوثائق...');
+        parts.push('اكتب سؤالك وسأجيبك مباشرة!');
+      } else {
+        parts.push('سؤال جيد! 🤔 للأسف لم أتمكن من تحليل سؤالك بدقة.');
+        parts.push('يمكنك تجربة السؤال بشكل آخر، مثل:');
+        parts.push('- "كم سرعة الطريق السريع؟"');
+        parts.push('- "ما هي أنواع العلامات؟"');
+        parts.push('- "شرح الأفضلية في الدوار"');
+        parts.push('- "ما عقوبة الكحول؟"');
+        parts.push('أو اكتب موضوع محدد وسأساعدك فوراً!');
+      }
     }
   } else {
     // === ITALIAN RESPONSES ===
@@ -651,18 +657,24 @@ function generateChatAnswer(userMessage: string): string {
       parts.push('- Curva obbligatoria destra/sinistra: devi girare nella direzione indicata');
       parts.push('- Dritto obbligatorio: devi proseguire in avanti');
     } else {
-      parts.push('Ciao! Sono il tuo assistente per la patente B. Posso aiutarti con:');
-      parts.push('- Limiti di velocita\'');
-      parts.push('- Segnali stradali e le loro categorie');
-      parts.push('- Regole di precedenza e rotatorie');
-      parts.push('- Norme su alcol e droghe');
-      parts.push('- Documenti necessari');
-      parts.push('- Regole di parcheggio e sosta');
-      parts.push('- Luci e loro uso corretto');
-      parts.push('- Equipaggiamento di sicurezza (cintura, casco, giubbotto)');
-      parts.push('- Pneumatici e gomme');
-      parts.push('- Informazioni sull\'esame');
-      parts.push('Scrivi in arabo se vuoi la risposta in arabo!');
+      // Smart conversational fallback for Italian
+      const greetings = ['ciao', 'buongiorno', 'buonasera', 'salve', 'hey'];
+      const isGreeting = greetings.some(g => msg.includes(g));
+
+      if (isGreeting) {
+        parts.push('Ciao! 👋');
+        parts.push('Sono pronto ad aiutarti con la patente B!');
+        parts.push('Chiedimi qualsiasi cosa: velocita\', segnali, precedenze, esame, alcol, documenti...');
+        parts.push('Scrivi la tua domanda e ti rispondo subito!');
+      } else {
+        parts.push('Buona domanda! 🤔 Non sono riuscito ad analizzarla con precisione.');
+        parts.push('Prova a chiedere in modo diverso, ad esempio:');
+        parts.push('- "Qual e\' il limite di velocita\' in autostrada?"');
+        parts.push('- "Quanti tipi di segnali esistono?"');
+        parts.push('- "Spiegami le precedenze nella rotatoria"');
+        parts.push('- "Qual e\' la sanzione per l\'alcol?"');
+        parts.push('Scrivi un argomento specifico e ti aiuto subito!');
+      }
     }
   }
 
@@ -831,52 +843,87 @@ async function handleAnalyze(body: {
 // ---- 3. AI Chat ----
 async function handleChat(body: { action: string; message: string; history?: { role: string; content: string }[] }) {
   const { message, history = [] } = body;
-  const lang = detectLanguage(message);
   const replyArabic = wantsArabicResponse(message);
-  
-  const systemPrompt = replyArabic
-    ? `أنت مساعد افتراضي متخصص في امتحان رخصة القيادة B في إيطاليا.
-أجب دائماً باللغة العربية.
-تخصصك: قانون الطريق، العلامات المرورية، حدود السرعة، الأفضلية، قواعد المرور، الوثائق، الإسعافات الأولية، معدات السلامة.
-أعطِ إجابات دقيقة وموجزة وسهلة التذكر.
-استخدم النقاط عندما يكون ذلك مفيداً.
-لا تخترع معلومات: إذا لم تكن متأكداً، قل ذلك.
-إذا كانت الأسئلة عن مواضيع أخرى، أجب بلباقة أنك تساعد فقط في مواضيع رخصة القيادة B.
-ملاحظة: أذكر أيضاً المصطلحات الإيطالية بين قوسين للمساعدة في التعلم.`
-    : `Sei un assistente virtuale esperto per l'esame della patente B in Italia.
-Rispondi SEMPRE in italiano.
-Sei specializzato in: codice della strada, segnali stradali, limiti di velocità, precedenze, norme di circolazione, documenti, primo soccorso, equipaggiamento di sicurezza.
-Dai risposte precise, concise e facili da ricordare.
-Usa elenchi puntati quando utile.
-Non inventare informazioni: se non sei sicuro, dillo.
-Se la domanda non riguarda la guida, rispondi cortesemente che puoi aiutare solo con argomenti legati alla patente B.`;
 
+  // Build system prompt based on detected language
+  const systemPrompt = replyArabic
+    ? `أنت مساعد ذكي ومتخصص في امتحان رخصة القيادة B في إيطاليا. أنت تفاعلي وودود.
+
+قواعد مهمة:
+- أجب ALWAYS باللغة العربية
+- كن تفاعلي: اعترف بسؤال المستخدم أولاً ثم أجب
+- أضف أمثلة عملية من الحياة اليومية
+- اذكر المصطلحات الإيطالية بين قوسين للمساعدة في التعلم
+- استخدم النقاط والإيموجي المناسبة لتنظيم الإجابة
+- إذا سأل عن شيء غير متعلق برخصة القيادة، رد بلطف ووجهه للمواضيع المتاحة
+- لا تقل أبداً "مرحباً أنا مساعدك" أو تعطي قائمة عامة - أجب مباشرة على السؤال
+- كن محدداً: أعطِ أرقاماً وقوانين حقيقية
+
+مجال تخصصك الكامل:
+- قانون الطريق الإيطالي (Codice della Strada)
+- العلامات المرورية بجميع أنواعها (7 أنواع)
+- حدود السرعة (50/90/110/130)
+- قواعد الأفضلية والحوارات
+- الكحول والمخدرات (0.5 غ/ل عادي، 0.0 للجدد)
+- الوثائق (رخصة، دفتر سيارة، تأمين)
+- الإسعافات الأولية ومعدات السلامة
+- الإطارات والأنوار واستخدام الهاتف
+- امتحان رخصة القيادة (30 سؤال، 3 أخطاء كحد أقصى)
+- قواعد التجاوز والوقوف والركن
+- القيادة في الظروف الجوية السيئة
+- نقاط الرخصة والعقوبات`
+    : `Sei un assistente virtuale esperto e interattivo per l'esame della patente B in Italia.
+
+Regole importanti:
+- Rispondi SEMPRE in italiano
+- Sii interattivo: riconosci la domanda dell'utente prima di rispondere
+- Aggiungi esempi pratici dalla vita quotidiana
+- Usa elenchi puntati e emoji per organizzare la risposta
+- Se la domanda non riguarda la guida, rispondi cortesemente e reindirizza agli argomenti disponibili
+- NON dire mai "Ciao! Sono il tuo assistente" o dare una lista generica - rispondi direttamente alla domanda
+- Sii specifico: dai numeri e leggi reali
+
+Il tuo ambito di competenza:
+- Codice della Strada italiano
+- Segnali stradali di tutti i tipi (7 categorie)
+- Limiti di velocità (50/90/110/130)
+- Regole di precedenza e rotatorie
+- Alcol e droghe (0.5 g/l normale, 0.0 neopatentati)
+- Documenti (patente, libretto, assicurazione)
+- Primo soccorso ed equipaggiamento di sicurezza
+- Pneumatici, luci, uso del telefono
+- Esame patente B (30 domande, max 3 errori)
+- Sorpasso, sosta, parcheggio
+- Guida in condizioni meteorologiche avverse
+- Punti patente e sanzioni`;
+
+  // === PRIMARY: Use AI SDK for true conversational response ===
   try {
     const zai = await ZAI.create();
     const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
       { role: 'system', content: systemPrompt },
-      ...history.slice(-6) as { role: 'system' | 'user' | 'assistant'; content: string }[], // Keep last 6 messages for context
+      ...history.slice(-8) as { role: 'system' | 'user' | 'assistant'; content: string }[],
       { role: 'user', content: message },
     ];
     const completion = await zai.chat.completions.create({
       messages,
-      temperature: 0.4,
-      max_tokens: 500,
+      temperature: 0.6,
+      max_tokens: 800,
     });
     const reply = completion.choices[0]?.message?.content;
-    if (reply && reply.trim().length > 10) {
-      // Check: if user wrote Arabic but reply has NO Arabic → reject and use fallback
+    if (reply && reply.trim().length > 15) {
+      // Verify language matches user expectation
       if (replyArabic && !/[\u0600-\u06FF]/.test(reply)) {
-        console.log('AI replied in wrong language, using Arabic fallback');
+        console.log('AI replied in wrong language, using fallback');
       } else {
         return NextResponse.json({ reply: reply.trim(), fallback: false });
       }
     }
   } catch (error: unknown) {
-    console.error('AI Chat error:', error instanceof Error ? error.message : 'Unknown');
+    console.error('AI Chat error, using smart fallback:', error instanceof Error ? error.message : 'Unknown');
   }
 
-  // Smart fallback
+  // === SMART FALLBACK: Contextual keyword-based responses ===
   const smartReply = generateChatAnswer(message);
   return NextResponse.json({ reply: smartReply, fallback: true });
 }
@@ -929,41 +976,176 @@ async function handleStudyPlan(body: {
 }
 
 // ============================================================
-// 6. TRANSLATE - Italian word → Arabic
+// 6. LOCAL ITALIAN → ARABIC DICTIONARY
 // ============================================================
+const IT_AR_DICT: Record<string, string> = {
+  // Direzione / movement
+  destra: 'يمين', sinistra: 'يسار', avanti: 'أمام', indietro: 'خلف',
+  rettilineo: 'خط مستقيم', curva: 'منعطف', tornante: 'منعطف حاد',
+  svolta: 'انعطاف', svoltare: 'ينعطف', girare: 'يدور',
+  direzione: 'اتجاه', senso: 'اتجاه', verso: 'نحو', diretta: 'مباشر',
+  entrare: 'دخول', uscire: 'خروج',
+  attraversare: 'يعبر', salita: 'صعود', discesa: 'هبوط',
+  superare: 'يتجاوز', sorpasso: 'تجاوز', sorpassare: 'يتجاوز',
+
+  // Veicoli / vehicles
+  veicolo: 'مركبة', auto: 'سيارة', automobile: 'سيارة',
+  autobus: 'حافلة', tram: 'ترام', camion: 'شاحنة', moto: 'دراجة نارية',
+  motociclo: 'دراجة نارية', ciclomotore: 'سكوتر', bicicletta: 'دراجة هوائية',
+  furgone: 'شاحنة صغيرة', rimorchio: 'مقطورة', carrello: 'عربة',
+
+  // Strada / road
+  strada: 'طريق', carreggiata: 'مسار', corsia: 'حارة',
+  marciapiede: 'رصيف', banchina: 'جانب الطريق', cordolo: 'حافة الرصيف',
+  incrocio: 'تقاطع', rotatoria: 'دوار', svincolo: 'مخرج',
+  autostrada: 'طريق سريع', viadotto: 'جسر',
+  ponte: 'جسر', galleria: 'نفق', tunnel: 'نفق',
+  rampa: 'منحدر',
+
+  // Segnali / signs
+  segnale: 'إشارة', cartello: 'لافتة', segnali: 'إشارات',
+  divieto: 'منع', vietato: 'ممنوع', obbligo: 'إلزام',
+  obbligatorio: 'إلزامي', precedenza: 'أولوية', pericolo: 'خطر',
+  attenzione: 'انتباه', stop: 'قف', indicazione: 'إرشاد',
+
+  // Velocità / speed
+  velocita: 'سرعة', veloce: 'سريع', lento: 'بطيء',
+  limite: 'حد', accelerare: 'تسريع', rallentare: 'تبطيء',
+  frenare: 'فرملة', freno: 'فرامل', frenata: 'كبح',
+  km: 'كم', chilometro: 'كيلومتر',
+
+  // Distanza / distance
+  distanza: 'مسافة', spazio: 'مسافة', vicino: 'قريب', lontano: 'بعيد',
+  metri: 'أمتار', metro: 'متر',
+
+  // Sicurezza / safety
+  sicurezza: 'سلامة', casco: 'خوذة', cintura: 'حزام',
+  giubbotto: 'جاكيت', seggiolino: 'مقعد', airbag: 'وسادة هوائية',
+  estintore: 'طفاية', triangolo: 'مثلث', emergenza: 'طوارئ',
+
+  // Parcheggio / parking
+  parcheggio: 'موقف', sosta: 'وقوف', fermare: 'توقف',
+  fermata: 'محطة', parcheggiare: 'ركن', posteggio: 'موقف',
+
+  // Luci / lights
+  luci: 'أنوار', fari: 'مصابيح', abbaglianti: 'أنوار مواجهة',
+  anabbaglianti: 'أنوار تمانح', frecce: 'مؤشرات', indicatori: 'مؤشرات',
+
+  // Pedoni / pedestrians
+  pedone: 'مشاة', pedoni: 'مشاة',
+  strisce: 'خطوط', passaggio: 'ممر',
+
+  // Documenti / documents
+  patente: 'رخصة قيادة', documento: 'وثيقة', libretto: 'دفتر',
+  assicurazione: 'تأمين', targa: 'لوحة رقمية',
+
+  // Meteo / weather
+  nebbia: 'ضباب', pioggia: 'مطر', neve: 'ثلج', ghiaccio: 'جليد',
+  vento: 'رياح', visibilita: 'رؤية',
+
+  // Alcol / substances
+  alcol: 'كحول', droga: 'مخدرات', tasso: 'نسبة',
+
+  // Altro / other
+  sempre: 'دائماً', mai: 'أبدا', solo: 'فقط', anche: 'أيضاً',
+  quando: 'عندما', prima: 'قبل', dopo: 'بعد', durante: 'أثناء',
+  tra: 'بين', fino: 'حتى', da: 'من', per: 'لكل / لـ',
+  con: 'مع', senza: 'بدون', su: 'على', sotto: 'تحت',
+  dentro: 'داخل', fuori: 'خارج', sopra: 'فوق',
+  tutti: 'الجميع', nessuno: 'لا أحد', altro: 'آخر',
+  puo: 'يمكن', deve: 'يجب', possibile: 'ممكن',
+  permesso: 'مسموح', consentito: 'مسموح',
+  sufficiente: 'كافي',
+  minimo: 'أدنى', massimo: 'أقصى', inferiore: 'أقل', superiore: 'أكثر',
+  numero: 'رقم', valore: 'قيمة', grado: 'درجة',
+  parte: 'جزء', zona: 'منطقة', area: 'منطقة', luogo: 'مكان',
+  tempo: 'وقت', momento: 'لحظة', ora: 'ساعة',
+  notte: 'ليل', giorno: 'نهار',
+  rosso: 'أحمر', verde: 'أخضر', blu: 'أزرق', giallo: 'أصفر', bianco: 'أبيض', nero: 'أسود',
+  alto: 'عالي', basso: 'منخفض', grande: 'كبير', piccolo: 'صغير',
+  nuovo: 'جديد', vecchio: 'قديم',
+  diritto: 'حق', dovere: 'واجب', responsabilita: 'مسؤولية',
+  multa: 'غرامة', sanzione: 'عقوبة', infrazione: 'مخالفة',
+  incidente: 'حادث', collisione: 'تصادم', urto: 'ارتطام',
+  traffico: 'مرور', congestione: 'ازدحام', coda: 'طابور',
+  integrato: 'مدمج', dispositivo: 'جهاز', sistema: 'نظام',
+  controllo: 'تحكم', rilevatore: 'كاشف', autovelox: 'كاميرا سرعة',
+  stradale: 'مروري', urbano: 'حضري', extraurbano: 'خارج المدينة',
+  sterrata: 'غير معبدة', asfalto: 'أسفلت', ghiaia: 'حصى',
+  cricca: 'شق', buca: 'حفرة', dissestato: 'متضرر',
+  retromarcia: 'رجوع', inversione: 'انعطاف عكسي',
+  parziale: 'جزئي', totale: 'كلي',
+  regolare: 'منتظم', irregolare: 'غير منتظم',
+  temporaneo: 'مؤقت', permanente: 'دائم',
+  continuo: 'مستمر', discontinuo: 'متقطع',
+  positivo: 'إيجابي', negativo: 'سلبي',
+  primo: 'أول', secondo: 'ثاني', terzo: 'ثالث',
+  entrambi: 'كلاهما',
+  bambini: 'أطفال', bambino: 'طفل', minore: 'قاصر',
+  donna: 'امرأة', uomo: 'رجل', persona: 'شخص',
+  passeggero: 'راكب', conducente: 'سائق', guidatore: 'سائق',
+  pneumatico: 'إطار', gomma: 'إطار', ruota: 'عجلة',
+  motore: 'محرك', carburante: 'وقود', benzina: 'بنزين',
+  gasolio: 'ديزل', elettrico: 'كهربائي',
+  specchio: 'مرآة', retrovisore: 'مرآة خلفية', parabrezza: 'زجاج أمامي',
+  portiera: 'باب', finestrino: 'نافذة', cofano: 'غطاء المحرك',
+  baule: 'صندوق خلفي', clacson: 'بوق', sirena: 'سيرينا',
+  amblianza: 'إسعاف', ambulanza: 'إسعاف', polizia: 'شرطة',
+  vigili: 'شرطة بلدية', carabinieri: 'درك',
+  passeggeri: 'ركاب', conducenti: 'سائقون',
+  accessibile: 'يمكن الوصول', accessibilita: 'إمكانية الوصول',
+  disabili: 'ذوي الإعاقة', handicap: 'إعاقة',
+  restringimento: 'تضييق', allargamento: 'توسيع',
+  sovrappasso: 'جسر علوي', sottopasso: 'نفق سفلي',
+  livello: 'مستوى', ferroviario: 'سكة حديدية',
+  barriere: 'حواجز', cancellata: 'سور', recinto: 'سياج',
+  bretella: 'رابط', raccordo: 'وصلة',
+};
+
+function hasArabicChars(text: string): boolean {
+  return /[\u0600-\u06FF]/.test(text);
+}
+
 async function handleTranslate(body: { action: string; word: string }) {
   const { word } = body;
   if (!word || word.trim().length === 0) {
     return NextResponse.json({ translation: '' });
   }
 
-  const cleaned = word.trim().toLowerCase().replace(/[.,;:!?'"()]/g, '');
+  const cleaned = word.trim().toLowerCase().replace(/[.,;:!?"'()]/g, '');
 
-  // Try AI translation
+  // 1. Check local dictionary first (instant, no API call)
+  if (IT_AR_DICT[cleaned]) {
+    return NextResponse.json({ translation: IT_AR_DICT[cleaned], source: 'local' });
+  }
+
+  // 2. Try AI translation
   try {
     const zai = await ZAI.create();
     const completion = await zai.chat.completions.create({
       messages: [
         {
           role: 'system',
-          content: `You are a translator from Italian to Arabic for driving license terms. Translate the given Italian word to Arabic. Reply with ONLY the Arabic translation, nothing else. If the word is a number or punctuation, reply with the same word. Keep it concise - max 3 Arabic words. No transliteration, use real Arabic.`
+          content: `أنت مترجم من الإيطالية إلى العربية. ترجم الكلمة الإيطالية التالية إلى العربية فقط. أجب بالترجمة العربية فقط بدون أي شرح أو حروف إنجليزية. إذا كانت الكلمة رقماً أو علامة ترقيم أعد الكلمة نفسها. الحد الأقصى 3 كلمات عربية.`
         },
         {
           role: 'user',
           content: cleaned
         }
       ],
-      temperature: 0.3,
-      max_tokens: 50,
+      temperature: 0.1,
+      max_tokens: 30,
     });
 
     const translation = completion.choices[0]?.message?.content?.trim() || '';
-    if (translation) {
-      return NextResponse.json({ translation, fallback: false });
+    // Only accept if it contains actual Arabic characters
+    if (translation && hasArabicChars(translation)) {
+      return NextResponse.json({ translation, source: 'ai' });
     }
   } catch (error: unknown) {
     console.error('AI Translate error:', error instanceof Error ? error.message : 'Unknown');
   }
 
+  // 3. Fallback: return original word (client should NOT cache this)
   return NextResponse.json({ translation: cleaned, fallback: true });
 }
