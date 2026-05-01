@@ -6,34 +6,35 @@ import { useOverallStats, useUserStats, useWrongAnswers } from './hooks';
 import { clearSession } from '@/logic/authEngine';
 import { forceSyncToCloud } from '@/logic/progressEngine';
 import QuestionCountModal from './QuestionCountModal';
+import ChapterIcon from './ChapterIcons';
 
 // Unique design for each of the 25 chapters
-const CHAPTER_STYLES: Record<number, { icon: string; gradient: string; shadow: string }> = {
-  1:  { icon: '📖', gradient: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', shadow: '0 4px 15px rgba(59,130,246,0.35)' },
-  2:  { icon: '⚠️', gradient: 'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)', shadow: '0 4px 15px rgba(239,68,68,0.35)' },
-  3:  { icon: '🚫', gradient: 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)', shadow: '0 4px 15px rgba(220,38,38,0.35)' },
-  4:  { icon: '🔵', gradient: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)', shadow: '0 4px 15px rgba(37,99,235,0.35)' },
-  5:  { icon: '🔺', gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', shadow: '0 4px 15px rgba(245,158,11,0.35)' },
-  6:  { icon: '📏', gradient: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)', shadow: '0 4px 15px rgba(139,92,246,0.35)' },
-  7:  { icon: '🚦', gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', shadow: '0 4px 15px rgba(16,185,129,0.35)' },
-  8:  { icon: '🪧', gradient: 'linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)', shadow: '0 4px 15px rgba(6,182,212,0.35)' },
-  9:  { icon: '🚧', gradient: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)', shadow: '0 4px 15px rgba(249,115,22,0.35)' },
-  10: { icon: '📋', gradient: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)', shadow: '0 4px 15px rgba(99,102,241,0.35)' },
-  11: { icon: '🏎️', gradient: 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)', shadow: '0 4px 15px rgba(236,72,153,0.35)' },
-  12: { icon: '📏', gradient: 'linear-gradient(135deg, #14B8A6 0%, #0D9488 100%)', shadow: '0 4px 15px rgba(20,184,166,0.35)' },
-  13: { icon: '🛣️', gradient: 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)', shadow: '0 4px 15px rgba(14,165,233,0.35)' },
-  14: { icon: '🔀', gradient: 'linear-gradient(135deg, #A855F7 0%, #9333EA 100%)', shadow: '0 4px 15px rgba(168,85,247,0.35)' },
-  15: { icon: '↗️', gradient: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)', shadow: '0 4px 15px rgba(34,197,94,0.35)' },
-  16: { icon: '🅿️', gradient: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', shadow: '0 4px 15px rgba(59,130,246,0.35)' },
-  17: { icon: '🛤️', gradient: 'linear-gradient(135deg, #64748B 0%, #475569 100%)', shadow: '0 4px 15px rgba(100,116,139,0.35)' },
-  18: { icon: '💡', gradient: 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)', shadow: '0 4px 15px rgba(251,191,36,0.35)' },
-  19: { icon: '🦺', gradient: 'linear-gradient(135deg, #F43F5E 0%, #E11D48 100%)', shadow: '0 4px 15px rgba(244,63,94,0.35)' },
-  20: { icon: '📄', gradient: 'linear-gradient(135deg, #78716C 0%, #57534E 100%)', shadow: '0 4px 15px rgba(120,113,108,0.35)' },
-  21: { icon: '📚', gradient: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)', shadow: '0 4px 15px rgba(124,58,237,0.35)' },
-  22: { icon: '⚗️', gradient: 'linear-gradient(135deg, #BE185D 0%, #9D174D 100%)', shadow: '0 4px 15px rgba(190,24,93,0.35)' },
-  23: { icon: '⚖️', gradient: 'linear-gradient(135deg, #475569 0%, #334155 100%)', shadow: '0 4px 15px rgba(71,85,105,0.35)' },
-  24: { icon: '🌱', gradient: 'linear-gradient(135deg, #059669 0%, #047857 100%)', shadow: '0 4px 15px rgba(5,150,105,0.35)' },
-  25: { icon: '🔧', gradient: 'linear-gradient(135deg, #B45309 0%, #92400E 100%)', shadow: '0 4px 15px rgba(180,83,9,0.35)' },
+const CHAPTER_STYLES: Record<number, { gradient: string; shadow: string }> = {
+  1:  { gradient: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', shadow: '0 4px 15px rgba(59,130,246,0.35)' },
+  2:  { gradient: 'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)', shadow: '0 4px 15px rgba(239,68,68,0.35)' },
+  3:  { gradient: 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)', shadow: '0 4px 15px rgba(220,38,38,0.35)' },
+  4:  { gradient: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)', shadow: '0 4px 15px rgba(37,99,235,0.35)' },
+  5:  { gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', shadow: '0 4px 15px rgba(245,158,11,0.35)' },
+  6:  { gradient: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)', shadow: '0 4px 15px rgba(139,92,246,0.35)' },
+  7:  { gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', shadow: '0 4px 15px rgba(16,185,129,0.35)' },
+  8:  { gradient: 'linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)', shadow: '0 4px 15px rgba(6,182,212,0.35)' },
+  9:  { gradient: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)', shadow: '0 4px 15px rgba(249,115,22,0.35)' },
+  10: { gradient: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)', shadow: '0 4px 15px rgba(99,102,241,0.35)' },
+  11: { gradient: 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)', shadow: '0 4px 15px rgba(236,72,153,0.35)' },
+  12: { gradient: 'linear-gradient(135deg, #14B8A6 0%, #0D9488 100%)', shadow: '0 4px 15px rgba(20,184,166,0.35)' },
+  13: { gradient: 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)', shadow: '0 4px 15px rgba(14,165,233,0.35)' },
+  14: { gradient: 'linear-gradient(135deg, #A855F7 0%, #9333EA 100%)', shadow: '0 4px 15px rgba(168,85,247,0.35)' },
+  15: { gradient: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)', shadow: '0 4px 15px rgba(34,197,94,0.35)' },
+  16: { gradient: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', shadow: '0 4px 15px rgba(59,130,246,0.35)' },
+  17: { gradient: 'linear-gradient(135deg, #64748B 0%, #475569 100%)', shadow: '0 4px 15px rgba(100,116,139,0.35)' },
+  18: { gradient: 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)', shadow: '0 4px 15px rgba(251,191,36,0.35)' },
+  19: { gradient: 'linear-gradient(135deg, #F43F5E 0%, #E11D48 100%)', shadow: '0 4px 15px rgba(244,63,94,0.35)' },
+  20: { gradient: 'linear-gradient(135deg, #78716C 0%, #57534E 100%)', shadow: '0 4px 15px rgba(120,113,108,0.35)' },
+  21: { gradient: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)', shadow: '0 4px 15px rgba(124,58,237,0.35)' },
+  22: { gradient: 'linear-gradient(135deg, #BE185D 0%, #9D174D 100%)', shadow: '0 4px 15px rgba(190,24,93,0.35)' },
+  23: { gradient: 'linear-gradient(135deg, #475569 0%, #334155 100%)', shadow: '0 4px 15px rgba(71,85,105,0.35)' },
+  24: { gradient: 'linear-gradient(135deg, #059669 0%, #047857 100%)', shadow: '0 4px 15px rgba(5,150,105,0.35)' },
+  25: { gradient: 'linear-gradient(135deg, #B45309 0%, #92400E 100%)', shadow: '0 4px 15px rgba(180,83,9,0.35)' },
 };
 
 const TOPIC_META: Record<string, { icon: string; label: string }> = {
@@ -274,7 +275,7 @@ export default function HomeScreen() {
                     const style = CHAPTER_STYLES[ch.id];
                     return (
                       <button key={ch.id} onClick={() => store.toggleChapterId(ch.id)}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-150 hover:scale-105"
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-150 hover:scale-105"
                         style={{
                           background: isSelected ? (style?.gradient || 'var(--primary-100)') : 'var(--bg-tertiary)',
                           color: isSelected ? 'white' : 'var(--text-muted)',
@@ -282,7 +283,7 @@ export default function HomeScreen() {
                           boxShadow: isSelected ? (style?.shadow || '0 2px 8px rgba(59,130,246,0.2)') : 'none',
                           opacity: isSelected ? 1 : 0.6,
                         }}>
-                        {style?.icon || '📘'} {ch.id}
+                        <ChapterIcon chapterId={ch.id} size={16} /> {ch.id}
                       </button>
                     );
                   })}
@@ -366,7 +367,7 @@ export default function HomeScreen() {
                   const totalQ = ch.questionCount;
                   const pctVal = totalQ > 0 ? Math.round((answered / totalQ) * 100) : 0;
                   const isComplete = pctVal === 100;
-                  const style = CHAPTER_STYLES[ch.id] || { icon: '📘', gradient: 'linear-gradient(135deg, #94A3B8, #64748B)', shadow: '0 4px 15px rgba(100,116,139,0.35)' };
+                  const style = CHAPTER_STYLES[ch.id] || { gradient: 'linear-gradient(135deg, #94A3B8, #64748B)', shadow: '0 4px 15px rgba(100,116,139,0.35)' };
 
                   return (
                     <button key={ch.id} onClick={() => store.openChapter(ch.id)}
@@ -389,7 +390,7 @@ export default function HomeScreen() {
                         )}
 
                         {/* Icon */}
-                        <div className="text-3xl mb-2">{style.icon}</div>
+                        <div className="mb-2"><ChapterIcon chapterId={ch.id} size={38} /></div>
 
                         {/* Chapter Number */}
                         <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.6)' }}>Cap. {ch.id}</span>
