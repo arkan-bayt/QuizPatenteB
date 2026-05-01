@@ -5,7 +5,7 @@ import { create } from 'zustand';
 import { QuizQuestion, Chapter } from '@/data/quizData';
 import { AppUser } from '@/data/supabaseClient';
 
-export type Screen = 'loading' | 'login' | 'home' | 'chapter' | 'quiz' | 'exam' | 'result' | 'wrong' | 'stats' | 'admin' | 'resume' | 'aiAnalysis' | 'aiChat' | 'studyPlan' | 'explanations' | 'explanationTopic' | 'explanationChapter' | 'signalsGuide';
+export type Screen = 'loading' | 'login' | 'home' | 'chapter' | 'quiz' | 'exam' | 'result' | 'wrong' | 'stats' | 'admin' | 'resume' | 'aiAnalysis' | 'aiChat' | 'studyPlan';
 export type QuizMode = 'chapter' | 'subtopic' | 'exam' | 'wrong';
 
 interface State {
@@ -18,7 +18,6 @@ interface State {
   // Navigation params
   activeChapterId: number | null;
   activeSubtopic: string | null;
-  activeExplanationTopic: string | null;
   selectedChapterIds: number[];
 
   // Quiz state
@@ -53,7 +52,6 @@ interface State {
   openSubtopic: (chapterId: number, subtopic: string) => void;
   goHome: () => void;
   setActiveChapterId: (id: number) => void;
-  setActiveExplanationTopic: (topic: string | null) => void;
 
   // Selection
   toggleChapterId: (id: number) => void;
@@ -75,7 +73,7 @@ interface State {
 
 export const useStore = create<State>((set, get) => ({
   screen: 'loading', user: null, users: [], chapters: [], allQuestions: [],
-  activeChapterId: null, activeSubtopic: null, activeExplanationTopic: null, selectedChapterIds: [],
+  activeChapterId: null, activeSubtopic: null, selectedChapterIds: [],
   quizMode: 'chapter', quizQuestions: [], currentIdx: 0,
   correctCount: 0, wrongCount: 0, selectedAnswer: null,
   showFeedback: false, isComplete: false, autoAdvance: true,
@@ -90,9 +88,8 @@ export const useStore = create<State>((set, get) => ({
 
   openChapter: (id) => set({ activeChapterId: id, screen: 'chapter', activeSubtopic: null }),
   openSubtopic: (chapterId, subtopic) => set({ activeChapterId: chapterId, activeSubtopic: subtopic, screen: 'quiz' }),
-  goHome: () => set({ screen: 'home', activeChapterId: null, activeSubtopic: null, activeExplanationTopic: null, selectedChapterIds: [] }),
+  goHome: () => set({ screen: 'home', activeChapterId: null, activeSubtopic: null, selectedChapterIds: [] }),
   setActiveChapterId: (id) => set({ activeChapterId: id }),
-  setActiveExplanationTopic: (topic) => set({ activeExplanationTopic: topic }),
 
   toggleChapterId: (id) => set((s) => ({
     selectedChapterIds: s.selectedChapterIds.includes(id)

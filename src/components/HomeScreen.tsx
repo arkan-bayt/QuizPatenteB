@@ -224,24 +224,6 @@ export default function HomeScreen() {
           )}
         </div>
 
-        {/* Explanations - PROMINENT POSITION */}
-        <button onClick={() => store.setScreen('explanations')} className="relative overflow-hidden p-5 text-left anim-up transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
-          style={{ animationDelay: '110ms', background: 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)', borderRadius: 'var(--radius-xl)', boxShadow: '0 6px 30px rgba(14, 165, 233, 0.4)' }}>
-          <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 70% 80%, rgba(255,255,255,0.3), transparent 60%)' }} />
-          <div className="relative z-10 flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl" style={{ background: 'rgba(255,255,255,0.2)' }}>
-              📚
-            </div>
-            <div className="flex-1">
-              <p className="text-[16px] font-extrabold text-white">Spiegazioni / الشروحات</p>
-              <p className="text-[11px] mt-1 font-medium" style={{ color: 'rgba(255,255,255,0.85)' }}>Guida completa + Atlante dei Segnali / دليل شامل + أطلس الإشارات</p>
-            </div>
-            <svg className="w-6 h-6 text-white opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-            </svg>
-          </div>
-        </button>
-
         {/* AI Features Grid */}
         <div className="grid grid-cols-2 gap-3 anim-up" style={{ animationDelay: '120ms' }}>
           <button onClick={() => store.setScreen('aiChat')} className="relative overflow-hidden p-4 text-left transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"

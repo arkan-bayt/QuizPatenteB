@@ -14,10 +14,6 @@ import AdminPanel from '@/components/AdminPanel';
 import AIAnalysisScreen from '@/components/AIAnalysisScreen';
 import AIChatScreen from '@/components/AIChatScreen';
 import StudyPlanScreen from '@/components/StudyPlanScreen';
-import ExplanationScreen from '@/components/ExplanationScreen';
-import TopicExplanationScreen from '@/components/TopicExplanationScreen';
-import ChapterExplanationScreen from '@/components/ChapterExplanationScreen';
-import SignalsGuideScreen from '@/components/SignalsGuideScreen';
 
 export default function Page() {
   const store = useStore();
@@ -109,10 +105,6 @@ export default function Page() {
     case 'aiAnalysis': return <AIAnalysisScreen />;
     case 'aiChat': return <AIChatScreen />;
     case 'studyPlan': return <StudyPlanScreen />;
-    case 'explanations': return <ExplanationScreen />;
-    case 'explanationTopic': return <TopicExplanationScreen />;
-    case 'explanationChapter': return <ChapterExplanationScreen />;
-    case 'signalsGuide': return <SignalsGuideScreen />;
     default: return <LoginScreen />;
   }
 }
