@@ -6,6 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 
+export const maxDuration = 15; // Allow up to 15 seconds for translation APIs
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -1119,7 +1121,29 @@ async function handleTranslate(body: { action: string; word: string }) {
     return NextResponse.json({ translation: IT_AR_DICT[cleaned], source: 'local' });
   }
 
-  // 2. Try AI translation
+  // 2. Try MyMemory API (fast, free, reliable) - runs in parallel with AI
+  const myMemoryPromise = (async () => {
+    try {
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleaned)}&langpair=it|ar&de=quizpatente@example.com`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+      const data = await res.json();
+      const tr = data?.responseData?.translatedText || '';
+      if (tr && hasArabicChars(tr) && tr !== cleaned) {
+        // Clean up common artifacts
+        const cleanTr = tr.replace(/\s*\(.*?\)\s*/g, '').replace(/\s*\[.*?\]\s*/g, '').trim();
+        if (hasArabicChars(cleanTr)) return cleanTr;
+        return tr;
+      }
+    } catch {
+      // MyMemory failed, continue
+    }
+    return null;
+  })();
+
+  // 3. Try AI translation
   try {
     const zai = await ZAI.create();
     const completion = await zai.chat.completions.create({
@@ -1146,6 +1170,12 @@ async function handleTranslate(body: { action: string; word: string }) {
     console.error('AI Translate error:', error instanceof Error ? error.message : 'Unknown');
   }
 
-  // 3. Fallback: no Arabic translation available, return empty
+  // 4. Check MyMemory result (wait for it if AI didn't work)
+  const myMemoryResult = await myMemoryPromise;
+  if (myMemoryResult) {
+    return NextResponse.json({ translation: myMemoryResult, source: 'mymemory' });
+  }
+
+  // 5. Fallback: no Arabic translation available
   return NextResponse.json({ translation: '', fallback: true });
 }

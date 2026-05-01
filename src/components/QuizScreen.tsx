@@ -116,7 +116,7 @@ export default function QuizScreen() {
     if (isSkipWord(cleaned)) return;
 
     // If already showing same word, close it
-    if (selectedWord === cleaned && wordTranslation) {
+    if (selectedWord === cleaned) {
       setSelectedWord(null);
       setWordTranslation(null);
       return;
@@ -128,35 +128,39 @@ export default function QuizScreen() {
     const cached = getCachedTranslation(cleaned);
     if (cached) {
       setWordTranslation(cached);
+      setTranslating(false);
       return;
     }
 
     setTranslating(true);
     setWordTranslation(null);
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'translate', word: cleaned }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       const data = await res.json();
-      const tr = data.translation || cleaned;
+      const tr = data.translation || '';
       // Only accept if it contains actual Arabic characters
       const isArabic = /[\u0600-\u06FF]/.test(tr);
-      if (isArabic) {
+      if (isArabic && tr.length > 0) {
         setWordTranslation(tr);
         setCachedTranslation(cleaned, tr);
       } else {
-        // Not Arabic - don't show it, close popup
-        setWordTranslation(null);
-        setSelectedWord(null);
+        // Not Arabic - keep bar open but show "not found" message
+        setWordTranslation('');
       }
     } catch {
-      setWordTranslation(null);
-      setSelectedWord(null);
+      // Network error - keep bar open with "not found"
+      setWordTranslation('');
     }
     setTranslating(false);
-  }, [selectedWord, wordTranslation]);
+  }, [selectedWord]);
 
   useEffect(() => { setImgErr(false); setAnswerAnim(false); }, [currentIdx]);
 
@@ -448,7 +452,7 @@ export default function QuizScreen() {
                   </svg>
                 </div>
                 <div className="flex flex-col flex-1 min-w-0">
-                  {translating && !wordTranslation ? (
+                  {translating ? (
                     <div className="flex items-center gap-2">
                       <svg className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -464,7 +468,15 @@ export default function QuizScreen() {
                       </svg>
                       <span className="text-[18px] font-extrabold" style={{ color: 'var(--primary-light)' }} dir="rtl">{wordTranslation}</span>
                     </div>
-                  ) : null}
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[13px] font-bold" style={{ color: 'var(--text-muted)' }} dir="ltr">{selectedWord}</span>
+                      <svg className="w-3 h-3" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                      </svg>
+                      <span className="text-[13px]" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }} dir="rtl">لم يتم العثور على ترجمة</span>
+                    </div>
+                  )}
                 </div>
                 <button onClick={() => { setSelectedWord(null); setWordTranslation(null); }}
                   className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
