@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
     if (action === 'chat') return handleChat(body);
     if (action === 'hint') return handleHint(body);
     if (action === 'studyPlan') return handleStudyPlan(body);
+    if (action === 'translate') return handleTranslate(body);
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
@@ -925,4 +926,44 @@ async function handleStudyPlan(body: {
     totalAnswered: stats.totalAnswered,
     fallback: false,
   });
+}
+
+// ============================================================
+// 6. TRANSLATE - Italian word → Arabic
+// ============================================================
+async function handleTranslate(body: { action: string; word: string }) {
+  const { word } = body;
+  if (!word || word.trim().length === 0) {
+    return NextResponse.json({ translation: '' });
+  }
+
+  const cleaned = word.trim().toLowerCase().replace(/[.,;:!?'"()]/g, '');
+
+  // Try AI translation
+  try {
+    const zai = await ZAI.create();
+    const completion = await zai.chat.completions.create({
+      messages: [
+        {
+          role: 'system',
+          content: `You are a translator from Italian to Arabic for driving license terms. Translate the given Italian word to Arabic. Reply with ONLY the Arabic translation, nothing else. If the word is a number or punctuation, reply with the same word. Keep it concise - max 3 Arabic words. No transliteration, use real Arabic.`
+        },
+        {
+          role: 'user',
+          content: cleaned
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 50,
+    });
+
+    const translation = completion.choices[0]?.message?.content?.trim() || '';
+    if (translation) {
+      return NextResponse.json({ translation, fallback: false });
+    }
+  } catch (error: unknown) {
+    console.error('AI Translate error:', error instanceof Error ? error.message : 'Unknown');
+  }
+
+  return NextResponse.json({ translation: cleaned, fallback: true });
 }

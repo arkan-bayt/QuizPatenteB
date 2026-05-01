@@ -1,8 +1,41 @@
 'use client';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useStore } from '@/store/useStore';
 import { speakText, stopSpeech } from '@/logic/ttsEngine';
 import { recordExamResult, recordAnswer, updateChapterProgress, addWrongAnswer, removeWrongAnswer, saveQuizResume, clearQuizResume } from '@/logic/progressEngine';
+
+// Translation cache (persisted in localStorage)
+const translationCache: Record<string, string> = {};
+function getCachedTranslation(word: string): string | null {
+  const key = word.toLowerCase();
+  if (translationCache[key]) return translationCache[key];
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem('qp_translations');
+      if (saved) {
+        const all = JSON.parse(saved);
+        if (all[key]) { translationCache[key] = all[key]; return all[key]; }
+      }
+    } catch { /* */ }
+  }
+  return null;
+}
+function setCachedTranslation(word: string, translation: string) {
+  const key = word.toLowerCase();
+  translationCache[key] = translation;
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem('qp_translations');
+      const all = saved ? JSON.parse(saved) : {};
+      all[key] = translation;
+      if (Object.keys(all).length > 500) {
+        const keys = Object.keys(all);
+        for (let i = 0; i < 100; i++) delete all[keys[i]];
+      }
+      localStorage.setItem('qp_translations', JSON.stringify(all));
+    } catch { /* */ }
+  }
+}
 
 export default function QuizScreen() {
   const store = useStore();
@@ -18,6 +51,46 @@ export default function QuizScreen() {
   const [aiExplained, setAiExplained] = useState(false);
   const prevIdxRef = useRef(currentIdx);
 
+  // Word translation state
+  const [selectedWord, setSelectedWord] = useState<string | null>(null);
+  const [wordTranslation, setWordTranslation] = useState<string | null>(null);
+  const [translating, setTranslating] = useState(false);
+  const [wordPopupPos, setWordPopupPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const questionRef = useRef<HTMLDivElement>(null);
+
+  const handleWordClick = useCallback(async (word: string, rect: DOMRect) => {
+    if (word.length <= 1 || /[0-9]/.test(word)) return;
+    const cleaned = word.replace(/[.,;:!?"'()]/g, '');
+    if (cleaned.length <= 1) return;
+
+    setSelectedWord(cleaned);
+    setWordPopupPos({ top: rect.top + window.scrollY - 50, left: rect.left + rect.width / 2 });
+
+    // Check cache first
+    const cached = getCachedTranslation(cleaned);
+    if (cached) {
+      setWordTranslation(cached);
+      return;
+    }
+
+    setTranslating(true);
+    setWordTranslation(null);
+    try {
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'translate', word: cleaned }),
+      });
+      const data = await res.json();
+      const tr = data.translation || cleaned;
+      setWordTranslation(tr);
+      setCachedTranslation(cleaned, tr);
+    } catch {
+      setWordTranslation(cleaned);
+    }
+    setTranslating(false);
+  }, []);
+
   useEffect(() => { setImgErr(false); setAnswerAnim(false); }, [currentIdx]);
 
   // Reset AI explanation on new question
@@ -26,6 +99,8 @@ export default function QuizScreen() {
       setAiExplanation(null);
       setAiLoading(false);
       setAiExplained(false);
+      setSelectedWord(null);
+      setWordTranslation(null);
       prevIdxRef.current = currentIdx;
     }
   }, [currentIdx]);
@@ -221,8 +296,70 @@ export default function QuizScreen() {
 
           {/* Question Card */}
           <div className="glass p-6 anim-up" style={{ boxShadow: 'var(--shadow-xl)' }}>
-            {/* Question text */}
-            <p className="text-[18px] leading-relaxed mb-5 font-semibold" style={{ color: 'var(--text-primary)' }}>{question.question}</p>
+            {/* Question text - clickable words */}
+            <div ref={questionRef} className="text-[18px] leading-relaxed mb-5 font-semibold" style={{ color: 'var(--text-primary)', cursor: 'default' }} dir="ltr">
+              {question.question.split(/(\s+)/).map((part, i) => {
+                const isSpace = /^\s+$/.test(part);
+                if (isSpace) return <span key={i}>{part}</span>;
+                return (
+                  <span
+                    key={i}
+                    onClick={(e) => {
+                      if (showFeedback) return;
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      handleWordClick(part, rect);
+                    }}
+                    className="inline-block rounded transition-all duration-150"
+                    style={{
+                      cursor: showFeedback ? 'default' : 'pointer',
+                      padding: '1px 2px',
+                      borderRadius: '4px',
+                      ...(selectedWord === part.replace(/[.,;:!?"'()]/g, '').toLowerCase()
+                        ? { background: 'var(--primary-100)', color: 'var(--primary-light)' }
+                        : {}),
+                    }}
+                  >{part}</span>
+                );
+              })}
+            </div>
+
+            {/* Word Translation Popup */}
+            {selectedWord && !showFeedback && (
+              <div
+                className="fixed z-50 anim-up pointer-events-auto"
+                style={{ top: wordPopupPos.top, left: wordPopupPos.left, transform: 'translate(-50%, -100%)' }}
+              >
+                <div className="px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 min-w-[180px]"
+                  style={{ background: 'var(--bg-card)', border: '1.5px solid var(--primary-200)', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+                  <div className="flex flex-col items-start flex-1">
+                    <span className="text-[11px] font-bold" style={{ color: 'var(--text-muted)' }}>ترجمة:</span>
+                    <span className="text-[12px] font-bold" style={{ color: 'var(--primary-light)' }} dir="ltr">{selectedWord}</span>
+                    {translating ? (
+                      <div className="flex items-center gap-2 mt-1">
+                        <svg className="w-3 h-3 animate-spin" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>جاري الترجمة...</span>
+                      </div>
+                    ) : wordTranslation ? (
+                      <span className="text-[16px] font-extrabold mt-0.5" style={{ color: 'var(--text-primary)' }} dir="rtl">{wordTranslation}</span>
+                    ) : null}
+                  </div>
+                  <button onClick={() => { setSelectedWord(null); setWordTranslation(null); }}
+                    className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: 'var(--bg-tertiary)' }}>
+                    <svg className="w-3 h-3" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                {/* Arrow pointing down */}
+                <div className="flex justify-center" style={{ marginTop: '-1px' }}>
+                  <div style={{ width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid var(--primary-200)' }} />
+                </div>
+              </div>
+            )}
 
             {/* Image */}
             {hasImg && (
