@@ -19,7 +19,6 @@ export default function QuestionCountModal({ isOpen, onClose, onConfirm, totalAv
   const has30 = totalAvailable >= 30;
 
   const handleCustomChange = (val: string) => {
-    // Only allow digits
     const digits = val.replace(/\D/g, '');
     if (digits.length <= 4) {
       setCustomInput(digits);
@@ -52,10 +51,8 @@ export default function QuestionCountModal({ isOpen, onClose, onConfirm, totalAv
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={onClose}>
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm anim-fade" />
 
-      {/* Modal */}
       <div
         className="relative w-full max-w-md mx-4 mb-4 sm:mb-0 anim-up"
         style={{ borderRadius: 'var(--radius-2xl)', background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-xl)' }}
@@ -79,11 +76,10 @@ export default function QuestionCountModal({ isOpen, onClose, onConfirm, totalAv
 
         {/* Options */}
         <div className="p-5 space-y-3">
-          {/* Available info */}
           <div className="flex items-center gap-2 mb-2 px-1">
             <div className="w-2 h-2 rounded-full" style={{ background: 'var(--primary-light)' }} />
             <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
-              {totalAvailable} domanda/e disponibile/i
+              {totalAvailable} domande disponibili
             </span>
           </div>
 
@@ -101,13 +97,13 @@ export default function QuestionCountModal({ isOpen, onClose, onConfirm, totalAv
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg"
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold"
                   style={{ background: selectedOption === '30' ? 'var(--primary-200)' : 'rgba(255,255,255,0.05)' }}>
                   30
                 </div>
                 <div>
-                  <p className="text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>30 سؤال</p>
-                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>امتحان قياسي (30 سؤال)</p>
+                  <p className="text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>30 domande</p>
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Esame standard ufficiale</p>
                 </div>
               </div>
               <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
@@ -139,8 +135,8 @@ export default function QuestionCountModal({ isOpen, onClose, onConfirm, totalAv
                   </svg>
                 </div>
                 <div>
-                  <p className="text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>كل الأسئلة</p>
-                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{totalAvailable} سؤال كامل</p>
+                  <p className="text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>Tutte le domande</p>
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{totalAvailable} domande complete</p>
                 </div>
               </div>
               <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
@@ -172,8 +168,8 @@ export default function QuestionCountModal({ isOpen, onClose, onConfirm, totalAv
                   </svg>
                 </div>
                 <div className="flex-1">
-                  <p className="text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>عدد مخصص</p>
-                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>اختر عدد الأسئلة</p>
+                  <p className="text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>Numero personalizzato</p>
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Scegli quante domande fare</p>
                 </div>
               </div>
               <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
@@ -186,7 +182,6 @@ export default function QuestionCountModal({ isOpen, onClose, onConfirm, totalAv
               </div>
             </div>
 
-            {/* Custom input - only show when custom is selected */}
             {selectedOption === 'custom' && (
               <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
                 <div className="flex items-center gap-2">
@@ -196,7 +191,7 @@ export default function QuestionCountModal({ isOpen, onClose, onConfirm, totalAv
                     pattern="[0-9]*"
                     value={customInput}
                     onChange={(e) => handleCustomChange(e.target.value)}
-                    placeholder="أدخل عدد الأسئلة..."
+                    placeholder="Inserisci il numero..."
                     className="flex-1 px-4 py-3 rounded-xl text-[14px] font-semibold text-center tabular-nums"
                     style={{
                       background: 'var(--bg-primary)',
@@ -209,7 +204,7 @@ export default function QuestionCountModal({ isOpen, onClose, onConfirm, totalAv
                 </div>
                 {customInput && (parseInt(customInput, 10) <= 0 || parseInt(customInput, 10) > totalAvailable) && (
                   <p className="text-[11px] mt-2 text-center" style={{ color: 'var(--danger)' }}>
-                    يجب أن يكون العدد بين 1 و {totalAvailable}
+                    Inserisci un numero tra 1 e {totalAvailable}
                   </p>
                 )}
               </div>
@@ -224,7 +219,7 @@ export default function QuestionCountModal({ isOpen, onClose, onConfirm, totalAv
             className="flex-1 py-3.5 rounded-xl text-[13px] font-semibold transition-all duration-200 hover:scale-[1.02]"
             style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
           >
-            إلغاء
+            Annulla
           </button>
           <button
             onClick={handleConfirm}
@@ -237,7 +232,7 @@ export default function QuestionCountModal({ isOpen, onClose, onConfirm, totalAv
               cursor: canConfirm() ? 'pointer' : 'not-allowed',
             }}
           >
-            ابدأ الامتحان
+            Inizia Test
           </button>
         </div>
       </div>

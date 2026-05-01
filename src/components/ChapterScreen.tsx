@@ -304,8 +304,8 @@ export default function ChapterScreen() {
         onClose={() => setShowExamModal(false)}
         onConfirm={handleChapterExamConfirm}
         totalAvailable={allChapterQs.length}
-        title={`اختر عدد الأسئلة`}
-        subtitle={`امتحان الفصل ${chapter.id} - ${chapter.name}`}
+        title={`Scegli quante domande`}
+        subtitle={`Esame Cap. ${chapter.id} - ${chapter.name}`}
       />
 
       {/* Floating Start Button (Select Mode) */}

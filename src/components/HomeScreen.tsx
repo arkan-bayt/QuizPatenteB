@@ -58,10 +58,14 @@ export default function HomeScreen() {
 
   // Question count modal
   const [showExamModal, setShowExamModal] = useState(false);
+  // Chapter selection mode
+  const [showChapterSelect, setShowChapterSelect] = useState(false);
 
-  // Available questions for exam
+  // Available questions for exam (only selected chapters)
   const examChapterIds = selectedChapterIds.length > 0 ? selectedChapterIds : chapters.map((c) => c.id);
   const availableExamQs = useMemo(() => getQuestionsByChapters(allQuestions, examChapterIds), [allQuestions, examChapterIds]);
+  const isAllChapters = selectedChapterIds.length === 0 || selectedChapterIds.length === chapters.length;
+  const selectedCount = isAllChapters ? chapters.length : selectedChapterIds.length;
 
   const handleExamClick = () => {
     if (availableExamQs.length === 0) return;
@@ -223,48 +227,109 @@ export default function HomeScreen() {
           </div>
         </button>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-3">
-          <button onClick={handleExamClick} className="relative overflow-hidden p-5 text-left anim-up transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
-            style={{ animationDelay: '150ms', background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', borderRadius: 'var(--radius-xl)', boxShadow: '0 4px 20px rgba(245, 158, 11, 0.25)' }}>
-            <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 20% 80%, rgba(255,255,255,0.3), transparent 60%)' }} />
-            <div className="relative z-10">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-3" style={{ background: 'rgba(255,255,255,0.2)' }}>
+        {/* Exam Section */}
+        <div className="space-y-3">
+          {/* Chapter Selection Bar */}
+          <div className="glass p-4 anim-up" style={{ animationDelay: '140ms' }}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #F59E0B, #D97706)' }}>
+                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>Esame</p>
+                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{isAllChapters ? 'Tutti i capitoli' : `${selectedCount} capitoli selezionati`} · {availableExamQs.length} domande</p>
+                </div>
+              </div>
+              <button onClick={() => setShowChapterSelect(!showChapterSelect)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-semibold transition-all duration-200 hover:scale-105"
+                style={{ background: showChapterSelect ? 'var(--primary-100)' : 'var(--bg-tertiary)', border: `1px solid ${showChapterSelect ? 'var(--primary-200)' : 'var(--border)'}`, color: showChapterSelect ? 'var(--primary-light)' : 'var(--text-secondary)' }}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d={showChapterSelect ? 'M19.5 8.25l-7.5 7.5-7.5-7.5' : 'M8.25 4.5l7.5 7.5-7.5 7.5'} />
+                </svg>
+                Capitoli
+              </button>
+            </div>
+
+            {/* Chapter Selection Chips */}
+            {showChapterSelect && (
+              <div className="anim-fade">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <button onClick={() => store.deselectAllChapters()}
+                    className="text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-all"
+                    style={{ background: !isAllChapters && selectedChapterIds.length === 0 ? 'var(--danger-100)' : 'var(--bg-tertiary)', color: !isAllChapters && selectedChapterIds.length === 0 ? 'var(--danger)' : 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                    Nessuno
+                  </button>
+                  <button onClick={() => store.selectAllChapters()}
+                    className="text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-all"
+                    style={{ background: isAllChapters ? 'var(--primary-100)' : 'var(--bg-tertiary)', color: isAllChapters ? 'var(--primary-light)' : 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                    Tutti
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {chapters.map((ch) => {
+                    const isSelected = selectedChapterIds.length === 0 || selectedChapterIds.includes(ch.id);
+                    const style = CHAPTER_STYLES[ch.id];
+                    return (
+                      <button key={ch.id} onClick={() => store.toggleChapterId(ch.id)}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-150 hover:scale-105"
+                        style={{
+                          background: isSelected ? (style?.gradient || 'var(--primary-100)') : 'var(--bg-tertiary)',
+                          color: isSelected ? 'white' : 'var(--text-muted)',
+                          border: isSelected ? 'none' : '1px solid var(--border)',
+                          boxShadow: isSelected ? (style?.shadow || '0 2px 8px rgba(59,130,246,0.2)') : 'none',
+                          opacity: isSelected ? 1 : 0.6,
+                        }}>
+                        {style?.icon || '📘'} {ch.id}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Start Exam Button */}
+            <button onClick={handleExamClick} className="w-full mt-3 p-4 rounded-xl text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center gap-4"
+              style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', borderRadius: 'var(--radius-xl)', boxShadow: '0 4px 20px rgba(245, 158, 11, 0.25)' }}>
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center text-lg" style={{ background: 'rgba(255,255,255,0.2)' }}>
                 📝
               </div>
-              <p className="text-[15px] font-bold text-white">Inizia Test</p>
-              <p className="text-[11px] mt-1 font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>Scegli il numero di domande</p>
-              {stats.examsPassed > 0 && (
-                <div className="flex items-center gap-2 mt-3">
-                  <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>
-                    <div className="h-full rounded-full" style={{ width: '100%', background: 'rgba(255,255,255,0.6)' }} />
-                  </div>
-                  <span className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>{stats.examsPassed} passati</span>
-                </div>
-              )}
-            </div>
-          </button>
-
-          <button onClick={handleWrongRetry} className={`relative overflow-hidden p-5 text-left anim-up transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] ${wrong.total === 0 ? 'opacity-40 pointer-events-none' : ''}`}
-            style={{ animationDelay: '200ms', background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)', borderRadius: 'var(--radius-xl)', boxShadow: wrong.total > 0 ? '0 4px 20px rgba(239, 68, 68, 0.25)' : 'none' }}>
-            <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 80% 20%, rgba(255,255,255,0.3), transparent 60%)' }} />
-            <div className="relative z-10">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-3" style={{ background: 'rgba(255,255,255,0.2)' }}>
-                🔄
+              <div className="flex-1">
+                <p className="text-[15px] font-bold text-white">Inizia Test</p>
+                <p className="text-[11px] font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>{availableExamQs.length} domande disponibili</p>
               </div>
-              <p className="text-[15px] font-bold text-white">Ripeti Errori</p>
-              <p className="text-[11px] mt-1 font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>{wrong.total} da ripassare</p>
-              {wrong.total > 0 && (
-                <div className="flex items-center gap-2 mt-3">
-                  <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>
-                    <div className="h-full rounded-full" style={{ width: `${Math.min(100, wrong.total * 3)}%`, background: 'rgba(255,255,255,0.6)' }} />
-                  </div>
-                  <span className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>{wrong.total} Q</span>
-                </div>
+              {stats.examsPassed > 0 && (
+                <span className="px-2 py-1 rounded-full text-[10px] font-bold" style={{ background: 'rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.9)' }}>{stats.examsPassed} passati</span>
               )}
-            </div>
-          </button>
+              <svg className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.7)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+          </div>
         </div>
+
+        {/* Wrong Answers Retry */}
+        <button onClick={handleWrongRetry} className={`relative overflow-hidden p-5 text-left anim-up transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] w-full ${wrong.total === 0 ? 'opacity-40 pointer-events-none' : ''}`}
+          style={{ animationDelay: '200ms', background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)', borderRadius: 'var(--radius-xl)', boxShadow: wrong.total > 0 ? '0 4px 20px rgba(239, 68, 68, 0.25)' : 'none' }}>
+          <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 80% 20%, rgba(255,255,255,0.3), transparent 60%)' }} />
+          <div className="relative z-10">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-3" style={{ background: 'rgba(255,255,255,0.2)' }}>
+              🔄
+            </div>
+            <p className="text-[15px] font-bold text-white">Ripeti Errori</p>
+            <p className="text-[11px] mt-1 font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>{wrong.total} da ripassare</p>
+            {wrong.total > 0 && (
+              <div className="flex items-center gap-2 mt-3">
+                <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>
+                  <div className="h-full rounded-full" style={{ width: `${Math.min(100, wrong.total * 3)}%`, background: 'rgba(255,255,255,0.6)' }} />
+                </div>
+                <span className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>{wrong.total} Q</span>
+              </div>
+            )}
+          </div>
+        </button>
 
         {/* Chapters by Topic - Card Grid */}
         {topics.map((topic, ti) => {
@@ -355,8 +420,8 @@ export default function HomeScreen() {
         onClose={() => setShowExamModal(false)}
         onConfirm={handleExamConfirm}
         totalAvailable={availableExamQs.length}
-        title="اختر عدد الأسئلة"
-        subtitle="الامتحان العام - جميع الفصول"
+        title="Scegli quante domande"
+        subtitle={isAllChapters ? 'Esame completo - tutti i capitoli' : `Esame - ${selectedCount} capitoli selezionati`}
       />
     </div>
   );
