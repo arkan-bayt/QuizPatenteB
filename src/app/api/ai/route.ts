@@ -1146,6 +1146,6 @@ async function handleTranslate(body: { action: string; word: string }) {
     console.error('AI Translate error:', error instanceof Error ? error.message : 'Unknown');
   }
 
-  // 3. Fallback: return original word (client should NOT cache this)
-  return NextResponse.json({ translation: cleaned, fallback: true });
+  // 3. Fallback: no Arabic translation available, return empty
+  return NextResponse.json({ translation: '', fallback: true });
 }

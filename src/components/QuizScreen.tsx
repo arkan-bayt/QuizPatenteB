@@ -4,6 +4,47 @@ import { useStore } from '@/store/useStore';
 import { speakText, stopSpeech } from '@/logic/ttsEngine';
 import { recordExamResult, recordAnswer, updateChapterProgress, addWrongAnswer, removeWrongAnswer, saveQuizResume, clearQuizResume } from '@/logic/progressEngine';
 
+// Only these road/traffic Italian keywords are tappable for translation
+const TAPPABLE_WORDS = new Set([
+  'destra', 'sinistra', 'avanti', 'indietro', 'rettilineo', 'curva', 'tornante',
+  'svolta', 'svoltare', 'girare', 'direzione', 'senso', 'verso', 'entrare', 'uscire',
+  'attraversare', 'salita', 'discesa', 'superare', 'sorpasso', 'sorpassare',
+  'veicolo', 'auto', 'automobile', 'autobus', 'tram', 'camion', 'moto', 'motociclo',
+  'ciclomotore', 'bicicletta', 'furgone', 'rimorchio', 'carrello',
+  'strada', 'carreggiata', 'corsia', 'marciapiede', 'banchina', 'cordolo',
+  'incrocio', 'rotatoria', 'svincolo', 'autostrada', 'viadotto', 'ponte',
+  'galleria', 'tunnel', 'rampa',
+  'segnale', 'cartello', 'segnali', 'divieto', 'vietato', 'obbligo',
+  'obbligatorio', 'precedenza', 'pericolo', 'attenzione', 'indicazione',
+  'velocita', 'veloce', 'lento', 'limite', 'accelerare', 'rallentare',
+  'frenare', 'freno', 'frenata',
+  'distanza', 'spazio', 'vicino', 'lontano', 'metri', 'metro',
+  'sicurezza', 'casco', 'cintura', 'giubbotto', 'seggiolino', 'airbag',
+  'estintore', 'triangolo', 'emergenza',
+  'parcheggio', 'sosta', 'fermare', 'fermata', 'parcheggiare', 'posteggio',
+  'luci', 'fari', 'abbaglianti', 'anabbaglianti', 'frecce', 'indicatori',
+  'pedone', 'pedoni', 'strisce', 'passaggio',
+  'patente', 'documento', 'libretto', 'assicurazione', 'targa',
+  'nebbia', 'pioggia', 'neve', 'ghiaccio', 'vento', 'visibilita',
+  'alcol', 'droga', 'tasso',
+  'sempre', 'mai', 'permesso', 'consentito',
+  'multa', 'sanzione', 'infrazione', 'incidente',
+  'traffico', 'congestione', 'coda',
+  'integrato', 'dispositivo', 'sistema', 'controllo', 'rilevatore', 'autovelox',
+  'stradale', 'urbano', 'extraurbano', 'sterrata', 'asfalto', 'ghiaia',
+  'retromarcia', 'inversione',
+  'continuo', 'discontinuo',
+  'bambini', 'bambino', 'minore',
+  'passeggero', 'conducente', 'guidatore',
+  'pneumatico', 'gomma', 'ruota', 'motore', 'carburante',
+  'specchio', 'retrovisore', 'parabrezza', 'portiera', 'finestrino',
+  'ambulanza', 'polizia', 'vigili', 'carabinieri',
+  'accessibile', 'accessibilita', 'disabili', 'handicap',
+  'restringimento', 'allargamento', 'sovrappasso', 'sottopasso',
+  'livello', 'ferroviario', 'barriere',
+  'bretella', 'raccordo',
+]);
+
 // Translation cache (persisted in localStorage)
 const translationCache: Record<string, string> = {};
 function getCachedTranslation(word: string): string | null {
@@ -72,16 +113,22 @@ export default function QuizScreen() {
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [wordTranslation, setWordTranslation] = useState<string | null>(null);
   const [translating, setTranslating] = useState(false);
-  const [wordPopupPos, setWordPopupPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
-  const questionRef = useRef<HTMLDivElement>(null);
 
-  const handleWordClick = useCallback(async (word: string, rect: DOMRect) => {
+  const handleWordClick = useCallback(async (word: string) => {
     if (word.length <= 1 || /[0-9]/.test(word)) return;
-    const cleaned = word.replace(/[.,;:!?"'()]/g, '');
+    const cleaned = word.replace(/[.,;:!?"'()]/g, '').toLowerCase();
     if (cleaned.length <= 1) return;
+    // Only allow tappable keywords
+    if (!TAPPABLE_WORDS.has(cleaned)) return;
+
+    // If already showing same word, close it
+    if (selectedWord === cleaned && wordTranslation) {
+      setSelectedWord(null);
+      setWordTranslation(null);
+      return;
+    }
 
     setSelectedWord(cleaned);
-    setWordPopupPos({ top: rect.top + window.scrollY - 50, left: rect.left + rect.width / 2 });
 
     // Check cache first
     const cached = getCachedTranslation(cleaned);
@@ -100,17 +147,22 @@ export default function QuizScreen() {
       });
       const data = await res.json();
       const tr = data.translation || cleaned;
-      // Only cache if the response contains Arabic characters (real translation, not fallback)
+      // Only accept if it contains actual Arabic characters
       const isArabic = /[\u0600-\u06FF]/.test(tr);
-      setWordTranslation(tr);
-      if (isArabic && !data.fallback) {
+      if (isArabic) {
+        setWordTranslation(tr);
         setCachedTranslation(cleaned, tr);
+      } else {
+        // Not Arabic - don't show it, close popup
+        setWordTranslation(null);
+        setSelectedWord(null);
       }
     } catch {
-      setWordTranslation(cleaned);
+      setWordTranslation(null);
+      setSelectedWord(null);
     }
     setTranslating(false);
-  }, []);
+  }, [selectedWord, wordTranslation]);
 
   useEffect(() => { setImgErr(false); setAnswerAnim(false); }, [currentIdx]);
 
@@ -362,25 +414,27 @@ export default function QuizScreen() {
 
           {/* Question Card */}
           <div className="glass p-6 anim-up" style={{ boxShadow: 'var(--shadow-xl)' }}>
-            {/* Question text - clickable words */}
-            <div ref={questionRef} className="text-[18px] leading-relaxed mb-5 font-semibold" style={{ color: 'var(--text-primary)', cursor: 'default' }} dir="ltr">
+            {/* Question text - only keyword words are tappable */}
+            <div className="text-[18px] leading-relaxed mb-2 font-semibold" style={{ color: 'var(--text-primary)', cursor: 'default' }} dir="ltr">
               {question.question.split(/(\s+)/).map((part, i) => {
                 const isSpace = /^\s+$/.test(part);
                 if (isSpace) return <span key={i}>{part}</span>;
+                const cleaned = part.replace(/[.,;:!?"'()]/g, '').toLowerCase();
+                const isTappable = !showFeedback && cleaned.length > 1 && !/[0-9]/.test(cleaned) && TAPPABLE_WORDS.has(cleaned);
+                const isSelected = selectedWord === cleaned;
                 return (
                   <span
                     key={i}
-                    onClick={(e) => {
-                      if (showFeedback) return;
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      handleWordClick(part, rect);
-                    }}
+                    onClick={() => isTappable && handleWordClick(part)}
                     className="inline-block rounded transition-all duration-150"
                     style={{
-                      cursor: showFeedback ? 'default' : 'pointer',
+                      cursor: isTappable ? 'pointer' : 'default',
                       padding: '1px 2px',
                       borderRadius: '4px',
-                      ...(selectedWord === part.replace(/[.,;:!?"'()]/g, '').toLowerCase()
+                      ...(isTappable ? {
+                        borderBottom: isSelected ? '2px solid var(--primary-light)' : '1.5px dashed rgba(59,130,246,0.3)',
+                      } : {}),
+                      ...(isSelected
                         ? { background: 'var(--primary-100)', color: 'var(--primary-light)' }
                         : {}),
                     }}
@@ -389,41 +443,42 @@ export default function QuizScreen() {
               })}
             </div>
 
-            {/* Word Translation Popup */}
-            {selectedWord && !showFeedback && (
-              <div
-                className="fixed z-50 anim-up pointer-events-auto"
-                style={{ top: wordPopupPos.top, left: wordPopupPos.left, transform: 'translate(-50%, -100%)' }}
-              >
-                <div className="px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 min-w-[180px]"
-                  style={{ background: 'var(--bg-card)', border: '1.5px solid var(--primary-200)', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
-                  <div className="flex flex-col items-start flex-1">
-                    <span className="text-[11px] font-bold" style={{ color: 'var(--text-muted)' }}>ترجمة:</span>
-                    <span className="text-[12px] font-bold" style={{ color: 'var(--primary-light)' }} dir="ltr">{selectedWord}</span>
-                    {translating ? (
-                      <div className="flex items-center gap-2 mt-1">
-                        <svg className="w-3 h-3 animate-spin" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>جاري الترجمة...</span>
-                      </div>
-                    ) : wordTranslation ? (
-                      <span className="text-[16px] font-extrabold mt-0.5" style={{ color: 'var(--text-primary)' }} dir="rtl">{wordTranslation}</span>
-                    ) : null}
-                  </div>
-                  <button onClick={() => { setSelectedWord(null); setWordTranslation(null); }}
-                    className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'var(--bg-tertiary)' }}>
-                    <svg className="w-3 h-3" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+            {/* Fixed Translation Bar - always below question text */}
+            {(selectedWord || translating) && !showFeedback && (
+              <div className="mb-4 px-4 py-3 rounded-xl flex items-center gap-3 anim-fade"
+                style={{ background: 'var(--primary-50)', border: '1.5px solid var(--primary-200)' }}>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'var(--primary-100)' }}>
+                  <svg className="w-4 h-4" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 21l5.25-11.25L21 21m-9-3h7.5M3 5.621a48.474 48.474 0 016-.371m0 0c1.12 0 2.233.038 3.334.114M9 5.25V3m3.334 2.364C11.176 10.658 7.69 15.08 3 17.502m9.334-12.138c.896.061 1.785.147 2.666.257m-4.589 8.495a18.023 18.023 0 01-3.827-5.802" />
+                  </svg>
                 </div>
-                {/* Arrow pointing down */}
-                <div className="flex justify-center" style={{ marginTop: '-1px' }}>
-                  <div style={{ width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid var(--primary-200)' }} />
+                <div className="flex flex-col flex-1 min-w-0">
+                  {translating && !wordTranslation ? (
+                    <div className="flex items-center gap-2">
+                      <svg className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>جاري الترجمة...</span>
+                    </div>
+                  ) : wordTranslation ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[13px] font-bold" style={{ color: 'var(--text-muted)' }} dir="ltr">{selectedWord}</span>
+                      <svg className="w-3 h-3" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                      </svg>
+                      <span className="text-[18px] font-extrabold" style={{ color: 'var(--primary-light)' }} dir="rtl">{wordTranslation}</span>
+                    </div>
+                  ) : null}
                 </div>
+                <button onClick={() => { setSelectedWord(null); setWordTranslation(null); }}
+                  className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
+                  style={{ background: 'var(--bg-tertiary)' }}>
+                  <svg className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
             )}
 
