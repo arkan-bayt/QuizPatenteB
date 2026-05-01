@@ -107,6 +107,13 @@ export default function QuizScreen() {
     }
     if (quizMode === 'wrong') {
       if (isCorrect) removeWrongAnswer(username, q.id);
+      saveQuizResume(username, { chapterIds: [], questionIds: quizQuestions.map((x) => x.id), idx: currentIdx, correct: correctCount, wrong: wrongCount, mode: 'wrong' });
+    }
+    if (quizMode === 'chapter') {
+      saveQuizResume(username, { chapterIds: [], questionIds: quizQuestions.map((x) => x.id), idx: currentIdx, correct: correctCount, wrong: wrongCount, mode: 'chapter', chapterId: activeChapterId || undefined });
+    }
+    if (quizMode === 'subtopic') {
+      saveQuizResume(username, { chapterIds: [], questionIds: quizQuestions.map((x) => x.id), idx: currentIdx, correct: correctCount, wrong: wrongCount, mode: 'subtopic', chapterId: activeChapterId || undefined });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [correctCount + wrongCount]);

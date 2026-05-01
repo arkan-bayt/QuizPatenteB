@@ -1,10 +1,11 @@
 'use client';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { getUniqueTopics, getChaptersByTopic, getQuestionsByChapters, getRandomQuestions } from '@/data/quizData';
 import { useOverallStats, useUserStats, useWrongAnswers } from './hooks';
 import { clearSession } from '@/logic/authEngine';
-import { forceSyncToCloud } from '@/logic/progressEngine';
+import { forceSyncToCloud, hasQuizResumeForMode, clearQuizResume, QuizResumeData } from '@/logic/progressEngine';
+import ResumeDialog from './ResumeDialog';
 
 // Unique design for each of the 25 chapters
 const CHAPTER_STYLES: Record<number, { icon: string; gradient: string; shadow: string }> = {
@@ -55,7 +56,23 @@ export default function HomeScreen() {
   const accuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
   const globalPct = allQuestions.length > 0 ? Math.min(100, Math.round((totalAnswered / allQuestions.length) * 100)) : 0;
 
+  // Resume dialog state
+  const [showResume, setShowResume] = useState(false);
+  const [resumeData, setResumeData] = useState<QuizResumeData | null>(null);
+  const [resumeAction, setResumeAction] = useState<'exam' | 'wrong' | null>(null);
+
   const handleExamMode = () => {
+    const saved = hasQuizResumeForMode(username, 'exam');
+    if (saved && saved.idx > 0) {
+      setResumeData(saved);
+      setResumeAction('exam');
+      setShowResume(true);
+      return;
+    }
+    startNewExam();
+  };
+
+  const startNewExam = () => {
     const ids = selectedChapterIds.length > 0 ? selectedChapterIds : chapters.map((c) => c.id);
     const qs = getQuestionsByChapters(allQuestions, ids);
     const examQs = getRandomQuestions(qs, 30);
@@ -63,9 +80,58 @@ export default function HomeScreen() {
     store.startQuiz(examQs, 'exam');
   };
 
+  const handleResumeExam = () => {
+    if (!resumeData || !username) return;
+    const resumeQs = allQuestions.filter((q) => resumeData.questionIds.includes(q.id));
+    if (resumeQs.length > 0) {
+      store.startQuiz(resumeQs, 'exam' as any, resumeData.idx, resumeData.correct, resumeData.wrong);
+    }
+    setShowResume(false);
+    setResumeData(null);
+    setResumeAction(null);
+  };
+
+  const handleRestartExam = () => {
+    if (!username) return;
+    clearQuizResume(username);
+    setShowResume(false);
+    setResumeData(null);
+    setResumeAction(null);
+    startNewExam();
+  };
+
   const handleWrongRetry = () => {
     if (wrong.questions.length === 0) return;
+    const saved = hasQuizResumeForMode(username, 'wrong');
+    if (saved && saved.idx > 0) {
+      setResumeData(saved);
+      setResumeAction('wrong');
+      setShowResume(true);
+      return;
+    }
     store.startQuiz(wrong.questions, 'wrong');
+  };
+
+  const handleResumeWrong = () => {
+    if (!resumeData || !username) return;
+    const resumeQs = allQuestions.filter((q) => resumeData.questionIds.includes(q.id));
+    if (resumeQs.length > 0) {
+      store.startQuiz(resumeQs, 'wrong' as any, resumeData.idx, resumeData.correct, resumeData.wrong);
+    }
+    setShowResume(false);
+    setResumeData(null);
+    setResumeAction(null);
+  };
+
+  const handleRestartWrong = () => {
+    if (!username) return;
+    clearQuizResume(username);
+    setShowResume(false);
+    setResumeData(null);
+    setResumeAction(null);
+    if (wrong.questions.length > 0) {
+      store.startQuiz(wrong.questions, 'wrong');
+    }
   };
 
   const handleLogout = () => {
@@ -349,6 +415,19 @@ export default function HomeScreen() {
           );
         })}
       </div>
+
+      {/* Resume Dialog */}
+      <ResumeDialog
+        visible={showResume}
+        resumeIdx={resumeData?.idx || 0}
+        totalQuestions={resumeData?.questionIds.length || 0}
+        correctCount={resumeData?.correct || 0}
+        wrongCount={resumeData?.wrong || 0}
+        modeLabel={resumeAction === 'exam' ? 'Esame simulato' : resumeAction === 'wrong' ? 'Ripeti Errori' : 'Test'}
+        onResume={resumeAction === 'exam' ? handleResumeExam : handleResumeWrong}
+        onRestart={resumeAction === 'exam' ? handleRestartExam : handleRestartWrong}
+        onDismiss={() => { setShowResume(false); setResumeData(null); setResumeAction(null); }}
+      />
     </div>
   );
 }

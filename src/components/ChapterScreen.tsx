@@ -1,8 +1,10 @@
 'use client';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import { getSubtopicsForChapter, getQuestionsBySubtopic, getQuestionsByChapters } from '@/data/quizData';
 import { useChapterProgress } from './hooks';
+import { hasQuizResumeForMode, clearQuizResume, QuizResumeData } from '@/logic/progressEngine';
+import ResumeDialog from './ResumeDialog';
 
 export default function ChapterScreen() {
   const store = useStore();
@@ -11,10 +13,17 @@ export default function ChapterScreen() {
   const subtopics = useMemo(() => activeChapterId ? getSubtopicsForChapter(allQuestions, activeChapterId) : [], [allQuestions, activeChapterId]);
   const chapterProgress = useChapterProgress(activeChapterId || 0);
   const allChapterQs = activeChapterId ? getQuestionsByChapters(allQuestions, [activeChapterId]) : [];
+  const username = user?.username || '';
 
   // Selection mode state
   const [selectMode, setSelectMode] = useState(false);
   const [selectedSt, setSelectedSt] = useState<Set<string>>(new Set());
+
+  // Resume dialog state
+  const [showResume, setShowResume] = useState(false);
+  const [resumeData, setResumeData] = useState<QuizResumeData | null>(null);
+  const [pendingAction, setPendingAction] = useState<'chapter' | 'subtopic' | null>(null);
+  const [pendingSubtopics, setPendingSubtopics] = useState<string[]>([]);
 
   if (!chapter) return null;
 
@@ -26,10 +35,74 @@ export default function ChapterScreen() {
   const isComplete = pct === 100;
   const accuracy = answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
 
+  // Build question list for a given mode
+  const buildQuestions = (mode: string, subtopicList?: string[]) => {
+    if (mode === 'chapter') {
+      const unanswered = allChapterQs.filter((q) => !chapterProgress.answeredIds.includes(q.id));
+      return unanswered.length > 0 ? unanswered : allChapterQs;
+    }
+    if (mode === 'subtopic' && subtopicList && subtopicList.length > 0) {
+      let allQs: any[] = [];
+      subtopicList.forEach((st) => {
+        const qs = getQuestionsBySubtopic(allQuestions, chapter.id, st);
+        allQs = allQs.concat(qs);
+      });
+      return [...allQs].sort(() => Math.random() - 0.5);
+    }
+    return [];
+  };
+
+  const checkAndStartQuiz = (mode: 'chapter' | 'subtopic', subtopicList?: string[]) => {
+    // Check for saved resume
+    const saved = hasQuizResumeForMode(username, mode, activeChapterId || undefined);
+    if (saved && saved.idx > 0) {
+      setResumeData(saved);
+      setPendingAction(mode);
+      setPendingSubtopics(subtopicList || []);
+      setShowResume(true);
+      return;
+    }
+    // No saved progress, start fresh
+    const qs = buildQuestions(mode, subtopicList);
+    if (qs.length > 0) {
+      store.startQuiz(qs, mode);
+    }
+  };
+
   const handleStartAll = () => {
-    const unanswered = allChapterQs.filter((q) => !chapterProgress.answeredIds.includes(q.id));
-    const qs = unanswered.length > 0 ? unanswered : allChapterQs;
-    store.startQuiz(qs, 'chapter');
+    checkAndStartQuiz('chapter');
+  };
+
+  const handleResume = () => {
+    if (!resumeData || !username) return;
+    // Rebuild the same question list using saved question IDs
+    const resumeQs = allQuestions.filter((q) => resumeData.questionIds.includes(q.id));
+    if (resumeQs.length > 0) {
+      store.startQuiz(resumeQs, resumeData.mode as any, resumeData.idx, resumeData.correct, resumeData.wrong);
+    }
+    setShowResume(false);
+    setResumeData(null);
+    setPendingAction(null);
+  };
+
+  const handleRestart = () => {
+    if (!username) return;
+    clearQuizResume(username);
+    if (pendingAction) {
+      const qs = buildQuestions(pendingAction, pendingSubtopics);
+      if (qs.length > 0) {
+        store.startQuiz(qs, pendingAction);
+      }
+    }
+    setShowResume(false);
+    setResumeData(null);
+    setPendingAction(null);
+  };
+
+  const handleDismiss = () => {
+    setShowResume(false);
+    setResumeData(null);
+    setPendingAction(null);
   };
 
   const toggleSelectMode = () => {
@@ -58,18 +131,8 @@ export default function ChapterScreen() {
 
   const startSelectedQuiz = () => {
     if (selectedSt.size === 0) return;
-    let allQs: any[] = [];
-    selectedSt.forEach((st) => {
-      const qs = getQuestionsBySubtopic(allQuestions, chapter.id, st);
-      allQs = allQs.concat(qs);
-    });
-    // Shuffle
-    allQs = [...allQs].sort(() => Math.random() - 0.5);
-    if (allQs.length > 0) {
-      setSelectMode(false);
-      setSelectedSt(new Set());
-      store.startQuiz(allQs, 'subtopic');
-    }
+    const stList = Array.from(selectedSt);
+    checkAndStartQuiz('subtopic', stList);
   };
 
   // Count total questions in selected subtopics
@@ -80,6 +143,12 @@ export default function ChapterScreen() {
     });
     return c;
   })();
+
+  const getModeLabel = (mode: string) => {
+    if (mode === 'chapter') return `Capitolo ${chapter?.id || ''}`;
+    if (mode === 'subtopic') return 'Sottotemi';
+    return 'Test';
+  };
 
   return (
     <div className="min-h-screen bg-mesh pb-32">
@@ -200,9 +269,7 @@ export default function ChapterScreen() {
                 toggleSubtopic(st);
                 return;
               }
-              const unanswered = stQs.filter((q) => !chapterProgress.answeredIds.includes(q.id));
-              const qs = unanswered.length > 0 ? unanswered : stQs;
-              store.startQuiz(qs, 'subtopic');
+              checkAndStartQuiz('subtopic', [st]);
             };
 
             return (
@@ -293,6 +360,19 @@ export default function ChapterScreen() {
           </div>
         </div>
       )}
+
+      {/* Resume Dialog */}
+      <ResumeDialog
+        visible={showResume}
+        resumeIdx={resumeData?.idx || 0}
+        totalQuestions={resumeData?.questionIds.length || 0}
+        correctCount={resumeData?.correct || 0}
+        wrongCount={resumeData?.wrong || 0}
+        modeLabel={getModeLabel(pendingAction || resumeData?.mode || '')}
+        onResume={handleResume}
+        onRestart={handleRestart}
+        onDismiss={handleDismiss}
+      />
     </div>
   );
 }

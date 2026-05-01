@@ -198,12 +198,24 @@ function getYesterday(): string {
 }
 
 // ---- Resume quiz state (local only, no need to sync) ----
-export function saveQuizResume(username: string, data: { chapterIds: number[]; questionIds: number[]; idx: number; correct: number; wrong: number; mode: string }): void {
+export interface QuizResumeData {
+  chapterIds: number[];       // for exam mode: selected chapters
+  questionIds: number[];      // ordered list of question IDs in the current quiz session
+  idx: number;                // current question index
+  correct: number;            // correct count so far
+  wrong: number;              // wrong count so far
+  mode: string;               // 'chapter' | 'subtopic' | 'exam' | 'wrong'
+  chapterId?: number;         // for chapter/subtopic mode: which chapter
+  subtopics?: string[];       // for subtopic mode: which subtopics
+  answers?: Record<number, boolean>; // questionId -> userAnswer for already-answered questions
+}
+
+export function saveQuizResume(username: string, data: QuizResumeData): void {
   if (typeof window === 'undefined') return;
   try { localStorage.setItem(`qp_resume_${username}`, JSON.stringify({ ...data, ts: Date.now() })); } catch { /* */ }
 }
 
-export function loadQuizResume(username: string): { chapterIds: number[]; questionIds: number[]; idx: number; correct: number; wrong: number; mode: string } | null {
+export function loadQuizResume(username: string): QuizResumeData | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(`qp_resume_${username}`);
@@ -217,4 +229,16 @@ export function loadQuizResume(username: string): { chapterIds: number[]; questi
 export function clearQuizResume(username: string): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(`qp_resume_${username}`);
+}
+
+// Check if there's a saved quiz resume for a specific context
+export function hasQuizResumeForMode(username: string, mode: string, chapterId?: number): QuizResumeData | null {
+  const resume = loadQuizResume(username);
+  if (!resume) return null;
+  if (resume.mode !== mode) return null;
+  // For chapter/subtopic modes, check if the chapter matches
+  if ((mode === 'chapter' || mode === 'subtopic') && chapterId !== undefined) {
+    if (resume.chapterId !== chapterId) return null;
+  }
+  return resume;
 }
