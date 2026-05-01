@@ -1,10 +1,11 @@
 'use client';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { getUniqueTopics, getChaptersByTopic, getQuestionsByChapters, getRandomQuestions } from '@/data/quizData';
 import { useOverallStats, useUserStats, useWrongAnswers } from './hooks';
 import { clearSession } from '@/logic/authEngine';
 import { forceSyncToCloud } from '@/logic/progressEngine';
+import QuestionCountModal from './QuestionCountModal';
 
 // Unique design for each of the 25 chapters
 const CHAPTER_STYLES: Record<number, { icon: string; gradient: string; shadow: string }> = {
@@ -55,12 +56,28 @@ export default function HomeScreen() {
   const accuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
   const globalPct = allQuestions.length > 0 ? Math.min(100, Math.round((totalAnswered / allQuestions.length) * 100)) : 0;
 
-  const handleExamMode = () => {
-    const ids = selectedChapterIds.length > 0 ? selectedChapterIds : chapters.map((c) => c.id);
-    const qs = getQuestionsByChapters(allQuestions, ids);
-    const examQs = getRandomQuestions(qs, 30);
-    if (examQs.length < 30) return;
-    store.startQuiz(examQs, 'exam');
+  // Question count modal
+  const [showExamModal, setShowExamModal] = useState(false);
+
+  // Available questions for exam
+  const examChapterIds = selectedChapterIds.length > 0 ? selectedChapterIds : chapters.map((c) => c.id);
+  const availableExamQs = useMemo(() => getQuestionsByChapters(allQuestions, examChapterIds), [allQuestions, examChapterIds]);
+
+  const handleExamClick = () => {
+    if (availableExamQs.length === 0) return;
+    setShowExamModal(true);
+  };
+
+  const handleExamConfirm = (count: number | 'all') => {
+    setShowExamModal(false);
+    if (count === 'all') {
+      const shuffled = [...availableExamQs].sort(() => Math.random() - 0.5);
+      store.startQuiz(shuffled, 'exam');
+    } else {
+      const examQs = getRandomQuestions(availableExamQs, count);
+      if (examQs.length === 0) return;
+      store.startQuiz(examQs, 'exam');
+    }
   };
 
   const handleWrongRetry = () => {
@@ -208,7 +225,7 @@ export default function HomeScreen() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-3">
-          <button onClick={handleExamMode} className="relative overflow-hidden p-5 text-left anim-up transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
+          <button onClick={handleExamClick} className="relative overflow-hidden p-5 text-left anim-up transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
             style={{ animationDelay: '150ms', background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', borderRadius: 'var(--radius-xl)', boxShadow: '0 4px 20px rgba(245, 158, 11, 0.25)' }}>
             <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 20% 80%, rgba(255,255,255,0.3), transparent 60%)' }} />
             <div className="relative z-10">
@@ -216,7 +233,7 @@ export default function HomeScreen() {
                 📝
               </div>
               <p className="text-[15px] font-bold text-white">Inizia Test</p>
-              <p className="text-[11px] mt-1 font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>30 domande casuali</p>
+              <p className="text-[11px] mt-1 font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>Scegli il numero di domande</p>
               {stats.examsPassed > 0 && (
                 <div className="flex items-center gap-2 mt-3">
                   <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>
@@ -331,6 +348,16 @@ export default function HomeScreen() {
           );
         })}
       </div>
+
+      {/* Exam Question Count Modal */}
+      <QuestionCountModal
+        isOpen={showExamModal}
+        onClose={() => setShowExamModal(false)}
+        onConfirm={handleExamConfirm}
+        totalAvailable={availableExamQs.length}
+        title="اختر عدد الأسئلة"
+        subtitle="الامتحان العام - جميع الفصول"
+      />
     </div>
   );
 }

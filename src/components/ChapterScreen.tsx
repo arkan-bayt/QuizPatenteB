@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { getSubtopicsForChapter, getQuestionsBySubtopic, getQuestionsByChapters } from '@/data/quizData';
 import { useChapterProgress } from './hooks';
+import QuestionCountModal from './QuestionCountModal';
 
 export default function ChapterScreen() {
   const store = useStore();
@@ -15,6 +16,9 @@ export default function ChapterScreen() {
   // Selection mode state
   const [selectMode, setSelectMode] = useState(false);
   const [selectedSt, setSelectedSt] = useState<Set<string>>(new Set());
+
+  // Exam modal state
+  const [showExamModal, setShowExamModal] = useState(false);
 
   if (!chapter) return null;
 
@@ -30,6 +34,23 @@ export default function ChapterScreen() {
     const unanswered = allChapterQs.filter((q) => !chapterProgress.answeredIds.includes(q.id));
     const qs = unanswered.length > 0 ? unanswered : allChapterQs;
     store.startQuiz(qs, 'chapter');
+  };
+
+  const handleChapterExamClick = () => {
+    if (allChapterQs.length === 0) return;
+    setShowExamModal(true);
+  };
+
+  const handleChapterExamConfirm = (count: number | 'all') => {
+    setShowExamModal(false);
+    if (count === 'all') {
+      const shuffled = [...allChapterQs].sort(() => Math.random() - 0.5);
+      store.startQuiz(shuffled, 'exam');
+    } else {
+      const examQs = [...allChapterQs].sort(() => Math.random() - 0.5).slice(0, count);
+      if (examQs.length === 0) return;
+      store.startQuiz(examQs, 'exam');
+    }
   };
 
   const toggleSelectMode = () => {
@@ -161,6 +182,14 @@ export default function ChapterScreen() {
             <button onClick={handleStartAll} className={`flex-1 ${isComplete ? 'btn-success' : 'btn-primary'}`}>
               {answeredCount === 0 ? 'Inizia Capitolo' : answeredCount >= totalQ ? 'Ripeti Capitolo' : `Continua (${totalQ - answeredCount} rimaste)`}
             </button>
+            <button onClick={handleChapterExamClick}
+              className="px-5 py-3.5 rounded-xl text-[13px] font-bold flex items-center gap-2 transition-all duration-200 hover:scale-[1.03]"
+              style={{ background: 'linear-gradient(135deg, #F59E0B, #D97706)', color: 'white', boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)' }}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+              </svg>
+              Esame
+            </button>
           </div>
         </div>
 
@@ -268,6 +297,16 @@ export default function ChapterScreen() {
           })}
         </div>
       </div>
+
+      {/* Chapter Exam Modal */}
+      <QuestionCountModal
+        isOpen={showExamModal}
+        onClose={() => setShowExamModal(false)}
+        onConfirm={handleChapterExamConfirm}
+        totalAvailable={allChapterQs.length}
+        title={`اختر عدد الأسئلة`}
+        subtitle={`امتحان الفصل ${chapter.id} - ${chapter.name}`}
+      />
 
       {/* Floating Start Button (Select Mode) */}
       {selectMode && (
