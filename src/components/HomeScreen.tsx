@@ -87,7 +87,7 @@ export default function HomeScreen() {
 
   const handleWrongRetry = () => {
     if (wrong.questions.length === 0) return;
-    store.startQuiz(wrong.questions, 'wrong');
+    store.setScreen('wrong');
   };
 
   const handleLogout = () => {
