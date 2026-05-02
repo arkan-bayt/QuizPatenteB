@@ -115,19 +115,19 @@ export default function WordTranslator({ word, position, onClose }: WordTranslat
             <div className="flex items-center gap-1.5">
               <div
                 className="w-5 h-5 rounded-md flex items-center justify-center"
-                style={{ background: 'var(--primary-100)' }}
+                style={{ background: 'rgba(79, 70, 229, 0.08)' }}
               >
-                <svg className="w-3 h-3" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-3 h-3" style={{ color: '#4F46E5' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 21l5.25-11.25L21 21m-9-3h7.5M3 5.621a48.474 48.474 0 016-.371m0 0c1.12 0 2.233.038 3.334.114M9 5.25V3m3.334 2.364C11.176 10.658 7.69 15.08 3 17.502m9.334-12.138c.896.061 1.785.147 2.666.257m-4.589 8.495a18.023 18.023 0 01-3.827-5.802" />
                 </svg>
               </div>
-              <span className="text-[10px] font-semibold" style={{ color: 'var(--primary-light)' }}>ترجمة</span>
+              <span className="text-[10px] font-semibold" style={{ color: '#4F46E5' }}>ترجمة</span>
             </div>
             <button
               onClick={handleClose}
               className="w-6 h-6 rounded-full flex items-center justify-center transition-colors hover:bg-black/5"
             >
-              <svg className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <svg className="w-3.5 h-3.5" style={{ color: '#9CA3AF' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -138,7 +138,7 @@ export default function WordTranslator({ word, position, onClose }: WordTranslat
             <p
               className="text-[16px] font-bold"
               dir="ltr"
-              style={{ color: 'var(--text-primary)' }}
+              style={{ color: '#111827' }}
             >
               {word}
             </p>
@@ -146,7 +146,7 @@ export default function WordTranslator({ word, position, onClose }: WordTranslat
 
           {/* Arrow */}
           <div className="flex items-center gap-1.5 mb-2">
-            <svg className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-3 h-3 flex-shrink-0" style={{ color: '#9CA3AF' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
             </svg>
           </div>
@@ -155,22 +155,22 @@ export default function WordTranslator({ word, position, onClose }: WordTranslat
           <div className="mb-3 min-h-[28px]">
             {translating ? (
               <div className="flex items-center gap-2">
-                <svg className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5 animate-spin" style={{ color: '#818CF8' }} fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>جاري الترجمة...</span>
+                <span className="text-[12px]" style={{ color: '#6B7280' }}>جاري الترجمة...</span>
               </div>
             ) : translation ? (
               <p
                 className="text-[18px] font-extrabold leading-relaxed"
                 dir="rtl"
-                style={{ color: 'var(--primary-light)' }}
+                style={{ color: '#4F46E5' }}
               >
                 {translation}
               </p>
             ) : (
-              <p className="text-[12px]" dir="rtl" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              <p className="text-[12px]" dir="rtl" style={{ color: '#6B7280', fontStyle: 'italic' }}>
                 لم يتم العثور على ترجمة
               </p>
             )}
@@ -183,9 +183,9 @@ export default function WordTranslator({ word, position, onClose }: WordTranslat
               disabled={playingIt}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all duration-200 hover:scale-105 disabled:opacity-50"
               style={{
-                background: 'var(--bg-tertiary)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-secondary)',
+                background: '#F3F4F6',
+                border: '1px solid #E5E7EB',
+                color: '#374151',
               }}
             >
               {playingIt ? (
@@ -206,9 +206,9 @@ export default function WordTranslator({ word, position, onClose }: WordTranslat
                 disabled={playingAr}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all duration-200 hover:scale-105 disabled:opacity-50"
                 style={{
-                  background: 'var(--primary-100)',
-                  border: '1px solid var(--primary-200)',
-                  color: 'var(--primary-light)',
+                  background: 'rgba(79, 70, 229, 0.08)',
+                  border: '1px solid rgba(79, 70, 229, 0.16)',
+                  color: '#4F46E5',
                 }}
               >
                 {playingAr ? (

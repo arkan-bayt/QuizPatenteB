@@ -8,33 +8,12 @@ import { forceSyncToCloud } from '@/logic/progressEngine';
 import QuestionCountModal from './QuestionCountModal';
 import ChapterIcon from './ChapterIcons';
 
-// Unique design for each of the 25 chapters
-const CHAPTER_STYLES: Record<number, { gradient: string; shadow: string }> = {
-  1:  { gradient: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', shadow: '0 4px 15px rgba(59,130,246,0.35)' },
-  2:  { gradient: 'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)', shadow: '0 4px 15px rgba(239,68,68,0.35)' },
-  3:  { gradient: 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)', shadow: '0 4px 15px rgba(220,38,38,0.35)' },
-  4:  { gradient: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)', shadow: '0 4px 15px rgba(37,99,235,0.35)' },
-  5:  { gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', shadow: '0 4px 15px rgba(245,158,11,0.35)' },
-  6:  { gradient: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)', shadow: '0 4px 15px rgba(139,92,246,0.35)' },
-  7:  { gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', shadow: '0 4px 15px rgba(16,185,129,0.35)' },
-  8:  { gradient: 'linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)', shadow: '0 4px 15px rgba(6,182,212,0.35)' },
-  9:  { gradient: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)', shadow: '0 4px 15px rgba(249,115,22,0.35)' },
-  10: { gradient: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)', shadow: '0 4px 15px rgba(99,102,241,0.35)' },
-  11: { gradient: 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)', shadow: '0 4px 15px rgba(236,72,153,0.35)' },
-  12: { gradient: 'linear-gradient(135deg, #14B8A6 0%, #0D9488 100%)', shadow: '0 4px 15px rgba(20,184,166,0.35)' },
-  13: { gradient: 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)', shadow: '0 4px 15px rgba(14,165,233,0.35)' },
-  14: { gradient: 'linear-gradient(135deg, #A855F7 0%, #9333EA 100%)', shadow: '0 4px 15px rgba(168,85,247,0.35)' },
-  15: { gradient: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)', shadow: '0 4px 15px rgba(34,197,94,0.35)' },
-  16: { gradient: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', shadow: '0 4px 15px rgba(59,130,246,0.35)' },
-  17: { gradient: 'linear-gradient(135deg, #64748B 0%, #475569 100%)', shadow: '0 4px 15px rgba(100,116,139,0.35)' },
-  18: { gradient: 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)', shadow: '0 4px 15px rgba(251,191,36,0.35)' },
-  19: { gradient: 'linear-gradient(135deg, #F43F5E 0%, #E11D48 100%)', shadow: '0 4px 15px rgba(244,63,94,0.35)' },
-  20: { gradient: 'linear-gradient(135deg, #78716C 0%, #57534E 100%)', shadow: '0 4px 15px rgba(120,113,108,0.35)' },
-  21: { gradient: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)', shadow: '0 4px 15px rgba(124,58,237,0.35)' },
-  22: { gradient: 'linear-gradient(135deg, #BE185D 0%, #9D174D 100%)', shadow: '0 4px 15px rgba(190,24,93,0.35)' },
-  23: { gradient: 'linear-gradient(135deg, #475569 0%, #334155 100%)', shadow: '0 4px 15px rgba(71,85,105,0.35)' },
-  24: { gradient: 'linear-gradient(135deg, #059669 0%, #047857 100%)', shadow: '0 4px 15px rgba(5,150,105,0.35)' },
-  25: { gradient: 'linear-gradient(135deg, #B45309 0%, #92400E 100%)', shadow: '0 4px 15px rgba(180,83,9,0.35)' },
+const CHAPTER_COLORS: Record<number, string> = {
+  1: '#3B82F6', 2: '#EF4444', 3: '#DC2626', 4: '#2563EB', 5: '#F59E0B',
+  6: '#8B5CF6', 7: '#10B981', 8: '#06B6D4', 9: '#F97316', 10: '#6366F1',
+  11: '#EC4899', 12: '#14B8A6', 13: '#0EA5E9', 14: '#A855F7', 15: '#22C55E',
+  16: '#3B82F6', 17: '#64748B', 18: '#FBBF24', 19: '#F43F5E', 20: '#78716C',
+  21: '#7C3AED', 22: '#BE185D', 23: '#475569', 24: '#059669', 25: '#B45309',
 };
 
 const TOPIC_META: Record<string, { icon: string; label: string }> = {
@@ -59,12 +38,9 @@ export default function HomeScreen() {
   const accuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
   const globalPct = allQuestions.length > 0 ? Math.min(100, Math.round((totalAnswered / allQuestions.length) * 100)) : 0;
 
-  // Question count modal
   const [showExamModal, setShowExamModal] = useState(false);
-  // Chapter selection mode
   const [showChapterSelect, setShowChapterSelect] = useState(false);
 
-  // Available questions for exam (only selected chapters)
   const examChapterIds = selectedChapterIds.length > 0 ? selectedChapterIds : chapters.map((c) => c.id);
   const availableExamQs = useMemo(() => getQuestionsByChapters(allQuestions, examChapterIds), [allQuestions, examChapterIds]);
   const isAllChapters = selectedChapterIds.length === 0 || selectedChapterIds.length === chapters.length;
@@ -100,41 +76,40 @@ export default function HomeScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-mesh pb-12">
+    <div className="min-h-screen bg-[#FAFAFA] pb-12">
       {/* Header */}
-      <div className="sticky top-0 z-30 glass-header">
-        <div className="max-w-2xl mx-auto px-5 py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-30 bg-white border-b border-gray-100">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, var(--primary), var(--primary-light))', boxShadow: '0 4px 12px rgba(30, 58, 138, 0.25)' }}>
+            <div className="w-9 h-9 rounded-xl bg-[#4F46E5] flex items-center justify-center">
               <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
               </svg>
             </div>
             <div>
-              <h1 className="text-[15px] font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Quiz Patente B</h1>
-              <p className="text-[11px] mt-0.5 font-medium" style={{ color: 'var(--text-muted)' }}>Ciao, <span style={{ color: 'var(--primary-light)' }}>{username}</span></p>
+              <h1 className="text-sm font-bold text-gray-900">Quiz Patente B</h1>
+              <p className="text-[11px] text-gray-400">Ciao, <span className="text-[#4F46E5]">{username}</span></p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {(isAdmin || isTeacher) && (
-              <button onClick={() => store.openTeacherDashboard()} className="btn-ghost text-xs px-3 py-2 flex items-center gap-1.5" style={{ borderRadius: 12 }}>
+              <button onClick={() => store.openTeacherDashboard()} className="text-xs px-3 py-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors font-medium flex items-center gap-1.5">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5" /></svg>
                 Dashboard
               </button>
             )}
             {isStudent && (
-              <button onClick={() => store.openStudentDashboard()} className="btn-ghost text-xs px-3 py-2 flex items-center gap-1.5" style={{ borderRadius: 12 }}>
+              <button onClick={() => store.openStudentDashboard()} className="text-xs px-3 py-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors font-medium flex items-center gap-1.5">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5" /></svg>
                 Dashboard
               </button>
             )}
             {isAdmin && (
-              <button onClick={() => store.setScreen('admin')} className="btn-ghost text-xs px-3 py-2 flex items-center gap-1.5" style={{ borderRadius: 12 }}>
+              <button onClick={() => store.setScreen('admin')} className="text-xs px-3 py-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
               </button>
             )}
-            <button onClick={handleLogout} className="btn-ghost text-xs px-3 py-2 flex items-center gap-1.5" style={{ borderRadius: 12 }}>
+            <button onClick={handleLogout} className="text-xs px-3 py-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors font-medium flex items-center gap-1.5">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
               </svg>
@@ -144,209 +119,163 @@ export default function HomeScreen() {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-5 pt-6 space-y-6">
-        {/* Hero Section */}
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+        {/* Welcome */}
         <div className="anim-up">
-          <h1 className="text-[22px] font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>Allenati per la Patente B</h1>
-          <p className="text-sm mt-1.5" style={{ color: 'var(--text-secondary)' }}>Rispondi, impara e supera l&apos;esame al primo tentativo.</p>
+          <h1 className="text-xl font-bold tracking-tight text-gray-900">Allenati per la Patente B</h1>
+          <p className="text-sm mt-1 text-gray-500">Rispondi, impara e supera l&apos;esame al primo tentativo.</p>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-4 gap-3 anim-up stagger">
-          <StatCard icon="📋" value={totalAnswered} label="Risposte" glow="stat-glow-blue" color="var(--primary-light)" />
-          <StatCard icon="✅" value={totalCorrect} label="Corrette" glow="stat-glow-green" color="var(--success)" />
-          <StatCard icon="❌" value={totalAnswered - totalCorrect} label="Sbagliate" glow="stat-glow-red" color="var(--danger)" />
-          <StatCard icon="🔥" value={stats.streak} label="Serie" glow="stat-glow-amber" color="var(--accent)" />
+          <StatCard icon="📋" value={totalAnswered} label="Risposte" color="#4F46E5" border="border-l-indigo-400" />
+          <StatCard icon="✅" value={totalCorrect} label="Corrette" color="#059669" border="border-l-emerald-400" />
+          <StatCard icon="❌" value={totalAnswered - totalCorrect} label="Sbagliate" color="#DC2626" border="border-l-red-400" />
+          <StatCard icon="🔥" value={stats.streak} label="Serie" color="#D97706" border="border-l-amber-400" />
         </div>
 
         {/* Overall Progress */}
-        <div className="glass p-5 anim-up" style={{ animationDelay: '100ms' }}>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 anim-up">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="icon-box icon-box-primary w-8 h-8">
-                <svg className="w-4 h-4" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-                </svg>
-              </div>
-              <span className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>Progresso globale</span>
-            </div>
+            <span className="text-sm font-bold text-gray-900">Progresso globale</span>
             <div className="text-right">
-              <span className="text-lg font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>{globalPct}%</span>
-              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{totalAnswered} / {allQuestions.length}</p>
+              <span className="text-lg font-bold tabular-nums text-gray-900">{globalPct}%</span>
+              <p className="text-[10px] text-gray-400">{totalAnswered} / {allQuestions.length}</p>
             </div>
           </div>
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${globalPct}%` }} />
+          <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
+            <div className="h-full rounded-full bg-[#4F46E5] transition-all duration-700" style={{ width: `${globalPct}%` }} />
           </div>
           {accuracy > 0 && (
-            <div className="flex items-center gap-4 mt-3 pt-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+            <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-50">
               <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full" style={{ background: 'var(--success)' }} />
-                <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Accuratezza: <span className="font-semibold" style={{ color: 'var(--success)' }}>{accuracy}%</span></span>
+                <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="text-[11px] text-gray-500">Accuratezza: <span className="font-semibold text-emerald-600">{accuracy}%</span></span>
               </div>
               {stats.examsPassed > 0 && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-[11px]">🏆</span>
-                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Esami superati: <span className="font-semibold" style={{ color: 'var(--accent)' }}>{stats.examsPassed}</span></span>
+                  <span className="text-[11px] text-gray-500">Esami superati: <span className="font-semibold text-amber-600">{stats.examsPassed}</span></span>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* AI Features Grid */}
-        <div className="grid grid-cols-2 gap-3 anim-up" style={{ animationDelay: '120ms' }}>
-          <button onClick={() => store.setScreen('aiChat')} className="relative overflow-hidden p-4 text-left transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
-            style={{ background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)', borderRadius: 'var(--radius-xl)', boxShadow: '0 4px 20px rgba(139, 92, 246, 0.25)' }}>
-            <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 80% 80%, rgba(255,255,255,0.3), transparent 60%)' }} />
-            <div className="relative z-10">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg mb-2" style={{ background: 'rgba(255,255,255,0.2)' }}>
-                💬
-              </div>
-              <p className="text-[13px] font-bold text-white">Chiedi all&apos;IA</p>
-              <p className="text-[10px] mt-0.5 font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>Domande su segnali e regole</p>
-            </div>
+        {/* AI Features */}
+        <div className="grid grid-cols-2 gap-3 anim-up">
+          <button onClick={() => store.setScreen('aiChat')} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-left hover:shadow-md hover:border-gray-200 transition-all">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-lg mb-2">💬</div>
+            <p className="text-sm font-bold text-gray-900">Chiedi all&apos;IA</p>
+            <p className="text-xs text-gray-400 mt-0.5">Domande su segnali e regole</p>
           </button>
 
-          <button onClick={() => store.setScreen('studyPlan')} className="relative overflow-hidden p-4 text-left transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
-            style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', borderRadius: 'var(--radius-xl)', boxShadow: '0 4px 20px rgba(16, 185, 129, 0.25)' }}>
-            <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 20% 80%, rgba(255,255,255,0.3), transparent 60%)' }} />
-            <div className="relative z-10">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg mb-2" style={{ background: 'rgba(255,255,255,0.2)' }}>
-                📋
-              </div>
-              <p className="text-[13px] font-bold text-white">Piano di Studio</p>
-              <p className="text-[10px] mt-0.5 font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>Piano personalizzato IA</p>
-            </div>
+          <button onClick={() => store.setScreen('studyPlan')} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-left hover:shadow-md hover:border-gray-200 transition-all">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-lg mb-2">📋</div>
+            <p className="text-sm font-bold text-gray-900">Piano di Studio</p>
+            <p className="text-xs text-gray-400 mt-0.5">Piano personalizzato IA</p>
           </button>
         </div>
 
-        <button onClick={() => store.setScreen('aiAnalysis')} className="relative overflow-hidden p-5 text-left anim-up transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
-          style={{ animationDelay: '140ms', background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)', borderRadius: 'var(--radius-xl)', boxShadow: '0 4px 20px rgba(99, 102, 241, 0.25)' }}>
-          <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 80% 80%, rgba(255,255,255,0.3), transparent 60%)' }} />
-          <div className="relative z-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-3" style={{ background: 'rgba(255,255,255,0.2)' }}>
-                  🤖
-                </div>
-                <p className="text-[15px] font-bold text-white">Analisi IA Completa</p>
-                <p className="text-[11px] mt-1 font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>Analizza il tuo livello e scopri dove migliorare</p>
-              </div>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.15)' }}>
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
-                </svg>
-              </div>
+        <button onClick={() => store.setScreen('aiAnalysis')} className="w-full bg-[#4F46E5] rounded-2xl p-5 text-left hover:bg-[#4338CA] transition-colors anim-up">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center text-xl mb-3">🤖</div>
+              <p className="text-[15px] font-bold text-white">Analisi IA Completa</p>
+              <p className="text-xs mt-1 text-indigo-200">Analizza il tuo livello e scopri dove migliorare</p>
+            </div>
+            <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+              </svg>
             </div>
           </div>
         </button>
 
         {/* Exam Section */}
-        <div className="space-y-3">
-          {/* Chapter Selection Bar */}
-          <div className="glass p-4 anim-up" style={{ animationDelay: '140ms' }}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #F59E0B, #D97706)' }}>
-                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-[13px] font-bold" style={{ color: 'var(--text-primary)' }}>Esame</p>
-                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{isAllChapters ? 'Tutti i capitoli' : `${selectedCount} capitoli selezionati`} · {availableExamQs.length} domande</p>
-                </div>
-              </div>
-              <button onClick={() => setShowChapterSelect(!showChapterSelect)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-semibold transition-all duration-200 hover:scale-105"
-                style={{ background: showChapterSelect ? 'var(--primary-100)' : 'var(--bg-tertiary)', border: `1px solid ${showChapterSelect ? 'var(--primary-200)' : 'var(--border)'}`, color: showChapterSelect ? 'var(--primary-light)' : 'var(--text-secondary)' }}>
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d={showChapterSelect ? 'M19.5 8.25l-7.5 7.5-7.5-7.5' : 'M8.25 4.5l7.5 7.5-7.5 7.5'} />
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 anim-up">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
+                <svg className="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
                 </svg>
-                Capitoli
-              </button>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-900">Esame</p>
+                <p className="text-xs text-gray-400">{isAllChapters ? 'Tutti i capitoli' : `${selectedCount} capitoli selezionati`} · {availableExamQs.length} domande</p>
+              </div>
             </div>
-
-            {/* Chapter Selection Chips */}
-            {showChapterSelect && (
-              <div className="anim-fade">
-                <div className="flex items-center gap-2 mb-2.5">
-                  <button onClick={() => store.deselectAllChapters()}
-                    className="text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-all"
-                    style={{ background: !isAllChapters && selectedChapterIds.length === 0 ? 'var(--danger-100)' : 'var(--bg-tertiary)', color: !isAllChapters && selectedChapterIds.length === 0 ? 'var(--danger)' : 'var(--text-muted)', border: '1px solid var(--border)' }}>
-                    Nessuno
-                  </button>
-                  <button onClick={() => store.selectAllChapters()}
-                    className="text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-all"
-                    style={{ background: isAllChapters ? 'var(--primary-100)' : 'var(--bg-tertiary)', color: isAllChapters ? 'var(--primary-light)' : 'var(--text-muted)', border: '1px solid var(--border)' }}>
-                    Tutti
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {chapters.map((ch) => {
-                    const isSelected = selectedChapterIds.length === 0 || selectedChapterIds.includes(ch.id);
-                    const style = CHAPTER_STYLES[ch.id];
-                    return (
-                      <button key={ch.id} onClick={() => store.toggleChapterId(ch.id)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-150 hover:scale-105"
-                        style={{
-                          background: isSelected ? (style?.gradient || 'var(--primary-100)') : 'var(--bg-tertiary)',
-                          color: isSelected ? 'white' : 'var(--text-muted)',
-                          border: isSelected ? 'none' : '1px solid var(--border)',
-                          boxShadow: isSelected ? (style?.shadow || '0 2px 8px rgba(59,130,246,0.2)') : 'none',
-                          opacity: isSelected ? 1 : 0.6,
-                        }}>
-                        <ChapterIcon chapterId={ch.id} size={16} /> {ch.id}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Start Exam Button */}
-            <button onClick={handleExamClick} className="w-full mt-3 p-4 rounded-xl text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center gap-4"
-              style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', borderRadius: 'var(--radius-xl)', boxShadow: '0 4px 20px rgba(245, 158, 11, 0.25)' }}>
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center text-lg" style={{ background: 'rgba(255,255,255,0.2)' }}>
-                📝
-              </div>
-              <div className="flex-1">
-                <p className="text-[15px] font-bold text-white">Inizia Test</p>
-                <p className="text-[11px] font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>{availableExamQs.length} domande disponibili</p>
-              </div>
-              {stats.examsPassed > 0 && (
-                <span className="px-2 py-1 rounded-full text-[10px] font-bold" style={{ background: 'rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.9)' }}>{stats.examsPassed} passati</span>
-              )}
-              <svg className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.7)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            <button onClick={() => setShowChapterSelect(!showChapterSelect)}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-gray-50 text-gray-500 hover:text-gray-900 border border-gray-100">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d={showChapterSelect ? 'M19.5 8.25l-7.5 7.5-7.5-7.5' : 'M8.25 4.5l7.5 7.5-7.5 7.5'} />
               </svg>
+              Capitoli
             </button>
           </div>
+
+          {showChapterSelect && (
+            <div className="anim-fade mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <button onClick={() => store.deselectAllChapters()} className="text-[10px] font-semibold px-2 py-1 rounded-md bg-gray-50 text-gray-400 border border-gray-100 hover:text-gray-700">Nessuno</button>
+                <button onClick={() => store.selectAllChapters()} className="text-[10px] font-semibold px-2 py-1 rounded-md bg-indigo-50 text-indigo-600 border border-indigo-100">Tutti</button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {chapters.map((ch) => {
+                  const isSelected = selectedChapterIds.length === 0 || selectedChapterIds.includes(ch.id);
+                  return (
+                    <button key={ch.id} onClick={() => store.toggleChapterId(ch.id)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
+                      style={{
+                        background: isSelected ? (CHAPTER_COLORS[ch.id] || '#6B7280') : '#F3F4F6',
+                        color: isSelected ? 'white' : '#9CA3AF',
+                      }}>
+                      <ChapterIcon chapterId={ch.id} size={14} /> {ch.id}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <button onClick={handleExamClick} className="w-full py-4 rounded-xl bg-[#D97706] hover:bg-[#B45309] text-white transition-colors flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center text-lg">📝</div>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-bold">Inizia Test</p>
+              <p className="text-xs text-amber-100">{availableExamQs.length} domande disponibili</p>
+            </div>
+            {stats.examsPassed > 0 && (
+              <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-white/15">{stats.examsPassed} passati</span>
+            )}
+            <svg className="w-5 h-5 text-amber-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </button>
         </div>
 
         {/* Wrong Answers Retry */}
-        <button onClick={handleWrongRetry} className={`relative overflow-hidden p-5 text-left anim-up transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] w-full ${wrong.total === 0 ? 'opacity-40 pointer-events-none' : ''}`}
-          style={{ animationDelay: '200ms', background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)', borderRadius: 'var(--radius-xl)', boxShadow: wrong.total > 0 ? '0 4px 20px rgba(239, 68, 68, 0.25)' : 'none' }}>
-          <div className="absolute inset-0 opacity-10" style={{ background: 'radial-gradient(circle at 80% 20%, rgba(255,255,255,0.3), transparent 60%)' }} />
-          <div className="relative z-10">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-3" style={{ background: 'rgba(255,255,255,0.2)' }}>
-              🔄
+        <button onClick={handleWrongRetry} className={`w-full bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-left hover:shadow-md hover:border-gray-200 transition-all anim-up ${wrong.total === 0 ? 'opacity-40 pointer-events-none' : ''}`}>
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-red-50 flex items-center justify-center text-xl">🔄</div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-gray-900">Ripeti Errori</p>
+              <p className="text-xs text-gray-400">{wrong.total} da ripassare</p>
             </div>
-            <p className="text-[15px] font-bold text-white">Ripeti Errori</p>
-            <p className="text-[11px] mt-1 font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>{wrong.total} da ripassare</p>
             {wrong.total > 0 && (
-              <div className="flex items-center gap-2 mt-3">
-                <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>
-                  <div className="h-full rounded-full" style={{ width: `${Math.min(100, wrong.total * 3)}%`, background: 'rgba(255,255,255,0.6)' }} />
+              <div className="flex-1 max-w-[100px]">
+                <div className="w-full h-1.5 rounded-full bg-gray-100">
+                  <div className="h-full rounded-full bg-red-400" style={{ width: `${Math.min(100, wrong.total * 3)}%` }} />
                 </div>
-                <span className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>{wrong.total} Q</span>
               </div>
             )}
+            <svg className="w-5 h-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
           </div>
         </button>
 
-        {/* Chapters by Topic - Card Grid */}
+        {/* Chapters by Topic */}
         {topics.map((topic, ti) => {
           const tm = TOPIC_META[topic] || { icon: '📚', label: topic };
           const topicChapters = getChaptersByTopic(chapters, topic);
@@ -355,25 +284,23 @@ export default function HomeScreen() {
           const topicPct = topicTotal > 0 ? Math.round((topicAnswered / topicTotal) * 100) : 0;
 
           return (
-            <div key={topic} className="anim-up" style={{ animationDelay: `${(ti * 80) + 200}ms` }}>
-              {/* Topic Header */}
-              <div className="flex items-center gap-3 mb-4 px-1">
+            <div key={topic} className="anim-up" style={{ animationDelay: `${(ti * 60) + 150}ms` }}>
+              <div className="flex items-center gap-3 mb-3 px-1">
                 <div className="text-lg">{tm.icon}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-[12px] font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--text-secondary)' }}>{topic}</h2>
-                    <span className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>{topicChapters.length} cap.</span>
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500">{topic}</h2>
+                    <span className="text-[10px] text-gray-400">{topicChapters.length} cap.</span>
                   </div>
                   <div className="flex items-center gap-2 mt-1">
-                    <div className="w-20 h-1 rounded-full" style={{ background: 'var(--bg-tertiary)' }}>
-                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${topicPct}%`, background: 'linear-gradient(90deg, var(--primary), var(--primary-light))' }} />
+                    <div className="w-16 h-1 rounded-full bg-gray-100">
+                      <div className="h-full rounded-full bg-[#4F46E5] transition-all duration-700" style={{ width: `${topicPct}%` }} />
                     </div>
-                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{topicAnswered}/{topicTotal}</span>
+                    <span className="text-[10px] text-gray-400">{topicAnswered}/{topicTotal}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Chapter Cards Grid */}
               <div className="grid grid-cols-3 gap-3">
                 {topicChapters.map((ch, ci) => {
                   const cs = chapterStats.find((x) => x.id === ch.id);
@@ -381,44 +308,33 @@ export default function HomeScreen() {
                   const totalQ = ch.questionCount;
                   const pctVal = totalQ > 0 ? Math.round((answered / totalQ) * 100) : 0;
                   const isComplete = pctVal === 100;
-                  const style = CHAPTER_STYLES[ch.id] || { gradient: 'linear-gradient(135deg, #94A3B8, #64748B)', shadow: '0 4px 15px rgba(100,116,139,0.35)' };
+                  const color = CHAPTER_COLORS[ch.id] || '#6B7280';
 
                   return (
                     <button key={ch.id} onClick={() => store.openChapter(ch.id)}
-                      className="relative overflow-hidden transition-all duration-300 hover:scale-[1.05] active:scale-[0.97] anim-up text-center"
-                      style={{
-                        animationDelay: `${(ti * 80) + (ci * 40) + 250}ms`,
-                        borderRadius: 'var(--radius-xl)',
-                        boxShadow: style.shadow,
-                      }}>
-                      {/* Card Background */}
-                      <div className="pt-5 pb-4 px-3" style={{ background: style.gradient }}>
-                        {/* Decorative Circle */}
-                        <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.1)' }} />
-
-                        {/* Completion Badge */}
-                        {isComplete && (
-                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(74,222,128,0.9)' }}>
-                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                      className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-gray-200 transition-all text-left anim-up"
+                      style={{ animationDelay: `${(ti * 60) + (ci * 30) + 180}ms` }}>
+                      {/* Top colored section */}
+                      <div className="px-3 pt-4 pb-3" style={{ background: `${color}08` }}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          {isComplete && (
+                            <div className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
+                              <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1.5">
+                            <ChapterIcon chapterId={ch.id} size={32} />
                           </div>
-                        )}
-
-                        {/* Icon */}
-                        <div className="mb-2"><ChapterIcon chapterId={ch.id} size={38} /></div>
-
-                        {/* Chapter Number */}
-                        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.6)' }}>Cap. {ch.id}</span>
-
-                        {/* Progress Bar */}
-                        <div className="w-full h-1.5 rounded-full mt-2 mb-1" style={{ background: 'rgba(255,255,255,0.2)' }}>
-                          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pctVal}%`, background: 'rgba(255,255,255,0.8)' }} />
                         </div>
-                        <span className="text-[9px] font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>{answered}/{totalQ}</span>
+                        <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color }}>{`Cap. ${ch.id}`}</span>
+                        <div className="w-full h-1 rounded-full mt-1.5 bg-gray-100">
+                          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pctVal}%`, background: color }} />
+                        </div>
                       </div>
-
-                      {/* Chapter Name - always visible below */}
-                      <div className="px-3 py-3" style={{ background: isComplete ? 'var(--success-100)' : 'var(--bg-card)', borderBottomLeftRadius: 'var(--radius-xl)', borderBottomRightRadius: 'var(--radius-xl)' }}>
-                        <p className="text-[11px] font-semibold leading-tight line-clamp-2" style={{ color: isComplete ? 'var(--success)' : 'var(--text-primary)' }}>{ch.name}</p>
+                      {/* Bottom section */}
+                      <div className="px-3 py-2.5 border-t border-gray-50">
+                        <p className="text-[11px] font-semibold leading-tight text-gray-900 line-clamp-2">{ch.name}</p>
+                        <p className="text-[9px] text-gray-400 mt-0.5">{answered}/{totalQ}</p>
                       </div>
                     </button>
                   );
@@ -429,7 +345,6 @@ export default function HomeScreen() {
         })}
       </div>
 
-      {/* Exam Question Count Modal */}
       <QuestionCountModal
         isOpen={showExamModal}
         onClose={() => setShowExamModal(false)}
@@ -442,12 +357,12 @@ export default function HomeScreen() {
   );
 }
 
-function StatCard({ icon, value, label, glow, color }: { icon: string; value: number; label: string; glow: string; color: string }) {
+function StatCard({ icon, value, label, color, border }: { icon: string; value: number; label: string; color: string; border: string }) {
   return (
-    <div className={`glass ${glow} p-4 text-center transition-all duration-300 hover:scale-[1.03]`}>
-      <span className="text-lg mb-1 block">{icon}</span>
-      <p className="text-xl font-extrabold tabular-nums" style={{ color }}>{value}</p>
-      <p className="text-[10px] mt-1 font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</p>
+    <div className={`bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center transition-all hover:shadow-md ${border} border-l-[3px]`}>
+      <span className="text-base mb-0.5 block">{icon}</span>
+      <p className="text-lg font-bold tabular-nums" style={{ color }}>{value}</p>
+      <p className="text-[10px] mt-0.5 font-semibold uppercase tracking-wider text-gray-400">{label}</p>
     </div>
   );
 }

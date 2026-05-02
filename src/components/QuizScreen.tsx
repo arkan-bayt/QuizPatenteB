@@ -392,7 +392,7 @@ export default function QuizScreen() {
     });
   }, [isComplete, isAssignmentMode, activeAssignmentId, username, correctCount, wrongCount, total, quizStartTime, quizQuestions, user, store]);
 
-  if (!question) return <div className="min-h-screen bg-mesh flex items-center justify-center"><p style={{ color: 'var(--text-muted)' }}>Nessuna domanda</p></div>;
+  if (!question) return <div className="min-h-screen bg-mesh flex items-center justify-center"><p style={{ color: '#6B7280' }}>Nessuna domanda</p></div>;
 
   const isCorrect = selectedAnswer === question.answer;
   const hasImg = !!question.image && !imgErr;
@@ -482,11 +482,11 @@ export default function QuizScreen() {
           {/* Assignment indicator */}
           {isAssignmentMode && (
             <div className="mb-2 px-3 py-1.5 rounded-xl flex items-center gap-2 anim-fade"
-              style={{ background: 'var(--primary-50)', border: '1px solid var(--primary-200)' }}>
-              <svg className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              style={{ background: 'rgba(79, 70, 229, 0.04)', border: '1px solid rgba(79, 70, 229, 0.16)' }}>
+              <svg className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#818CF8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
               </svg>
-              <span className="text-[11px] font-semibold truncate" style={{ color: 'var(--primary-light)' }}>
+              <span className="text-[11px] font-semibold truncate" style={{ color: '#818CF8' }}>
                 Compito{assignmentTitle ? ': ' + assignmentTitle : ''}
               </span>
             </div>
@@ -495,7 +495,7 @@ export default function QuizScreen() {
           <div className="flex items-center justify-between mb-3">
             <button onClick={() => { stopSpeech(); store.goHome(); }}
               className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl transition-all duration-200 hover:scale-105"
-              style={{ color: 'var(--text-muted)', background: 'var(--bg-tertiary)' }}>
+              style={{ color: '#6B7280', background: '#F3F4F6' }}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
@@ -505,18 +505,18 @@ export default function QuizScreen() {
             <div className="flex items-center gap-1.5">
               <div className="badge-modern text-[11px]"
                 style={{
-                  background: isAssignmentMode ? 'var(--primary-100)' : isExam ? 'var(--accent-100)' : quizMode === 'wrong' ? 'var(--danger-100)' : 'var(--primary-100)',
-                  borderColor: isAssignmentMode ? 'var(--primary-150)' : isExam ? 'var(--accent-150)' : quizMode === 'wrong' ? 'var(--danger-150)' : 'var(--primary-150)',
-                  color: isAssignmentMode ? 'var(--primary-light)' : isExam ? 'var(--accent)' : quizMode === 'wrong' ? 'var(--danger)' : 'var(--primary-light)'
+                  background: isAssignmentMode ? 'rgba(79, 70, 229, 0.08)' : isExam ? 'rgba(217, 119, 6, 0.1)' : quizMode === 'wrong' ? 'rgba(220, 38, 38, 0.1)' : 'rgba(79, 70, 229, 0.08)',
+                  borderColor: isAssignmentMode ? 'rgba(79, 70, 229, 0.12)' : isExam ? 'rgba(217, 119, 6, 0.15)' : quizMode === 'wrong' ? 'rgba(220, 38, 38, 0.15)' : 'rgba(79, 70, 229, 0.12)',
+                  color: isAssignmentMode ? '#818CF8' : isExam ? '#D97706' : quizMode === 'wrong' ? '#DC2626' : '#818CF8'
                 }}>
                 {modeLabel}
               </div>
               {isExam && (
                 <div className="badge-modern text-[11px]"
                   style={{
-                    background: errorsLeft <= 1 ? 'var(--danger-150)' : errorsLeft <= 2 ? 'var(--accent-100)' : 'var(--success-100)',
-                    borderColor: errorsLeft <= 1 ? 'var(--danger-200)' : errorsLeft <= 2 ? 'var(--accent-150)' : 'var(--success-150)',
-                    color: errorsLeft <= 1 ? 'var(--danger)' : errorsLeft <= 2 ? 'var(--accent)' : 'var(--success)'
+                    background: errorsLeft <= 1 ? 'rgba(220, 38, 38, 0.15)' : errorsLeft <= 2 ? 'rgba(217, 119, 6, 0.1)' : 'rgba(5, 150, 105, 0.1)',
+                    borderColor: errorsLeft <= 1 ? 'rgba(220, 38, 38, 0.2)' : errorsLeft <= 2 ? 'rgba(217, 119, 6, 0.15)' : 'rgba(5, 150, 105, 0.15)',
+                    color: errorsLeft <= 1 ? '#DC2626' : errorsLeft <= 2 ? '#D97706' : '#059669'
                   }}>
                   {errorsLeft <= 1 ? '⚠️' : errorsLeft <= 2 ? '⚡' : '✓'} {errorsLeft} errori rimasti
                 </div>
@@ -524,13 +524,13 @@ export default function QuizScreen() {
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg" style={{ background: 'var(--success-50)', border: '1px solid var(--success-100)' }}>
-                <span className="text-[11px] font-bold tabular-nums" style={{ color: 'var(--success)' }}>{correctCount}</span>
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg" style={{ background: 'rgba(5, 150, 105, 0.06)', border: '1px solid rgba(5, 150, 105, 0.1)' }}>
+                <span className="text-[11px] font-bold tabular-nums" style={{ color: '#059669' }}>{correctCount}</span>
               </div>
-              <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg" style={{ background: 'var(--danger-50)', border: '1px solid var(--danger-100)' }}>
-                <span className="text-[11px] font-bold tabular-nums" style={{ color: 'var(--danger)' }}>{wrongCount}</span>
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg" style={{ background: 'rgba(220, 38, 38, 0.06)', border: '1px solid rgba(220, 38, 38, 0.1)' }}>
+                <span className="text-[11px] font-bold tabular-nums" style={{ color: '#DC2626' }}>{wrongCount}</span>
               </div>
-              <span className="text-[11px] tabular-nums font-medium ml-1" style={{ color: 'var(--text-muted)' }}>{currentIdx + 1}/{total}</span>
+              <span className="text-[11px] tabular-nums font-medium ml-1" style={{ color: '#6B7280' }}>{currentIdx + 1}/{total}</span>
             </div>
           </div>
 
@@ -546,12 +546,12 @@ export default function QuizScreen() {
       {submittingResult && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
           <div className="glass p-6 rounded-2xl flex flex-col items-center gap-3 anim-fade" style={{ minWidth: '200px' }}>
-            <svg className="w-8 h-8 animate-spin" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24">
+            <svg className="w-8 h-8 animate-spin" style={{ color: '#818CF8' }} fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            <p className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>Invio risultato...</p>
-            <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Salvataggio del compito in corso</p>
+            <p className="text-[14px] font-semibold" style={{ color: '#111827' }}>Invio risultato...</p>
+            <p className="text-[12px]" style={{ color: '#6B7280' }}>Salvataggio del compito in corso</p>
           </div>
         </div>
       )}
@@ -563,15 +563,15 @@ export default function QuizScreen() {
           <div className="flex items-center justify-between mb-4 anim-fade">
             <div className="flex items-center gap-2">
               <span className="badge-modern text-[10px]">Cap. {question.chapter}</span>
-              <span className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{question.chapterName}</span>
+              <span className="text-[11px] truncate" style={{ color: '#6B7280' }}>{question.chapterName}</span>
             </div>
             {!showFeedback && (
               <div className="flex items-center gap-2">
                 <button onClick={() => { stopSpeech(); speakText(question.question, 'it-IT'); }}
                   className="w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-105"
-                  style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}
+                  style={{ background: '#F3F4F6', border: '1px solid #E5E7EB' }}
                   title="Ascolta">
-                  <svg className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <svg className="w-4 h-4" style={{ color: '#374151' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
                   </svg>
                 </button>
@@ -581,19 +581,19 @@ export default function QuizScreen() {
                   disabled={!!hint || hintLoading || aiLimitReached}
                   className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-105 ${hintUsed ? 'ring-2 ring-amber-400/50' : ''}`}
                   style={{
-                    background: aiLimitReached ? 'var(--bg-tertiary)' : hint ? 'var(--accent-100)' : 'var(--bg-tertiary)',
-                    border: `1px solid ${aiLimitReached ? 'var(--border)' : hint ? 'var(--accent-200)' : 'var(--border)'}`,
+                    background: aiLimitReached ? '#F3F4F6' : hint ? 'rgba(217, 119, 6, 0.1)' : '#F3F4F6',
+                    border: `1px solid ${aiLimitReached ? '#E5E7EB' : hint ? 'rgba(217, 119, 6, 0.2)' : '#E5E7EB'}`,
                     opacity: aiLimitReached ? 0.5 : 1,
                   }}
                   title={aiLimitReached ? 'Limite raggiunto per oggi' : 'Indizio IA'}
                 >
                   {hintLoading ? (
-                    <svg className="w-4 h-4 animate-spin" style={{ color: 'var(--accent)' }} fill="none" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 animate-spin" style={{ color: '#D97706' }} fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
                   ) : (
-                    <svg className="w-4 h-4" style={{ color: hint ? 'var(--accent)' : aiLimitReached ? 'var(--text-muted)' : 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <svg className="w-4 h-4" style={{ color: hint ? '#D97706' : aiLimitReached ? '#6B7280' : '#374151' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
                     </svg>
                   )}
@@ -601,8 +601,8 @@ export default function QuizScreen() {
                 {/* AI remaining indicator */}
                 <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md whitespace-nowrap"
                   style={{
-                    color: aiLimitReached ? 'var(--danger)' : 'var(--text-muted)',
-                    background: aiLimitReached ? 'var(--danger-50)' : 'var(--bg-tertiary)',
+                    color: aiLimitReached ? '#DC2626' : '#6B7280',
+                    background: aiLimitReached ? 'rgba(220, 38, 38, 0.06)' : '#F3F4F6',
                   }}>
                   {aiLimitReached ? '0/0' : `${aiRemainingDisplay}/5`}
                 </span>
@@ -611,9 +611,9 @@ export default function QuizScreen() {
           </div>
 
           {/* Question Card */}
-          <div className="glass p-6 anim-up" style={{ boxShadow: 'var(--shadow-xl)' }}>
+          <div className="glass p-6 anim-up" style={{ boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.03)' }}>
             {/* Question text - keyword words are tappable with popup */}
-            <div className="text-[18px] leading-relaxed mb-2 font-semibold" style={{ color: 'var(--text-primary)', cursor: 'default' }} dir="ltr">
+            <div className="text-[18px] leading-relaxed mb-2 font-semibold" style={{ color: '#111827', cursor: 'default' }} dir="ltr">
               {question.question.split(/(\s+)/).map((part, i) => {
                 const isSpace = /^\s+$/.test(part);
                 if (isSpace) return <span key={i}>{part}</span>;
@@ -636,10 +636,10 @@ export default function QuizScreen() {
                       padding: '1px 2px',
                       borderRadius: '4px',
                       ...(isTappable ? {
-                        borderBottom: isSelected ? '2px solid var(--primary-light)' : '1.5px dashed rgba(59,130,246,0.3)',
+                        borderBottom: isSelected ? '2px solid #818CF8' : '1.5px dashed rgba(59,130,246,0.3)',
                       } : {}),
                       ...(isSelected
-                        ? { background: 'var(--primary-100)', color: 'var(--primary-light)' }
+                        ? { background: 'rgba(79, 70, 229, 0.08)', color: '#818CF8' }
                         : {}),
                     }}
                   >{part}</span>
@@ -650,44 +650,44 @@ export default function QuizScreen() {
             {/* Fixed Translation Bar - inline fallback */}
             {(selectedWord || translating) && !showFeedback && !translatorPopup && (
               <div className="mb-4 px-4 py-3 rounded-xl flex items-center gap-3 anim-fade"
-                style={{ background: 'var(--primary-50)', border: '1.5px solid var(--primary-200)' }}>
+                style={{ background: 'rgba(79, 70, 229, 0.04)', border: '1.5px solid rgba(79, 70, 229, 0.16)' }}>
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'var(--primary-100)' }}>
-                  <svg className="w-4 h-4" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  style={{ background: 'rgba(79, 70, 229, 0.08)' }}>
+                  <svg className="w-4 h-4" style={{ color: '#818CF8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 21l5.25-11.25L21 21m-9-3h7.5M3 5.621a48.474 48.474 0 016-.371m0 0c1.12 0 2.233.038 3.334.114M9 5.25V3m3.334 2.364C11.176 10.658 7.69 15.08 3 17.502m9.334-12.138c.896.061 1.785.147 2.666.257m-4.589 8.495a18.023 18.023 0 01-3.827-5.802" />
                   </svg>
                 </div>
                 <div className="flex flex-col flex-1 min-w-0">
                   {translating ? (
                     <div className="flex items-center gap-2">
-                      <svg className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24">
+                      <svg className="w-3.5 h-3.5 animate-spin" style={{ color: '#818CF8' }} fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                       </svg>
-                      <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>جاري الترجمة...</span>
+                      <span className="text-[12px]" style={{ color: '#6B7280' }}>جاري الترجمة...</span>
                     </div>
                   ) : wordTranslation ? (
                     <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-bold" style={{ color: 'var(--text-muted)' }} dir="ltr">{selectedWord}</span>
-                      <svg className="w-3 h-3" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <span className="text-[13px] font-bold" style={{ color: '#6B7280' }} dir="ltr">{selectedWord}</span>
+                      <svg className="w-3 h-3" style={{ color: '#6B7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                       </svg>
-                      <span className="text-[18px] font-extrabold" style={{ color: 'var(--primary-light)' }} dir="rtl">{wordTranslation}</span>
+                      <span className="text-[18px] font-extrabold" style={{ color: '#818CF8' }} dir="rtl">{wordTranslation}</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-bold" style={{ color: 'var(--text-muted)' }} dir="ltr">{selectedWord}</span>
-                      <svg className="w-3 h-3" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <span className="text-[13px] font-bold" style={{ color: '#6B7280' }} dir="ltr">{selectedWord}</span>
+                      <svg className="w-3 h-3" style={{ color: '#6B7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                       </svg>
-                      <span className="text-[13px]" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }} dir="rtl">لم يتم العثور على ترجمة</span>
+                      <span className="text-[13px]" style={{ color: '#6B7280', fontStyle: 'italic' }} dir="rtl">لم يتم العثور على ترجمة</span>
                     </div>
                   )}
                 </div>
                 <button onClick={() => { setSelectedWord(null); setWordTranslation(null); }}
                   className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
-                  style={{ background: 'var(--bg-tertiary)' }}>
-                  <svg className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  style={{ background: '#F3F4F6' }}>
+                  <svg className="w-3.5 h-3.5" style={{ color: '#6B7280' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -704,22 +704,22 @@ export default function QuizScreen() {
 
             {/* Hint Card */}
             {hint && !showFeedback && (
-              <div className="mb-4 p-3.5 rounded-2xl anim-fade" style={{ background: 'var(--accent-50)', border: '1.5px solid var(--accent-200)' }}>
+              <div className="mb-4 p-3.5 rounded-2xl anim-fade" style={{ background: 'rgba(217, 119, 6, 0.06)', border: '1.5px solid rgba(217, 119, 6, 0.2)' }}>
                 <div className="flex items-start gap-2.5">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'var(--accent-100)' }}>
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'rgba(217, 119, 6, 0.1)' }}>
                     <span className="text-sm">💡</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[11px] font-bold" style={{ color: 'var(--accent)' }}>Indizio IA</span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-100)', color: 'var(--accent)' }}>TIP</span>
+                      <span className="text-[11px] font-bold" style={{ color: '#D97706' }}>Indizio IA</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(217, 119, 6, 0.1)', color: '#D97706' }}>TIP</span>
                       {aiLimit !== null && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: '#F3F4F6', color: '#6B7280' }}>
                           {aiRemaining} rimasti
                         </span>
                       )}
                     </div>
-                    <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{hint}</p>
+                    <p className="text-[13px] leading-relaxed" style={{ color: '#374151' }}>{hint}</p>
                   </div>
                 </div>
               </div>
@@ -747,18 +747,18 @@ export default function QuizScreen() {
                 <div className={`p-4 mb-5 ${isCorrect ? 'feedback-correct' : 'feedback-wrong'}`}>
                   <div className="flex items-center gap-3">
                     {isCorrect
-                      ? <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 anim-bounce" style={{ background: 'var(--success-150)' }}>
-                          <svg className="w-5 h-5" style={{ color: 'var(--success)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                      ? <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 anim-bounce" style={{ background: 'rgba(5, 150, 105, 0.15)' }}>
+                          <svg className="w-5 h-5" style={{ color: '#059669' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                         </div>
-                      : <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 anim-bounce" style={{ background: 'var(--danger-150)' }}>
-                          <svg className="w-5 h-5" style={{ color: 'var(--danger)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                      : <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 anim-bounce" style={{ background: 'rgba(220, 38, 38, 0.15)' }}>
+                          <svg className="w-5 h-5" style={{ color: '#DC2626' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                         </div>
                     }
                     <div>
-                      <span className="font-bold text-sm" style={{ color: isCorrect ? 'var(--success)' : 'var(--danger)' }}>
+                      <span className="font-bold text-sm" style={{ color: isCorrect ? '#059669' : '#DC2626' }}>
                         {isCorrect ? 'Corretto!' : 'Sbagliato!'}
                       </span>
-                      <p className="text-xs mt-0.5" style={{ color: isCorrect ? 'var(--success)' : 'var(--danger)', opacity: 0.7 }}>
+                      <p className="text-xs mt-0.5" style={{ color: isCorrect ? '#059669' : '#DC2626', opacity: 0.7 }}>
                         La risposta corretta: <span className="font-bold">{question.answer ? 'VERO' : 'FALSO'}</span>
                       </p>
                     </div>
@@ -769,34 +769,34 @@ export default function QuizScreen() {
                 {!isCorrect && (
                   <div className="mb-5 anim-fade">
                     {aiLoading ? (
-                      <div className="p-4 rounded-2xl" style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)' }}>
+                      <div className="p-4 rounded-2xl" style={{ background: '#FFFFFF', border: '1.5px solid #E5E7EB' }}>
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-tertiary)' }}>
-                            <svg className="w-4 h-4 animate-spin" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24">
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#F3F4F6' }}>
+                            <svg className="w-4 h-4 animate-spin" style={{ color: '#818CF8' }} fill="none" viewBox="0 0 24 24">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                             </svg>
                           </div>
                           <div>
-                            <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>Spiegazione IA in arrivo...</p>
-                            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Un momento</p>
+                            <p className="text-[13px] font-semibold" style={{ color: '#111827' }}>Spiegazione IA in arrivo...</p>
+                            <p className="text-[11px] mt-0.5" style={{ color: '#6B7280' }}>Un momento</p>
                           </div>
                         </div>
                       </div>
                     ) : aiExplanation ? (
-                      <div className="p-4 rounded-2xl" style={{ background: 'var(--bg-card)', border: '1.5px solid var(--primary-200)' }}>
+                      <div className="p-4 rounded-2xl" style={{ background: '#FFFFFF', border: '1.5px solid rgba(79, 70, 229, 0.16)' }}>
                         <div className="flex items-start gap-3">
-                          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'var(--primary-100)' }}>
-                            <svg className="w-4 h-4" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'rgba(79, 70, 229, 0.08)' }}>
+                            <svg className="w-4 h-4" style={{ color: '#818CF8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
                             </svg>
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1.5">
-                              <span className="text-[12px] font-bold" style={{ color: 'var(--primary-light)' }}>Spiegazione IA</span>
-                              <span className="text-[9px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--primary-100)', color: 'var(--primary-light)' }}>AI</span>
+                              <span className="text-[12px] font-bold" style={{ color: '#818CF8' }}>Spiegazione IA</span>
+                              <span className="text-[9px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(79, 70, 229, 0.08)', color: '#818CF8' }}>AI</span>
                             </div>
-                            <p className="text-[14px] leading-relaxed font-medium" style={{ color: 'var(--text-primary)' }}>{aiExplanation}</p>
+                            <p className="text-[14px] leading-relaxed font-medium" style={{ color: '#111827' }}>{aiExplanation}</p>
                           </div>
                         </div>
                       </div>
@@ -828,8 +828,8 @@ export default function QuizScreen() {
                 )}
                 {autoAdvance && !(aiExplained && aiExplanation) && !submittingResult && (
                   <div className="flex items-center justify-center gap-2 py-2">
-                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--primary-light)' }} />
-                    <p className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>Prossima domanda automaticamente...</p>
+                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#818CF8' }} />
+                    <p className="text-[11px] font-medium" style={{ color: '#6B7280' }}>Prossima domanda automaticamente...</p>
                   </div>
                 )}
               </div>
