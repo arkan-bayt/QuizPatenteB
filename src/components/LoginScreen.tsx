@@ -22,11 +22,20 @@ export default function LoginScreen() {
     if (res.ok && res.user) {
       saveSession(res.user);
       setUser(res.user);
-      // Load cloud progress before going to home
+      // Load cloud progress before navigating
       setBusy(true);
       await loadCloudProgress(res.user.username);
       setBusy(false);
-      setScreen('home');
+      // Role-based routing
+      if (res.user.role === 'super_admin' || res.user.role === 'admin') {
+        setScreen('home');
+      } else if (res.user.role === 'teacher') {
+        setScreen('teacherDashboard');
+      } else if (res.user.role === 'student') {
+        setScreen('studentDashboard');
+      } else {
+        setScreen('home');
+      }
     }
     else setAuthError(res.msg);
   };

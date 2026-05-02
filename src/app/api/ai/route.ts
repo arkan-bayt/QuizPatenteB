@@ -5,18 +5,127 @@
 // ============================================================
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
+import { createClient } from '@supabase/supabase-js';
 
 export const maxDuration = 15; // Allow up to 15 seconds for translation APIs
 
+// ============================================================
+// AI USAGE LIMITING - Middleware for explain/hint actions
+// ============================================================
+const DEFAULT_AI_LIMIT = 5; // Free users get 5 AI uses per day
+
+async function checkAndIncrementAIUsage(
+  username: string
+): Promise<{ allowed: boolean; remaining: number; limit: number }> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  const today = new Date().toISOString().split('T')[0];
+
+  // Fetch user from app_users by username
+  const { data: user, error: userError } = await supabase
+    .from('app_users')
+    .select('id, subscription, ai_usage_count, ai_usage_limit, last_ai_usage')
+    .eq('username', username)
+    .single();
+
+  if (userError || !user) {
+    // User not found - allow but don't track
+    return { allowed: true, remaining: DEFAULT_AI_LIMIT, limit: DEFAULT_AI_LIMIT };
+  }
+
+  // Pro users skip limit
+  if (user.subscription === 'pro') {
+    return { allowed: true, remaining: 999, limit: 999 };
+  }
+
+  const limit = user.ai_usage_limit || DEFAULT_AI_LIMIT;
+
+  // Check if last usage was today
+  if (user.last_ai_usage === today) {
+    const count = user.ai_usage_count || 0;
+    if (count >= limit) {
+      return { allowed: false, remaining: 0, limit };
+    }
+    // Increment count
+    await supabase
+      .from('app_users')
+      .update({ ai_usage_count: count + 1 })
+      .eq('id', user.id);
+    return { allowed: true, remaining: limit - count - 1, limit };
+  }
+
+  // New day - reset count
+  await supabase
+    .from('app_users')
+    .update({ ai_usage_count: 1, last_ai_usage: today })
+    .eq('id', user.id);
+
+  return { allowed: true, remaining: limit - 1, limit };
+}
+
+// ============================================================
+// SERVER-SIDE TRANSLATION CACHE
+// ============================================================
+const translationCache = new Map<string, { translation: string; timestamp: number }>();
+const TRANSLATION_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+function getCachedServerTranslation(word: string): string | null {
+  const key = word.toLowerCase();
+  const cached = translationCache.get(key);
+  if (cached && Date.now() - cached.timestamp < TRANSLATION_CACHE_TTL) {
+    return cached.translation;
+  }
+  return null;
+}
+
+function setCachedServerTranslation(word: string, translation: string): void {
+  const key = word.toLowerCase();
+  translationCache.set(key, { translation, timestamp: Date.now() });
+  // Prune old entries if cache grows too large
+  if (translationCache.size > 2000) {
+    const entries = Array.from(translationCache.entries()).sort((a, b) => a[1].timestamp - b[1].timestamp);
+    for (let i = 0; i < 500; i++) translationCache.delete(entries[i][0]);
+  }
+}
+
+// ============================================================
+// MAIN POST HANDLER
+// ============================================================
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { action } = body;
+    const { action, username } = body;
 
-    if (action === 'explain') return handleExplain(body);
+    // AI usage limiting for 'explain' and 'hint' actions
+    if (action === 'explain' || action === 'hint') {
+      if (!username) {
+        // No username provided - allow without tracking
+        if (action === 'explain') return handleExplain(body);
+        if (action === 'hint') return handleHint(body);
+      } else {
+        const usage = await checkAndIncrementAIUsage(username);
+        if (!usage.allowed) {
+          return NextResponse.json({
+            error: 'AI usage limit reached for today',
+            remaining: 0,
+            limit: usage.limit,
+          }, { status: 429 });
+        }
+        // Add usage info to response headers
+        const handler = action === 'explain' ? handleExplain : handleHint;
+        const response = await handler(body);
+        // Clone response and add remaining info
+        const data = await new Response(response.body).json();
+        data.ai_remaining = usage.remaining;
+        data.ai_limit = usage.limit;
+        return NextResponse.json(data);
+      }
+    }
+
     if (action === 'analyze') return handleAnalyze(body);
     if (action === 'chat') return handleChat(body);
-    if (action === 'hint') return handleHint(body);
     if (action === 'studyPlan') return handleStudyPlan(body);
     if (action === 'translate') return handleTranslate(body);
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
@@ -1108,17 +1217,24 @@ function hasArabicChars(text: string): boolean {
   return /[\u0600-\u06FF]/.test(text);
 }
 
-async function handleTranslate(body: { action: string; word: string }) {
+async function handleTranslate(body: { action: string; word: string; from?: string; to?: string }) {
   const { word } = body;
   if (!word || word.trim().length === 0) {
-    return NextResponse.json({ translation: '' });
+    return NextResponse.json({ translation: '', word: '', from: 'it', to: 'ar' });
   }
 
   const cleaned = word.trim().toLowerCase().replace(/[.,;:!?"'()]/g, '');
 
+  // 0. Check server-side translation cache
+  const cachedTranslation = getCachedServerTranslation(cleaned);
+  if (cachedTranslation) {
+    return NextResponse.json({ translation: cachedTranslation, word: cleaned, from: 'it', to: 'ar', source: 'cache' });
+  }
+
   // 1. Check local dictionary first (instant, no API call)
   if (IT_AR_DICT[cleaned]) {
-    return NextResponse.json({ translation: IT_AR_DICT[cleaned], source: 'local' });
+    setCachedServerTranslation(cleaned, IT_AR_DICT[cleaned]);
+    return NextResponse.json({ translation: IT_AR_DICT[cleaned], word: cleaned, from: 'it', to: 'ar', source: 'local' });
   }
 
   // 2. Try MyMemory API (fast, free, reliable) - runs in parallel with AI
@@ -1164,7 +1280,8 @@ async function handleTranslate(body: { action: string; word: string }) {
     const translation = completion.choices[0]?.message?.content?.trim() || '';
     // Only accept if it contains actual Arabic characters
     if (translation && hasArabicChars(translation)) {
-      return NextResponse.json({ translation, source: 'ai' });
+      setCachedServerTranslation(cleaned, translation);
+      return NextResponse.json({ translation, word: cleaned, from: 'it', to: 'ar', source: 'ai' });
     }
   } catch (error: unknown) {
     console.error('AI Translate error:', error instanceof Error ? error.message : 'Unknown');
@@ -1173,9 +1290,10 @@ async function handleTranslate(body: { action: string; word: string }) {
   // 4. Check MyMemory result (wait for it if AI didn't work)
   const myMemoryResult = await myMemoryPromise;
   if (myMemoryResult) {
-    return NextResponse.json({ translation: myMemoryResult, source: 'mymemory' });
+    setCachedServerTranslation(cleaned, myMemoryResult);
+    return NextResponse.json({ translation: myMemoryResult, word: cleaned, from: 'it', to: 'ar', source: 'mymemory' });
   }
 
   // 5. Fallback: no Arabic translation available
-  return NextResponse.json({ translation: '', fallback: true });
+  return NextResponse.json({ translation: '', word: cleaned, from: 'it', to: 'ar', fallback: true });
 }

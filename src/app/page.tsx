@@ -15,6 +15,10 @@ import AIAnalysisScreen from '@/components/AIAnalysisScreen';
 import AIChatScreen from '@/components/AIChatScreen';
 import StudyPlanScreen from '@/components/StudyPlanScreen';
 import WrongQuestionsScreen from '@/components/WrongQuestionsScreen';
+import TeacherDashboard from '@/components/TeacherDashboard';
+import StudentDashboard from '@/components/StudentDashboard';
+import StudentsList from '@/components/StudentsList';
+import AssignmentResults from '@/components/AssignmentResults';
 
 export default function Page() {
   const store = useStore();
@@ -107,6 +111,11 @@ export default function Page() {
     case 'aiChat': return <AIChatScreen />;
     case 'studyPlan': return <StudyPlanScreen />;
     case 'wrong': return <WrongQuestionsScreen />;
+    case 'teacherDashboard': return <TeacherDashboard />;
+    case 'studentDashboard': return <StudentDashboard />;
+    case 'studentsList': return <StudentsList />;
+    case 'assignmentResults': return <AssignmentResults />;
+    case 'createAssignment': return <TeacherDashboard />;
     default: return <LoginScreen />;
   }
 }

@@ -1,0 +1,479 @@
+// ============================================================
+// API Route - Assignments (list, create, get results)
+// Teachers create assignments, students view assigned ones
+// ============================================================
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ============================================================
+// GET /api/assignments - List assignments
+// Query params: ?userId=xxx&role=teacher|student|super_admin
+// ============================================================
+export async function GET(request: NextRequest) {
+  const userId = request.nextUrl.searchParams.get('userId');
+  const role = request.nextUrl.searchParams.get('role');
+
+  if (!userId || !role) {
+    return NextResponse.json({ error: 'Missing userId or role' }, { status: 400 });
+  }
+
+  try {
+    if (role === 'teacher' || role === 'super_admin') {
+      // Teachers see their own assignments, super_admin sees all
+      let query = supabase
+        .from('assignments')
+        .select(`
+          *,
+          teacher:app_users!assignments_teacher_id_fkey(id, username, full_name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (role === 'teacher') {
+        query = query.eq('teacher_id', userId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('GET assignments error:', error);
+        return NextResponse.json({ error: 'Errore nel caricamento compiti' }, { status: 500 });
+      }
+
+      // For each assignment, get student count and completion stats
+      const assignmentsWithStats = await Promise.all((data || []).map(async (a: any) => {
+        const { count: totalStudents } = await supabase
+          .from('assignment_students')
+          .select('id', { count: 'exact', head: true })
+          .eq('assignment_id', a.id);
+
+        const { count: completedStudents } = await supabase
+          .from('assignment_students')
+          .select('id', { count: 'exact', head: true })
+          .eq('assignment_id', a.id)
+          .eq('status', 'completed');
+
+        return {
+          ...a,
+          teacher_username: a.teacher?.username || '',
+          teacher_full_name: a.teacher?.full_name || a.teacher?.username || '',
+          _student_count: totalStudents || 0,
+          _completed_count: completedStudents || 0,
+          teacher: undefined,
+        };
+      }));
+
+      return NextResponse.json({ ok: true, assignments: assignmentsWithStats });
+    }
+
+    if (role === 'student') {
+      // Students see assignments assigned to them
+      const { data: studentAssignments, error: saError } = await supabase
+        .from('assignment_students')
+        .select(`
+          *,
+          assignment:assignments!assignment_students_assignment_id_fkey(
+            *,
+            teacher:app_users!assignments_teacher_id_fkey(id, username, full_name)
+          )
+        `)
+        .eq('student_id', userId)
+        .order('assigned_at', { ascending: false });
+
+      if (saError) {
+        console.error('GET student assignments error:', saError);
+        return NextResponse.json({ error: 'Errore nel caricamento compiti' }, { status: 500 });
+      }
+
+      // Get best result for each assignment
+      const assignmentsWithResults = await Promise.all((studentAssignments || []).map(async (sa: any) => {
+        const assignment = sa.assignment;
+        const { data: bestResult } = await supabase
+          .from('assignment_results')
+          .select('score, total_questions, correct_count, completed_at')
+          .eq('assignment_id', sa.assignment_id)
+          .eq('student_id', userId)
+          .order('score', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        return {
+          ...assignment,
+          _student_status: sa.status,
+          _student_attempts: sa.attempts,
+          _student_assigned_at: sa.assigned_at,
+          _best_result: bestResult || null,
+          teacher_username: assignment?.teacher?.username || '',
+          teacher_full_name: assignment?.teacher?.full_name || assignment?.teacher?.username || '',
+          teacher: undefined,
+          assignment: undefined,
+        };
+      }));
+
+      return NextResponse.json({ ok: true, assignments: assignmentsWithResults });
+    }
+
+    return NextResponse.json({ error: 'Ruolo non valido' }, { status: 400 });
+  } catch (e: any) {
+    console.error('Assignments GET error:', e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
+// ============================================================
+// POST /api/assignments
+// Body: { action: 'create' | 'results', ... }
+// ============================================================
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { action } = body;
+
+    switch (action) {
+      case 'create': return handleCreateAssignment(body);
+      case 'results': return handleGetResults(body);
+      case 'update': return handleUpdateAssignment(body);
+      case 'delete': return handleDeleteAssignment(body);
+      default:
+        return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+    }
+  } catch (e: any) {
+    console.error('Assignments POST error:', e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
+// ---- CREATE ASSIGNMENT ----
+async function handleCreateAssignment(body: {
+  teacherId: string;
+  title: string;
+  description?: string;
+  config: {
+    chapters: number[];
+    number_of_questions: number;
+    time_limit_minutes?: number | null;
+    max_attempts: number;
+    mode: 'exam' | 'practice' | 'chapters';
+  };
+  studentIds: string[];
+}) {
+  const { teacherId, title, description, config, studentIds } = body;
+
+  if (!teacherId || !title || !config || !studentIds || studentIds.length === 0) {
+    return NextResponse.json({ ok: false, msg: 'Compila tutti i campi obbligatori' });
+  }
+
+  // Validate config
+  if (!config.chapters || config.chapters.length === 0) {
+    return NextResponse.json({ ok: false, msg: 'Seleziona almeno un capitolo' });
+  }
+  if (!config.number_of_questions || config.number_of_questions < 1) {
+    return NextResponse.json({ ok: false, msg: 'Il numero di domande deve essere almeno 1' });
+  }
+
+  // Create the assignment
+  const { data: assignment, error: createError } = await supabase
+    .from('assignments')
+    .insert({
+      teacher_id: teacherId,
+      title: title.trim(),
+      description: (description || '').trim() || null,
+      config: {
+        chapters: config.chapters,
+        number_of_questions: config.number_of_questions,
+        time_limit_minutes: config.time_limit_minutes || null,
+        max_attempts: config.max_attempts || 1,
+        mode: config.mode || 'exam',
+      },
+      is_active: true,
+    })
+    .select('id, title, config, created_at')
+    .single();
+
+  if (createError) {
+    console.error('Create assignment error:', createError);
+    return NextResponse.json({ ok: false, msg: 'Errore nella creazione del compito' }, { status: 500 });
+  }
+
+  // Create assignment_students entries
+  const studentRows = studentIds.map((sid) => ({
+    assignment_id: assignment.id,
+    student_id: sid,
+    status: 'pending' as const,
+  }));
+
+  const { error: studentsError } = await supabase
+    .from('assignment_students')
+    .insert(studentRows);
+
+  if (studentsError) {
+    console.error('Create assignment_students error:', studentsError);
+    // Rollback: delete the assignment
+    await supabase.from('assignments').delete().eq('id', assignment.id);
+    return NextResponse.json({ ok: false, msg: 'Errore nell\'assegnazione agli studenti' }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    msg: 'Compito creato e assegnato con successo',
+    assignment: {
+      id: assignment.id,
+      title: assignment.title,
+      student_count: studentIds.length,
+      created_at: assignment.created_at,
+    },
+  });
+}
+
+// ---- GET RESULTS ----
+async function handleGetResults(body: {
+  assignmentId: string;
+  teacherId?: string;
+}) {
+  const { assignmentId, teacherId } = body;
+
+  if (!assignmentId) {
+    return NextResponse.json({ ok: false, msg: 'ID compito mancante' });
+  }
+
+  // Get assignment info
+  const { data: assignment, error: aError } = await supabase
+    .from('assignments')
+    .select('id, title, config, teacher_id')
+    .eq('id', assignmentId)
+    .single();
+
+  if (aError || !assignment) {
+    return NextResponse.json({ ok: false, msg: 'Compito non trovato' });
+  }
+
+  // Verify teacher owns this assignment (optional, for security)
+  if (teacherId && assignment.teacher_id !== teacherId) {
+    return NextResponse.json({ ok: false, msg: 'Non autorizzato' });
+  }
+
+  // Get student statuses
+  const { data: studentStatuses, error: ssError } = await supabase
+    .from('assignment_students')
+    .select('id, student_id, status, attempts, assigned_at')
+    .eq('assignment_id', assignmentId);
+
+  if (ssError) {
+    console.error('Get student statuses error:', ssError);
+    return NextResponse.json({ ok: false, msg: 'Errore nel caricamento risultati' }, { status: 500 });
+  }
+
+  // Get student details and results
+  const studentIds = (studentStatuses || []).map((s) => s.student_id);
+
+  let studentDetails: Record<string, any> = {};
+  if (studentIds.length > 0) {
+    const { data: students } = await supabase
+      .from('app_users')
+      .select('id, username, full_name, avatar_url')
+      .in('id', studentIds);
+    (students || []).forEach((s: any) => {
+      studentDetails[s.id] = s;
+    });
+  }
+
+  // Get all results for this assignment
+  let allResults: Record<string, any[]> = {};
+  if (studentIds.length > 0) {
+    const { data: results } = await supabase
+      .from('assignment_results')
+      .select('id, student_id, score, total_questions, correct_count, mistakes_count, time_taken_seconds, completed_at')
+      .eq('assignment_id', assignmentId)
+      .order('completed_at', { ascending: false });
+
+    (results || []).forEach((r: any) => {
+      if (!allResults[r.student_id]) allResults[r.student_id] = [];
+      allResults[r.student_id].push(r);
+    });
+  }
+
+  // Build response
+  const students = (studentStatuses || []).map((ss) => {
+    const details = studentDetails[ss.student_id] || {};
+    const results = allResults[ss.student_id] || [];
+    const bestResult = results.length > 0 ? results[0] : null; // Already sorted by score desc
+
+    return {
+      student_id: ss.student_id,
+      username: details.username || '',
+      full_name: details.full_name || null,
+      avatar_url: details.avatar_url || null,
+      status: ss.status,
+      attempts: ss.attempts,
+      assigned_at: ss.assigned_at,
+      best_score: bestResult?.score || 0,
+      best_total: bestResult?.total_questions || 0,
+      best_correct: bestResult?.correct_count || 0,
+      best_time: bestResult?.time_taken_seconds || 0,
+      best_completed_at: bestResult?.completed_at || null,
+      result_count: results.length,
+      results: results.map((r: any) => ({
+        id: r.id,
+        score: r.score,
+        total_questions: r.total_questions,
+        correct_count: r.correct_count,
+        mistakes_count: r.mistakes_count,
+        time_taken_seconds: r.time_taken_seconds,
+        completed_at: r.completed_at,
+      })),
+    };
+  });
+
+  // Compute class averages
+  const completedStudents = students.filter((s) => s.status === 'completed');
+  const avgScore = completedStudents.length > 0
+    ? Math.round(completedStudents.reduce((sum, s) => sum + s.best_score, 0) / completedStudents.length)
+    : 0;
+  const passRate = completedStudents.length > 0
+    ? Math.round((completedStudents.filter((s) => s.best_score >= 60).length / completedStudents.length) * 100)
+    : 0;
+
+  return NextResponse.json({
+    ok: true,
+    assignment: {
+      id: assignment.id,
+      title: assignment.title,
+      config: assignment.config,
+    },
+    students,
+    summary: {
+      total_students: students.length,
+      completed: completedStudents.length,
+      pending: students.filter((s) => s.status === 'pending').length,
+      in_progress: students.filter((s) => s.status === 'in_progress').length,
+      avg_score: avgScore,
+      pass_rate: passRate,
+    },
+  });
+}
+
+// ---- UPDATE ASSIGNMENT ----
+async function handleUpdateAssignment(body: {
+  assignmentId: string;
+  teacherId: string;
+  title?: string;
+  description?: string;
+  config?: any;
+  is_active?: boolean;
+  addStudentIds?: string[];
+  removeStudentIds?: string[];
+}) {
+  const { assignmentId, teacherId, title, description, config, is_active, addStudentIds, removeStudentIds } = body;
+
+  if (!assignmentId || !teacherId) {
+    return NextResponse.json({ ok: false, msg: 'Dati mancanti' });
+  }
+
+  // Verify ownership
+  const { data: existing, error: findError } = await supabase
+    .from('assignments')
+    .select('id, teacher_id')
+    .eq('id', assignmentId)
+    .single();
+
+  if (findError || !existing) {
+    return NextResponse.json({ ok: false, msg: 'Compito non trovato' });
+  }
+  if (existing.teacher_id !== teacherId) {
+    return NextResponse.json({ ok: false, msg: 'Non autorizzato' });
+  }
+
+  // Update assignment fields
+  const updates: any = {};
+  if (title !== undefined) updates.title = title.trim();
+  if (description !== undefined) updates.description = description?.trim() || null;
+  if (config !== undefined) updates.config = config;
+  if (is_active !== undefined) updates.is_active = is_active;
+
+  if (Object.keys(updates).length > 0) {
+    const { error: updateError } = await supabase
+      .from('assignments')
+      .update(updates)
+      .eq('id', assignmentId);
+
+    if (updateError) {
+      console.error('Update assignment error:', updateError);
+      return NextResponse.json({ ok: false, msg: 'Errore nell\'aggiornamento' }, { status: 500 });
+    }
+  }
+
+  // Add new students
+  if (addStudentIds && addStudentIds.length > 0) {
+    const newStudentRows = addStudentIds.map((sid) => ({
+      assignment_id: assignmentId,
+      student_id: sid,
+      status: 'pending' as const,
+    }));
+
+    const { error: addError } = await supabase
+      .from('assignment_students')
+      .upsert(newStudentRows, { onConflict: 'assignment_id,student_id' });
+
+    if (addError) {
+      console.error('Add students error:', addError);
+    }
+  }
+
+  // Remove students
+  if (removeStudentIds && removeStudentIds.length > 0) {
+    const { error: removeError } = await supabase
+      .from('assignment_students')
+      .delete()
+      .eq('assignment_id', assignmentId)
+      .in('student_id', removeStudentIds);
+
+    if (removeError) {
+      console.error('Remove students error:', removeError);
+    }
+  }
+
+  return NextResponse.json({ ok: true, msg: 'Compito aggiornato' });
+}
+
+// ---- DELETE ASSIGNMENT ----
+async function handleDeleteAssignment(body: {
+  assignmentId: string;
+  teacherId: string;
+}) {
+  const { assignmentId, teacherId } = body;
+
+  if (!assignmentId || !teacherId) {
+    return NextResponse.json({ ok: false, msg: 'Dati mancanti' });
+  }
+
+  // Verify ownership
+  const { data: existing, error: findError } = await supabase
+    .from('assignments')
+    .select('id, teacher_id')
+    .eq('id', assignmentId)
+    .single();
+
+  if (findError || !existing) {
+    return NextResponse.json({ ok: false, msg: 'Compito non trovato' });
+  }
+  if (existing.teacher_id !== teacherId) {
+    return NextResponse.json({ ok: false, msg: 'Non autorizzato' });
+  }
+
+  // Delete assignment (cascade will handle assignment_students and assignment_results)
+  const { error: deleteError } = await supabase
+    .from('assignments')
+    .delete()
+    .eq('id', assignmentId);
+
+  if (deleteError) {
+    console.error('Delete assignment error:', deleteError);
+    return NextResponse.json({ ok: false, msg: "Errore nell'eliminazione del compito" }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, msg: 'Compito eliminato' });
+}

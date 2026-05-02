@@ -5,7 +5,7 @@ import { create } from 'zustand';
 import { QuizQuestion, Chapter } from '@/data/quizData';
 import { AppUser } from '@/data/supabaseClient';
 
-export type Screen = 'loading' | 'login' | 'home' | 'chapter' | 'quiz' | 'exam' | 'result' | 'wrong' | 'stats' | 'admin' | 'resume' | 'aiAnalysis' | 'aiChat' | 'studyPlan';
+export type Screen = 'loading' | 'login' | 'home' | 'chapter' | 'quiz' | 'exam' | 'result' | 'wrong' | 'stats' | 'admin' | 'resume' | 'aiAnalysis' | 'aiChat' | 'studyPlan' | 'teacherDashboard' | 'studentDashboard' | 'studentsList' | 'assignmentResults' | 'createAssignment';
 export type QuizMode = 'chapter' | 'subtopic' | 'exam' | 'wrong';
 
 interface State {
@@ -39,6 +39,9 @@ interface State {
   authError: string | null;
   adminMsg: string | null;
 
+  // Assignment navigation
+  activeAssignmentId: string | null;
+
   // Actions
   setScreen: (s: Screen) => void;
   setUser: (u: AppUser | null) => void;
@@ -49,6 +52,10 @@ interface State {
 
   // Navigation
   openChapter: (id: number) => void;
+  openTeacherDashboard: () => void;
+  openStudentDashboard: () => void;
+  openStudentsList: () => void;
+  openAssignmentResults: (id: string) => void;
   openSubtopic: (chapterId: number, subtopic: string) => void;
   goHome: () => void;
   setActiveChapterId: (id: number) => void;
@@ -77,7 +84,7 @@ export const useStore = create<State>((set, get) => ({
   quizMode: 'chapter', quizQuestions: [], currentIdx: 0,
   correctCount: 0, wrongCount: 0, selectedAnswer: null,
   showFeedback: false, isComplete: false, autoAdvance: true,
-  showResumePopup: false, examPassed: false, authError: null, adminMsg: null,
+  showResumePopup: false, examPassed: false, authError: null, adminMsg: null, activeAssignmentId: null,
 
   setScreen: (s) => set({ screen: s }),
   setUser: (u) => set({ user: u }),
@@ -85,6 +92,11 @@ export const useStore = create<State>((set, get) => ({
   setData: (ch, qs) => set({ chapters: ch, allQuestions: qs }),
   setAuthError: (e) => set({ authError: e }),
   setAdminMsg: (m) => set({ adminMsg: m }),
+
+  openTeacherDashboard: () => set({ screen: 'teacherDashboard' }),
+  openStudentDashboard: () => set({ screen: 'studentDashboard' }),
+  openStudentsList: () => set({ screen: 'studentsList' }),
+  openAssignmentResults: (id) => set({ activeAssignmentId: id, screen: 'assignmentResults' }),
 
   openChapter: (id) => set({ activeChapterId: id, screen: 'chapter', activeSubtopic: null }),
   openSubtopic: (chapterId, subtopic) => set({ activeChapterId: chapterId, activeSubtopic: subtopic, screen: 'quiz' }),

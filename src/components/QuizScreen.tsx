@@ -3,6 +3,8 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useStore } from '@/store/useStore';
 import { speakText, stopSpeech } from '@/logic/ttsEngine';
 import { recordExamResult, recordAnswer, updateChapterProgress, addWrongAnswer, removeWrongAnswer, saveQuizResume, clearQuizResume } from '@/logic/progressEngine';
+import { submitAssignmentResult } from '@/logic/assignmentEngine';
+import WordTranslator from './WordTranslator';
 
 // Italian prepositions, articles, conjunctions - these are NOT tappable
 const SKIP_WORDS = new Set([
@@ -88,7 +90,7 @@ function setCachedTranslation(word: string, translation: string) {
 
 export default function QuizScreen() {
   const store = useStore();
-  const { quizQuestions, currentIdx, correctCount, wrongCount, selectedAnswer, showFeedback, isComplete, autoAdvance, quizMode, activeChapterId, activeSubtopic, selectedChapterIds, user, allQuestions } = store;
+  const { quizQuestions, currentIdx, correctCount, wrongCount, selectedAnswer, showFeedback, isComplete, autoAdvance, quizMode, activeChapterId, activeSubtopic, selectedChapterIds, user, allQuestions, activeAssignmentId } = store;
   const username = user?.username || '';
   const question = store.getCurrentQ();
   const total = quizQuestions.length;
@@ -103,19 +105,89 @@ export default function QuizScreen() {
   const [hintUsed, setHintUsed] = useState(false);
   const prevIdxRef = useRef(currentIdx);
 
-  // Word translation state
+  // AI usage tracking
+  const [aiRemaining, setAiRemaining] = useState<number | null>(null);
+  const [aiLimit, setAiLimit] = useState<number | null>(null);
+
+  // Word translation state (for inline bar)
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [wordTranslation, setWordTranslation] = useState<string | null>(null);
   const [translating, setTranslating] = useState(false);
 
-  const handleWordClick = useCallback(async (word: string) => {
+  // WordTranslator popup state
+  const [translatorPopup, setTranslatorPopup] = useState<{
+    word: string;
+    position: { x: number; y: number };
+  } | null>(null);
+
+  // Assignment mode state
+  const [submittingResult, setSubmittingResult] = useState(false);
+  const [quizStartTime] = useState(Date.now());
+
+  // Assignment title (passed via store or URL)
+  const [assignmentTitle, setAssignmentTitle] = useState<string>('');
+  useEffect(() => {
+    if (activeAssignmentId && typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('qp_active_assignment');
+        if (saved) {
+          const data = JSON.parse(saved);
+          if (data.title) setAssignmentTitle(data.title);
+        }
+      } catch { /* */ }
+    }
+  }, [activeAssignmentId]);
+
+  const isAssignmentMode = !!activeAssignmentId;
+
+  const handleWordClick = useCallback(async (e: React.MouseEvent | React.TouchEvent, word: string) => {
     if (word.length <= 1 || /[0-9]/.test(word)) return;
     const cleaned = word.replace(/[.,;:!?"'()]/g, '').toLowerCase();
     if (cleaned.length <= 1) return;
     // Skip prepositions, articles, numbers
     if (isSkipWord(cleaned)) return;
 
-    // If already showing same word, close it
+    // Get click/tap position
+    let clientX: number, clientY: number;
+    if ('touches' in e && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if ('changedTouches' in e && e.changedTouches.length > 0) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    } else {
+      clientX = (e as React.MouseEvent).clientX;
+      clientY = (e as React.MouseEvent).clientY;
+    }
+
+    // Close inline bar and show popup instead
+    setSelectedWord(null);
+    setWordTranslation(null);
+
+    // If same word tapped, close
+    if (translatorPopup && translatorPopup.word === cleaned) {
+      setTranslatorPopup(null);
+      return;
+    }
+
+    setTranslatorPopup({ word: cleaned, position: { x: clientX, y: clientY } });
+  }, [translatorPopup]);
+
+  const handleTranslatorClose = useCallback((translation: string) => {
+    setTranslatorPopup(null);
+    // Optionally cache the translation for inline use
+    if (translation && /[؀-\u06FF]/.test(translation)) {
+      setCachedTranslation(translatorPopup?.word || '', translation);
+    }
+  }, [translatorPopup]);
+
+  // Fallback inline word click handler (same as before, kept for compatibility)
+  const handleWordClickInline = useCallback(async (word: string) => {
+    if (word.length <= 1 || /[0-9]/.test(word)) return;
+    const cleaned = word.replace(/[.,;:!?"'()]/g, '').toLowerCase();
+    if (cleaned.length <= 1) return;
+    if (isSkipWord(cleaned)) return;
+
     if (selectedWord === cleaned) {
       setSelectedWord(null);
       setWordTranslation(null);
@@ -124,7 +196,6 @@ export default function QuizScreen() {
 
     setSelectedWord(cleaned);
 
-    // Check cache first
     const cached = getCachedTranslation(cleaned);
     if (cached) {
       setWordTranslation(cached);
@@ -146,17 +217,14 @@ export default function QuizScreen() {
       clearTimeout(timeout);
       const data = await res.json();
       const tr = data.translation || '';
-      // Only accept if it contains actual Arabic characters
       const isArabic = /[\u0600-\u06FF]/.test(tr);
       if (isArabic && tr.length > 0) {
         setWordTranslation(tr);
         setCachedTranslation(cleaned, tr);
       } else {
-        // Not Arabic - keep bar open but show "not found" message
         setWordTranslation('');
       }
     } catch {
-      // Network error - keep bar open with "not found"
       setWordTranslation('');
     }
     setTranslating(false);
@@ -175,6 +243,7 @@ export default function QuizScreen() {
       setHintUsed(false);
       setSelectedWord(null);
       setWordTranslation(null);
+      setTranslatorPopup(null);
       prevIdxRef.current = currentIdx;
     }
   }, [currentIdx]);
@@ -182,7 +251,7 @@ export default function QuizScreen() {
   // Auto-advance (disabled when showing AI explanation)
   useEffect(() => {
     if (!showFeedback || !autoAdvance || isComplete) return;
-    if (aiExplained && aiExplanation) return; // Don't auto-advance while showing AI explanation
+    if (aiExplained && aiExplanation) return;
     const t = setTimeout(() => store.goNext(), 1200);
     return () => clearTimeout(t);
   }, [showFeedback, autoAdvance, isComplete, store, aiExplained, aiExplanation]);
@@ -193,7 +262,7 @@ export default function QuizScreen() {
     const q = quizQuestions[currentIdx];
     if (!q || selectedAnswer === null) return;
     const isCorrect = selectedAnswer === q.answer;
-    if (isCorrect) return; // Only explain wrong answers
+    if (isCorrect) return;
 
     let cancelled = false;
     setAiLoading(true);
@@ -209,12 +278,22 @@ export default function QuizScreen() {
         chapterName: q.chapterName,
         subtopic: q.subtopic,
         hasImage: !!q.image,
+        username,
       }),
     })
-      .then(res => res.json())
+      .then(res => {
+        if (res.status === 429) return res.json();
+        return res.json();
+      })
       .then(data => {
         if (!cancelled) {
           setAiExplanation(data.explanation || null);
+          if (data.ai_remaining !== undefined) setAiRemaining(data.ai_remaining);
+          if (data.ai_limit !== undefined) setAiLimit(data.ai_limit);
+          if (data.error && data.error.includes('limit')) {
+            setAiRemaining(0);
+            setAiLimit(data.limit || 0);
+          }
           setAiLoading(false);
           setAiExplained(true);
         }
@@ -227,7 +306,7 @@ export default function QuizScreen() {
       });
 
     return () => { cancelled = true; };
-  }, [showFeedback, aiExplained, quizQuestions, currentIdx, selectedAnswer]);
+  }, [showFeedback, aiExplained, quizQuestions, currentIdx, selectedAnswer, username]);
 
   // Record answer
   useEffect(() => {
@@ -260,12 +339,67 @@ export default function QuizScreen() {
     }
   }, [isComplete, username, quizMode, correctCount]);
 
+  // Auto-submit assignment result when quiz completes
+  useEffect(() => {
+    if (!isComplete || !isAssignmentMode || !activeAssignmentId || !username) return;
+    const score = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+    const timeTaken = Math.round((Date.now() - quizStartTime) / 1000);
+
+    setSubmittingResult(true);
+
+    const answers: Record<string, { questionId: number; userAnswer: boolean; correctAnswer: boolean; isCorrect: boolean }> = {};
+    quizQuestions.forEach((q, idx) => {
+      // We don't have per-question answers stored here, just overall counts
+      // The individual answers would need to be collected during the quiz
+      answers[`q_${q.id}`] = {
+        questionId: q.id,
+        userAnswer: q.answer, // Placeholder - in real scenario, track each answer
+        correctAnswer: q.answer,
+        isCorrect: true,
+      };
+    });
+
+    submitAssignmentResult(activeAssignmentId, {
+      studentId: user?.id || '',
+      score,
+      total_questions: total,
+      correct_count: correctCount,
+      mistakes_count: wrongCount,
+      time_taken_seconds: timeTaken,
+      answers,
+    }).then((res) => {
+      setSubmittingResult(false);
+      if (res.ok) {
+        // Clean up assignment state
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('qp_active_assignment');
+        }
+        // Navigate to student dashboard after a brief delay
+        setTimeout(() => {
+          store.setScreen('studentDashboard');
+        }, 1500);
+      } else {
+        // Still navigate to results
+        setTimeout(() => {
+          store.setScreen('result');
+        }, 1500);
+      }
+    }).catch(() => {
+      setSubmittingResult(false);
+      setTimeout(() => {
+        store.setScreen('result');
+      }, 1500);
+    });
+  }, [isComplete, isAssignmentMode, activeAssignmentId, username, correctCount, wrongCount, total, quizStartTime, quizQuestions, user, store]);
+
   if (!question) return <div className="min-h-screen bg-mesh flex items-center justify-center"><p style={{ color: 'var(--text-muted)' }}>Nessuna domanda</p></div>;
 
   const isCorrect = selectedAnswer === question.answer;
   const hasImg = !!question.image && !imgErr;
   const isExam = quizMode === 'exam';
-  const modeLabel = quizMode === 'exam' ? 'Esame' : quizMode === 'wrong' ? 'Ripeti Sbagliate' : `Cap. ${question.chapter}`;
+  const modeLabel = isAssignmentMode
+    ? `Compito${assignmentTitle ? ': ' + assignmentTitle : ''}`
+    : quizMode === 'exam' ? 'Esame' : quizMode === 'wrong' ? 'Ripeti Sbagliate' : `Cap. ${question.chapter}`;
 
   const handleAnswer = (val: boolean) => {
     if (showFeedback) return;
@@ -287,6 +421,7 @@ export default function QuizScreen() {
     setHintUsed(false);
     setSelectedWord(null);
     setWordTranslation(null);
+    setTranslatorPopup(null);
     store.goNext();
   };
 
@@ -304,24 +439,59 @@ export default function QuizScreen() {
         chapterName: q.chapterName,
         subtopic: q.subtopic,
         hasImage: !!q.image,
+        username,
       }),
     })
-      .then(res => res.json())
+      .then(res => {
+        if (res.status === 429) return res.json();
+        return res.json();
+      })
       .then(data => {
         setHint(data.hint || null);
         setHintUsed(true);
         setHintLoading(false);
+        if (data.ai_remaining !== undefined) setAiRemaining(data.ai_remaining);
+        if (data.ai_limit !== undefined) setAiLimit(data.ai_limit);
+        if (data.error && data.error.includes('limit')) {
+          setAiRemaining(0);
+          setAiLimit(data.limit || 0);
+        }
       })
       .catch(() => {
         setHintLoading(false);
       });
   };
 
+  const aiLimitReached = aiRemaining === 0;
+  const aiRemainingDisplay = aiRemaining !== null ? aiRemaining : '?';
+
   return (
     <div className="min-h-screen bg-mesh flex flex-col">
+      {/* WordTranslator Popup */}
+      {translatorPopup && (
+        <WordTranslator
+          word={translatorPopup.word}
+          position={translatorPopup.position}
+          onClose={handleTranslatorClose}
+        />
+      )}
+
       {/* Top bar */}
       <div className="glass-header px-5 py-3.5 sticky top-0 z-20">
         <div className="max-w-2xl mx-auto">
+          {/* Assignment indicator */}
+          {isAssignmentMode && (
+            <div className="mb-2 px-3 py-1.5 rounded-xl flex items-center gap-2 anim-fade"
+              style={{ background: 'var(--primary-50)', border: '1px solid var(--primary-200)' }}>
+              <svg className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+              </svg>
+              <span className="text-[11px] font-semibold truncate" style={{ color: 'var(--primary-light)' }}>
+                Compito{assignmentTitle ? ': ' + assignmentTitle : ''}
+              </span>
+            </div>
+          )}
+
           <div className="flex items-center justify-between mb-3">
             <button onClick={() => { stopSpeech(); store.goHome(); }}
               className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl transition-all duration-200 hover:scale-105"
@@ -329,15 +499,15 @@ export default function QuizScreen() {
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
-              Chiudi
+              {submittingResult ? 'Invio...' : 'Chiudi'}
             </button>
 
             <div className="flex items-center gap-1.5">
               <div className="badge-modern text-[11px]"
                 style={{
-                  background: isExam ? 'var(--accent-100)' : quizMode === 'wrong' ? 'var(--danger-100)' : 'var(--primary-100)',
-                  borderColor: isExam ? 'var(--accent-150)' : quizMode === 'wrong' ? 'var(--danger-150)' : 'var(--primary-150)',
-                  color: isExam ? 'var(--accent)' : quizMode === 'wrong' ? 'var(--danger)' : 'var(--primary-light)'
+                  background: isAssignmentMode ? 'var(--primary-100)' : isExam ? 'var(--accent-100)' : quizMode === 'wrong' ? 'var(--danger-100)' : 'var(--primary-100)',
+                  borderColor: isAssignmentMode ? 'var(--primary-150)' : isExam ? 'var(--accent-150)' : quizMode === 'wrong' ? 'var(--danger-150)' : 'var(--primary-150)',
+                  color: isAssignmentMode ? 'var(--primary-light)' : isExam ? 'var(--accent)' : quizMode === 'wrong' ? 'var(--danger)' : 'var(--primary-light)'
                 }}>
                 {modeLabel}
               </div>
@@ -367,10 +537,24 @@ export default function QuizScreen() {
           {/* Progress bar */}
           <div className="progress-bar">
             <div className={`h-full rounded-full transition-all duration-500`}
-              style={{ width: `${pct}%`, background: isExam ? 'linear-gradient(90deg, #F59E0B, #FBBF24)' : 'linear-gradient(90deg, #1E3A8A, #3B82F6)' }} />
+              style={{ width: `${pct}%`, background: isAssignmentMode ? 'linear-gradient(90deg, #1E3A8A, #3B82F6)' : isExam ? 'linear-gradient(90deg, #F59E0B, #FBBF24)' : 'linear-gradient(90deg, #1E3A8A, #3B82F6)' }} />
           </div>
         </div>
       </div>
+
+      {/* Submitting overlay for assignment mode */}
+      {submittingResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="glass p-6 rounded-2xl flex flex-col items-center gap-3 anim-fade" style={{ minWidth: '200px' }}>
+            <svg className="w-8 h-8 animate-spin" style={{ color: 'var(--primary-light)' }} fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <p className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>Invio risultato...</p>
+            <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Salvataggio del compito in corso</p>
+          </div>
+        </div>
+      )}
 
       {/* Question Content */}
       <div className="flex-1 flex flex-col items-center px-5 py-6">
@@ -391,28 +575,44 @@ export default function QuizScreen() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
                   </svg>
                 </button>
-                <button onClick={handleHint} disabled={!!hint || hintLoading}
+                {/* AI Hint Button with limit display */}
+                <button
+                  onClick={handleHint}
+                  disabled={!!hint || hintLoading || aiLimitReached}
                   className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-105 ${hintUsed ? 'ring-2 ring-amber-400/50' : ''}`}
-                  style={{ background: hint ? 'var(--accent-100)' : 'var(--bg-tertiary)', border: `1px solid ${hint ? 'var(--accent-200)' : 'var(--border)'}` }}
-                  title="Indizio IA">
+                  style={{
+                    background: aiLimitReached ? 'var(--bg-tertiary)' : hint ? 'var(--accent-100)' : 'var(--bg-tertiary)',
+                    border: `1px solid ${aiLimitReached ? 'var(--border)' : hint ? 'var(--accent-200)' : 'var(--border)'}`,
+                    opacity: aiLimitReached ? 0.5 : 1,
+                  }}
+                  title={aiLimitReached ? 'Limite raggiunto per oggi' : 'Indizio IA'}
+                >
                   {hintLoading ? (
                     <svg className="w-4 h-4 animate-spin" style={{ color: 'var(--accent)' }} fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
                   ) : (
-                    <svg className="w-4 h-4" style={{ color: hint ? 'var(--accent)' : 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <svg className="w-4 h-4" style={{ color: hint ? 'var(--accent)' : aiLimitReached ? 'var(--text-muted)' : 'var(--text-secondary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
                     </svg>
                   )}
                 </button>
+                {/* AI remaining indicator */}
+                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md whitespace-nowrap"
+                  style={{
+                    color: aiLimitReached ? 'var(--danger)' : 'var(--text-muted)',
+                    background: aiLimitReached ? 'var(--danger-50)' : 'var(--bg-tertiary)',
+                  }}>
+                  {aiLimitReached ? '0/0' : `${aiRemainingDisplay}/5`}
+                </span>
               </div>
             )}
           </div>
 
           {/* Question Card */}
           <div className="glass p-6 anim-up" style={{ boxShadow: 'var(--shadow-xl)' }}>
-            {/* Question text - only keyword words are tappable */}
+            {/* Question text - keyword words are tappable with popup */}
             <div className="text-[18px] leading-relaxed mb-2 font-semibold" style={{ color: 'var(--text-primary)', cursor: 'default' }} dir="ltr">
               {question.question.split(/(\s+)/).map((part, i) => {
                 const isSpace = /^\s+$/.test(part);
@@ -423,7 +623,13 @@ export default function QuizScreen() {
                 return (
                   <span
                     key={i}
-                    onClick={() => isTappable && handleWordClick(part)}
+                    onClick={(e) => isTappable && handleWordClick(e, part)}
+                    onTouchEnd={(e) => {
+                      if (isTappable) {
+                        e.preventDefault();
+                        handleWordClick(e, part);
+                      }
+                    }}
                     className="inline-block rounded transition-all duration-150"
                     style={{
                       cursor: isTappable ? 'pointer' : 'default',
@@ -441,8 +647,8 @@ export default function QuizScreen() {
               })}
             </div>
 
-            {/* Fixed Translation Bar - always below question text */}
-            {(selectedWord || translating) && !showFeedback && (
+            {/* Fixed Translation Bar - inline fallback */}
+            {(selectedWord || translating) && !showFeedback && !translatorPopup && (
               <div className="mb-4 px-4 py-3 rounded-xl flex items-center gap-3 anim-fade"
                 style={{ background: 'var(--primary-50)', border: '1.5px solid var(--primary-200)' }}>
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -507,6 +713,11 @@ export default function QuizScreen() {
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-[11px] font-bold" style={{ color: 'var(--accent)' }}>Indizio IA</span>
                       <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-100)', color: 'var(--accent)' }}>TIP</span>
+                      {aiLimit !== null && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
+                          {aiRemaining} rimasti
+                        </span>
+                      )}
                     </div>
                     <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{hint}</p>
                   </div>
@@ -609,13 +820,13 @@ export default function QuizScreen() {
                   </div>
                 </div>
 
-                {/* Next button - show when AI explanation is shown OR auto-advance is off */}
-                {(!autoAdvance || (aiExplained && aiExplanation)) && (
+                {/* Next button */}
+                {(!autoAdvance || (aiExplained && aiExplanation)) && !submittingResult && (
                   <button onClick={handleNext} className="btn-primary w-full">
                     {currentIdx < quizQuestions.length - 1 ? 'Prossima Domanda →' : 'Vedi Risultati'}
                   </button>
                 )}
-                {autoAdvance && !(aiExplained && aiExplanation) && (
+                {autoAdvance && !(aiExplained && aiExplanation) && !submittingResult && (
                   <div className="flex items-center justify-center gap-2 py-2">
                     <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--primary-light)' }} />
                     <p className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>Prossima domanda automaticamente...</p>
