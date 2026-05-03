@@ -4,7 +4,7 @@ import { useStore } from '@/store/useStore';
 import { loadQuizData } from '@/data/quizData';
 import { loadSession, clearSession } from '@/logic/authEngine';
 import { preloadVoices } from '@/logic/ttsEngine';
-import { loadCloudProgress } from '@/logic/progressEngine';
+import { loadCloudProgress, startAutoSync, stopAutoSync, getThemePreference } from '@/logic/progressEngine';
 import LoginScreen from '@/components/LoginScreen';
 import HomeScreen from '@/components/HomeScreen';
 import ChapterScreen from '@/components/ChapterScreen';
@@ -28,7 +28,8 @@ export default function Page() {
 
   // Dark mode auto-detection + manual toggle persistence
   useEffect(() => {
-    const saved = localStorage.getItem('theme');
+    // Priority: qp_theme (cloud) > theme (legacy) > system preference
+    const saved = localStorage.getItem('qp_theme') || localStorage.getItem('theme');
     if (saved === 'dark') {
       document.documentElement.classList.add('dark');
     } else if (saved === 'light') {
@@ -41,7 +42,7 @@ export default function Page() {
       }
       // Listen for system changes
       const handler = (e: MediaQueryListEvent) => {
-        if (!localStorage.getItem('theme')) {
+        if (!localStorage.getItem('qp_theme') && !localStorage.getItem('theme')) {
           document.documentElement.classList.toggle('dark', e.matches);
         }
       };
@@ -71,6 +72,13 @@ export default function Page() {
           setSyncing(false);
           // Force re-render of home screen
           store.setData(store.chapters, store.allQuestions);
+          // Start auto-sync every 60 seconds
+          startAutoSync(session.username);
+          // Apply theme from cloud (cloud theme was loaded into localStorage by loadCloudProgress)
+          const savedTheme = getThemePreference(session.username);
+          if (savedTheme === 'dark' || savedTheme === 'light') {
+            document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+          }
         }).catch(() => setSyncing(false));
       }
     } else {

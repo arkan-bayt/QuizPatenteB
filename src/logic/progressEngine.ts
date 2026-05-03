@@ -18,6 +18,7 @@ async function cloudLoad(username: string): Promise<{
   stats: UserStats | null;
   chapterProgress: Record<number, ChapterProgress> | null;
   wrongAnswerIds: number[] | null;
+  theme: string | null;
 } | null> {
   try {
     const res = await fetch(`/api/progress?username=${encodeURIComponent(username)}`);
@@ -27,6 +28,7 @@ async function cloudLoad(username: string): Promise<{
       stats: (data.stats && Object.keys(data.stats).length > 0) ? data.stats as UserStats : null,
       chapterProgress: (data.chapterProgress && Object.keys(data.chapterProgress).length > 0) ? data.chapterProgress as Record<number, ChapterProgress> : null,
       wrongAnswerIds: data.wrongAnswerIds && data.wrongAnswerIds.length > 0 ? data.wrongAnswerIds : null,
+      theme: data.theme || null,
     };
   } catch {
     return null;
@@ -39,6 +41,7 @@ function scheduleCloudSync(username: string) {
     const stats = getUserStats(username);
     const cp = getChapterProgress(username);
     const wrong = getWrongAnswerIds(username);
+    const theme = getThemePreference(username);
     try {
       await fetch('/api/progress', {
         method: 'POST',
@@ -48,6 +51,7 @@ function scheduleCloudSync(username: string) {
           stats,
           chapterProgress: cp,
           wrongAnswerIds: wrong,
+          theme,
         }),
       });
     } catch { /* silent */ }
@@ -60,6 +64,7 @@ export function forceSyncToCloud(username: string) {
   const stats = getUserStats(username);
   const cp = getChapterProgress(username);
   const wrong = getWrongAnswerIds(username);
+  const theme = getThemePreference(username);
   fetch('/api/progress', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -68,6 +73,7 @@ export function forceSyncToCloud(username: string) {
       stats,
       chapterProgress: cp,
       wrongAnswerIds: wrong,
+      theme,
     }),
   }).catch(() => {});
 }
@@ -96,6 +102,12 @@ export async function loadCloudProgress(username: string): Promise<boolean> {
     // Cloud wrong answers override local
     if (cloud.wrongAnswerIds) {
       try { localStorage.setItem(wrongKey(username), JSON.stringify(cloud.wrongAnswerIds)); } catch { /* */ }
+      loaded = true;
+    }
+
+    // Cloud theme preference overrides local
+    if (cloud.theme) {
+      try { localStorage.setItem('qp_theme', cloud.theme); } catch { /* */ }
       loaded = true;
     }
 
@@ -195,6 +207,51 @@ export function recordExamResult(username: string, passed: boolean): void {
 function getYesterday(): string {
   const d = new Date(); d.setDate(d.getDate() - 1);
   return d.toISOString().split('T')[0];
+}
+
+// ---- Theme Preference (synced to cloud) ----
+export function getThemePreference(username: string): string | null {
+  if (typeof window === 'undefined') return null;
+  try { return localStorage.getItem('qp_theme'); } catch { return null; }
+}
+
+export function saveThemePreference(username: string, theme: 'dark' | 'light'): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('qp_theme', theme);
+  // Sync to cloud immediately (include in next progress sync)
+  scheduleCloudSync(username);
+}
+
+// ---- Auto Sync (periodic) ----
+let _autoSyncInterval: ReturnType<typeof setInterval> | null = null;
+const AUTO_SYNC_INTERVAL = 60000; // 60 seconds
+
+export function startAutoSync(username: string): void {
+  stopAutoSync();
+  _autoSyncInterval = setInterval(() => {
+    const stats = getUserStats(username);
+    const cp = getChapterProgress(username);
+    const wrong = getWrongAnswerIds(username);
+    const theme = getThemePreference(username);
+    fetch('/api/progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username,
+        stats,
+        chapterProgress: cp,
+        wrongAnswerIds: wrong,
+        theme,
+      }),
+    }).catch(() => {});
+  }, AUTO_SYNC_INTERVAL);
+}
+
+export function stopAutoSync(): void {
+  if (_autoSyncInterval) {
+    clearInterval(_autoSyncInterval);
+    _autoSyncInterval = null;
+  }
 }
 
 // Re-export quiz resume from separate module

@@ -36,6 +36,8 @@ export async function GET(request: NextRequest) {
           stats: {},
           chapterProgress: {},
           wrongAnswerIds: [],
+          theme: null,
+          updatedAt: 0,
         });
       }
       console.error('Supabase GET error:', error);
@@ -48,6 +50,7 @@ export async function GET(request: NextRequest) {
       stats: progress.stats || {},
       chapterProgress: progress.chapterProgress || {},
       wrongAnswerIds: progress.wrongAnswerIds || [],
+      theme: progress.theme || null,
       updatedAt: data?.updated_at ? new Date(data.updated_at).getTime() : 0,
     });
   } catch (e: any) {
@@ -90,6 +93,7 @@ async function handleSaveAggregateProgress(body: {
   stats: any;
   chapterProgress: any;
   wrongAnswerIds: number[];
+  theme?: string | null;
 }) {
   const { username, stats, chapterProgress, wrongAnswerIds } = body;
   if (!username) return NextResponse.json({ error: 'Missing username' }, { status: 400 });
@@ -98,6 +102,7 @@ async function handleSaveAggregateProgress(body: {
     stats: stats || {},
     chapterProgress: chapterProgress || {},
     wrongAnswerIds: wrongAnswerIds || [],
+    theme: body.theme || null,
     updatedAt: Date.now(),
   };
 

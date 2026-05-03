@@ -4,7 +4,7 @@ import { useStore } from '@/store/useStore';
 import { getUniqueTopics, getChaptersByTopic, getQuestionsByChapters, getRandomQuestions } from '@/data/quizData';
 import { useOverallStats, useUserStats, useWrongAnswers } from './hooks';
 import { clearSession } from '@/logic/authEngine';
-import { forceSyncToCloud } from '@/logic/progressEngine';
+import { forceSyncToCloud, saveThemePreference } from '@/logic/progressEngine';
 import QuestionCountModal from './QuestionCountModal';
 import ChapterIcon from './ChapterIcons';
 
@@ -43,7 +43,7 @@ export default function HomeScreen() {
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem('theme');
+    const stored = localStorage.getItem('qp_theme') || localStorage.getItem('theme');
     const hasDarkClass = document.documentElement.classList.contains('dark');
     if (stored === 'dark' || hasDarkClass) {
       setIsDark(true);
@@ -53,13 +53,15 @@ export default function HomeScreen() {
   const toggleDark = () => {
     const next = !isDark;
     setIsDark(next);
+    const themeValue = next ? 'dark' : 'light';
     if (next) {
       document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
     }
+    localStorage.setItem('theme', themeValue);
+    localStorage.setItem('qp_theme', themeValue);
+    if (username) saveThemePreference(username, themeValue);
   };
 
   const examChapterIds = selectedChapterIds.length > 0 ? selectedChapterIds : chapters.map((c) => c.id);
