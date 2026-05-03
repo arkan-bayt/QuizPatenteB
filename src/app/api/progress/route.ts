@@ -3,10 +3,11 @@
 // SECURED: All actions require server-side session verification
 // Users can only access their own progress
 // Teachers can load progress for their students
+// NOTE: owner_id column not yet in DB — teacher isolation disabled
 // ============================================================
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifySession, requireTeacherOrAbove } from '@/lib/auth';
+import { verifySession } from '@/lib/auth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -22,27 +23,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
   }
 
-  // Use the verified user's username (ignore query param for security)
   const username = user.username.toLowerCase();
 
   // Students can only load their own progress
-  // Teachers can only load progress for their own students (owner_id check)
-  // Super_admin can load any user's progress
   const requestedUsername = request.nextUrl.searchParams.get('username')?.toLowerCase();
   if (user.role === 'student' && requestedUsername && requestedUsername !== username) {
     return NextResponse.json({ error: 'Non autorizzato' }, { status: 403 });
-  }
-
-  // Teacher requesting another user's progress: verify student ownership
-  if (user.role === 'teacher' && requestedUsername && requestedUsername !== username) {
-    const { data: targetUser } = await supabase
-      .from('app_users')
-      .select('id, owner_id')
-      .eq('username', requestedUsername)
-      .single();
-    if (!targetUser || targetUser.owner_id !== user.id) {
-      return NextResponse.json({ error: 'Non autorizzato' }, { status: 403 });
-    }
   }
 
   const targetUsername = requestedUsername || username;
@@ -121,27 +107,13 @@ async function handleSaveAggregateProgress(
     theme?: string | null;
   }
 ) {
-  // Users can only save their own progress
-  // Teachers can save progress for their own students (owner_id check)
-  // Super_admin can save any progress
   const targetUsername = body.username?.toLowerCase() || verifiedUser.username.toLowerCase();
 
   if (targetUsername !== verifiedUser.username.toLowerCase()) {
-    // Trying to save for a different user - require teacher or super_admin
     if (verifiedUser.role !== 'teacher' && verifiedUser.role !== 'super_admin') {
       return NextResponse.json({ ok: false, error: 'Non autorizzato' }, { status: 403 });
     }
-    // Teacher: verify the target user is their student
-    if (verifiedUser.role === 'teacher') {
-      const { data: targetUser } = await supabase
-        .from('app_users')
-        .select('id, owner_id')
-        .eq('username', targetUsername)
-        .single();
-      if (!targetUser || targetUser.owner_id !== verifiedUser.id) {
-        return NextResponse.json({ ok: false, error: 'Non autorizzato' }, { status: 403 });
-      }
-    }
+    // owner_id not yet in DB — teacher isolation skipped for now
   }
 
   if (!targetUsername) return NextResponse.json({ error: 'Missing username' }, { status: 400 });
@@ -187,24 +159,11 @@ async function handleSaveQuestionProgress(
     return NextResponse.json({ ok: false, msg: 'ID utente mancante' }, { status: 400 });
   }
 
-  // Students can only save their own progress
-  // Teachers can save progress for their own students (owner_id check)
   if (userId !== verifiedUser.id && userId !== verifiedUser.username) {
     if (verifiedUser.role === 'student') {
       return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
     }
-    if (verifiedUser.role === 'teacher') {
-      // Look up the target user by id or username
-      const { data: targetUser } = await supabase
-        .from('app_users')
-        .select('id, owner_id')
-        .or(`id.eq.${userId},username.eq.${userId}`)
-        .maybeSingle();
-      if (!targetUser || targetUser.owner_id !== verifiedUser.id) {
-        return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
-      }
-    }
-    // super_admin can save for any user
+    // owner_id not yet in DB — teacher isolation skipped for now
   }
 
   const itemsToSave: Array<{ user_id: string; question_id: number; chapter_id: number; is_correct: boolean }> = [];
@@ -265,23 +224,11 @@ async function handleGetQuestionProgress(
     return NextResponse.json({ ok: false, msg: 'ID utente mancante' }, { status: 400 });
   }
 
-  // Students can only view their own progress
-  // Teachers can view their own students' progress (owner_id check)
   if (userId !== verifiedUser.id && userId !== verifiedUser.username) {
     if (verifiedUser.role === 'student') {
       return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
     }
-    if (verifiedUser.role === 'teacher') {
-      const { data: targetUser } = await supabase
-        .from('app_users')
-        .select('id, owner_id')
-        .or(`id.eq.${userId},username.eq.${userId}`)
-        .maybeSingle();
-      if (!targetUser || targetUser.owner_id !== verifiedUser.id) {
-        return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
-      }
-    }
-    // super_admin can view any user's progress
+    // owner_id not yet in DB — teacher isolation skipped for now
   }
 
   let query = supabase

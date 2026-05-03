@@ -189,30 +189,8 @@ async function handleCreateAssignment(
     return NextResponse.json({ ok: false, msg: 'Il numero di domande deve essere almeno 1' });
   }
 
-  // Teacher can only assign their own students (verify owner_id = teacherId)
-  if (verifiedUser.role === 'teacher') {
-    const { data: studentUsers, error: stError } = await supabase
-      .from('app_users')
-      .select('id, owner_id')
-      .in('id', studentIds);
-
-    if (stError) {
-      console.error('Verify students error:', stError);
-      return NextResponse.json({ ok: false, msg: "Errore nella verifica degli studenti" }, { status: 500 });
-    }
-
-    const validStudentIds = (studentUsers || [])
-      .filter((s: any) => s.owner_id === teacherId)
-      .map((s: any) => s.id);
-
-    if (validStudentIds.length === 0) {
-      return NextResponse.json({ ok: false, msg: 'Nessuno degli studenti selezionati appartiene alla tua classe' });
-    }
-
-    // Filter studentIds to only include verified students
-    studentIds.length = 0;
-    studentIds.push(...validStudentIds);
-  }
+  // Teacher can assign to any student (owner_id not yet in DB)
+  // Future: add owner_id column for teacher isolation
 
   // Create the assignment
   const { data: assignment, error: createError } = await supabase

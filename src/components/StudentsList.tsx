@@ -43,7 +43,7 @@ export default function StudentsList() {
         });
         const allData = await allRes.json();
         if (allData.ok && allData.users) {
-          setStudents(allData.users.filter((u: any) => u.role === 'student' && (u.owner_id === teacherId || !u.owner_id)));
+          setStudents(allData.users.filter((u: any) => u.role === 'student'));
         }
       }
     } catch {

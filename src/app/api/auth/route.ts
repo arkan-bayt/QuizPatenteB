@@ -127,10 +127,7 @@ async function handleListUsers(request: NextRequest) {
     .select('*')
     .eq('is_active', true);
 
-  // Teachers only see their own students
-  if (user.role === 'teacher') {
-    query = query.eq('owner_id', user.id);
-  }
+  // All teachers/super_admins see all users (owner_id column not yet in DB)
 
   const { data, error } = await query.order('created_at', { ascending: true });
 
@@ -145,8 +142,6 @@ async function handleListUsers(request: NextRequest) {
     role: u.role,
     is_active: u.is_active,
     created_at: u.created_at,
-    full_name: u.full_name || null,
-    owner_id: u.owner_id || null,
     // password_hash is intentionally excluded
   }));
 

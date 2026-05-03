@@ -582,7 +582,6 @@ export default function AdminPanel() {
             users.map((u, i) => {
               const role = (u.role as Role) || 'student';
               const c = ROLE_COLORS[role] || ROLE_COLORS.student;
-              const teacherName = u.role === 'student' ? getTeacherName(u.owner_id) : '';
 
               return (
                 <div
@@ -602,7 +601,7 @@ export default function AdminPanel() {
                     }}
                   >
                     <span className="text-sm font-bold" style={{ color: c.color }}>
-                      {(u.full_name || u.username)[0].toUpperCase()}
+                      {(u.username)[0].toUpperCase()}
                     </span>
                   </div>
 
@@ -610,14 +609,13 @@ export default function AdminPanel() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                        {u.full_name || u.username}
+                        {u.username}
                       </p>
                       <RoleBadge role={role} />
                       <ActiveBadge active={u.is_active} />
                     </div>
                     <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
                       @{u.username}
-                      {u.email ? ` · ${u.email}` : ''}
                       {' · '}
                       {u.created_at
                         ? new Date(u.created_at).toLocaleDateString('it-IT', {
@@ -627,11 +625,6 @@ export default function AdminPanel() {
                           })
                         : 'N/A'}
                     </p>
-                    {teacherName && (
-                      <p className="text-[11px] mt-0.5" style={{ color: 'var(--primary-light)' }}>
-                        🎓 Insegnante: {teacherName}
-                      </p>
-                    )}
                   </div>
 
                   {/* Actions */}

@@ -35,7 +35,7 @@ export async function verifySession(authHeader: string | null): Promise<Verified
 
     const { data, error } = await supabase
       .from('app_users')
-      .select('id, username, role, owner_id, is_active')
+      .select('id, username, role, is_active')
       .eq('username', username.toLowerCase())
       .eq('is_active', true)
       .single();
@@ -43,14 +43,14 @@ export async function verifySession(authHeader: string | null): Promise<Verified
     if (error || !data) return null;
 
     if (username === 'arkan') {
-      return { id: data.id || 'super-admin', username: 'arkan', role: 'super_admin', owner_id: null, is_active: true };
+      return { id: String(data.id), username: 'arkan', role: 'super_admin', owner_id: null, is_active: true };
     }
 
     return {
-      id: data.id,
+      id: String(data.id),
       username: data.username,
       role: data.role as 'super_admin' | 'teacher' | 'student',
-      owner_id: data.owner_id,
+      owner_id: null,
       is_active: data.is_active,
     };
   } catch {
