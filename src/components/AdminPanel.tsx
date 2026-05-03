@@ -19,7 +19,9 @@ interface Teacher {
 // ============================================================
 // Constants
 // ============================================================
-const ROLES: Role[] = ['super_admin', 'teacher', 'student'];
+// ⛔ super_admin CANNOT be created via UI — only teacher and student
+const ROLES: Role[] = ['teacher', 'student'];
+const ALL_ROLES: Role[] = ['super_admin', 'teacher', 'student']; // For display only
 
 const ROLE_LABELS: Record<Role, string> = {
   super_admin: 'Super Admin',
@@ -522,6 +524,7 @@ export default function AdminPanel() {
               Ruolo
             </label>
             <div className="flex flex-wrap gap-2">
+              {/* ⛔ super_admin option is HIDDEN — cannot be created via UI */}
               {ROLES.map((r) => (
                 <button
                   key={r}
@@ -791,6 +794,7 @@ export default function AdminPanel() {
             <label className="block text-[10px] font-bold mb-2 uppercase tracking-[0.15em]" style={{ color: 'var(--text-muted)' }}>
               Nuovo ruolo
             </label>
+            {/* ⛔ super_admin option is HIDDEN — cannot be assigned via UI */}
             <div className="flex flex-wrap gap-2 mb-4">
               {ROLES.map((r) => (
                 <button
@@ -810,6 +814,18 @@ export default function AdminPanel() {
                   {ROLE_ICONS[r]} {ROLE_LABELS[r]}
                 </button>
               ))}
+              {roleDialogUser.role === 'super_admin' && (
+                <div
+                  className="px-4 py-2 rounded-xl text-[11px] font-semibold"
+                  style={{
+                    background: 'rgba(217, 119, 6, 0.08)',
+                    color: '#D97706',
+                    border: '1px solid rgba(217, 119, 6, 0.2)',
+                  }}
+                >
+                  👑 Super Admin (protetto)
+                </div>
+              )}
             </div>
 
             {/* Teacher assignment when changing to student */}
