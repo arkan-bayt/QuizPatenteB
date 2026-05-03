@@ -13,6 +13,41 @@ const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// Debug endpoint to diagnose auth issues
+async function handleDebugVerify(request: NextRequest) {
+  const authHeader = request.headers.get('Authorization');
+  const token = authHeader?.slice(7) || '';
+  
+  let decoded: any = null;
+  try {
+    decoded = JSON.parse(Buffer.from(token, 'base64').toString('utf-8'));
+  } catch(e: any) {
+    return NextResponse.json({ step: 'decode', error: e.message, token });
+  }
+
+  // Try direct Supabase query
+  const { data, error } = await supabase
+    .from('app_users')
+    .select('id, username, role, is_active')
+    .eq('username', decoded.username?.toLowerCase())
+    .eq('is_active', true)
+    .single();
+
+  // Try verifySession
+  const user = await verifySession(authHeader);
+
+  return NextResponse.json({
+    step: 'debug',
+    env_url: SUPABASE_URL ? SUPABASE_URL.substring(0, 30) + '...' : 'MISSING',
+    env_key: SUPABASE_KEY ? 'present' : 'MISSING',
+    auth_header: authHeader?.substring(0, 30) + '...',
+    decoded,
+    db_data: data,
+    db_error: error?.message || null,
+    verified_user: user,
+  });
+}
+
 // Simple hash function (same as client-side)
 function hash(str: string): string {
   let h = 0;
@@ -58,6 +93,7 @@ export async function POST(request: NextRequest) {
       case 'register_student': return handleRegisterStudent(request, body);
       case 'get_my_students': return handleGetMyStudents(request, body);
       case 'get_teachers': return handleGetTeachers(request);
+      case 'debug_verify': return handleDebugVerify(request);
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
