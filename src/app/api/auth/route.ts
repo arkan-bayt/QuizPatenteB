@@ -325,12 +325,18 @@ async function handleDeleteUser(request: NextRequest, body: { user_id?: string; 
   }
 
   const userId = body.user_id || body.userId;
+  if (!userId) {
+    return NextResponse.json({ ok: false, msg: 'ID utente mancante' });
+  }
+
+  // Determine lookup field: if it's a plain username use username, otherwise use id
+  const lookupField = (String(userId) === String(userId).toLowerCase() && !String(userId).match(/^\d+$/)) ? 'username' : 'id';
 
   // Find the user record
   const { data: userRecord, error: findError } = await supabase
     .from('app_users')
     .select('*')
-    .or(`id.eq.${userId},username.eq.${userId}`)
+    .eq(lookupField, userId)
     .eq('is_active', true)
     .single();
 
@@ -370,11 +376,14 @@ async function handleToggleActive(request: NextRequest, body: { user_id?: string
     return NextResponse.json({ ok: false, msg: 'ID utente mancante' });
   }
 
+  // Determine lookup field: if it's a plain username use username, otherwise use id
+  const lookupField = (String(targetId) === String(targetId).toLowerCase() && !String(targetId).match(/^\d+$/)) ? 'username' : 'id';
+
   // Find current user state
   const { data: targetUser, error: findError } = await supabase
     .from('app_users')
     .select('id, username, is_active')
-    .or(`id.eq.${targetId},username.eq.${targetId}`)
+    .eq(lookupField, targetId)
     .single();
 
   if (findError || !targetUser) {
