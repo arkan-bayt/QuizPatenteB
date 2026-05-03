@@ -270,7 +270,7 @@ async function handleGetResults(
   }
 
   // Verify ownership: teacher must own, super_admin sees all
-  if (verifiedUser.role === 'teacher' && assignment.teacher_id !== verifiedUser.id) {
+  if (verifiedUser.role === 'teacher' && String(assignment.teacher_id) !== String(verifiedUser.id)) {
     return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
   }
 
@@ -416,7 +416,7 @@ async function handleUpdateAssignment(
   if (findError || !existing) {
     return NextResponse.json({ ok: false, msg: 'Compito non trovato' });
   }
-  if (verifiedUser.role === 'teacher' && existing.teacher_id !== verifiedUser.id) {
+  if (verifiedUser.role === 'teacher' && String(existing.teacher_id) !== String(verifiedUser.id)) {
     return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
   }
 
@@ -498,7 +498,7 @@ async function handleDeleteAssignment(
   if (findError || !existing) {
     return NextResponse.json({ ok: false, msg: 'Compito non trovato' });
   }
-  if (verifiedUser.role === 'teacher' && existing.teacher_id !== verifiedUser.id) {
+  if (verifiedUser.role === 'teacher' && String(existing.teacher_id) !== String(verifiedUser.id)) {
     return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
   }
 

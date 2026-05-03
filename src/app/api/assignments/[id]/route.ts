@@ -73,7 +73,7 @@ export async function GET(
     }
 
     // Teachers can only access their own assignments
-    if (user.role === 'teacher' && assignment.teacher_id !== user.id) {
+    if (user.role === 'teacher' && String(assignment.teacher_id) !== String(user.id)) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 403 });
     }
 

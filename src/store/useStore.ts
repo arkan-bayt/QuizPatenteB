@@ -135,7 +135,12 @@ export const useStore = create<State>((set, get) => ({
     const s = get();
     const next = s.currentIdx + 1;
     if (next >= s.quizQuestions.length) {
-      set({ isComplete: true, showFeedback: false, screen: 'result' });
+      // In assignment mode, don't change screen — QuizScreen handles submission + navigation
+      if (s.activeAssignmentId) {
+        set({ isComplete: true, showFeedback: false });
+      } else {
+        set({ isComplete: true, showFeedback: false, screen: 'result' });
+      }
     } else {
       set({ currentIdx: next, selectedAnswer: null, showFeedback: false });
     }
