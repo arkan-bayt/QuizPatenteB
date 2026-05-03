@@ -13,6 +13,34 @@ const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// Self-test: login returns the token, then immediately verifies it
+async function handleSelfTest(request: NextRequest) {
+  const { username, password } = await request.json();
+  const { data, error } = await supabase
+    .from('app_users')
+    .select('*')
+    .eq('username', username?.toLowerCase())
+    .eq('is_active', true)
+    .single();
+  
+  if (error) return NextResponse.json({ step: 'db_lookup', error: error.message, code: error.code });
+  if (!data) return NextResponse.json({ step: 'db_lookup', error: 'User not found' });
+  
+  // Create session token
+  const token = Buffer.from(JSON.stringify({ username: data.username, ts: Date.now() })).toString('base64');
+  
+  // Now verify the session
+  const verified = await verifySession('Bearer ' + token);
+  
+  return NextResponse.json({
+    step: 'self_test',
+    db_columns: Object.keys(data),
+    db_data: { id: data.id, username: data.username, role: data.role, is_active: data.is_active },
+    token,
+    verified_user: verified,
+  });
+}
+
 // Debug endpoint to diagnose auth issues
 async function handleDebugVerify(request: NextRequest) {
   const authHeader = request.headers.get('Authorization');
@@ -94,6 +122,7 @@ export async function POST(request: NextRequest) {
       case 'get_my_students': return handleGetMyStudents(request, body);
       case 'get_teachers': return handleGetTeachers(request);
       case 'debug_verify': return handleDebugVerify(request);
+      case 'self_test': return handleSelfTest(request);
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
