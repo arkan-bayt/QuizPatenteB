@@ -72,14 +72,11 @@ export default function AdminPanel() {
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newFullName, setNewFullName] = useState('');
-  const [newEmail, setNewEmail] = useState('');
   const [newRole, setNewRole] = useState<Role>('student');
-  const [newOwnerId, setNewOwnerId] = useState('');
 
   // Role change dialog
   const [roleDialogUser, setRoleDialogUser] = useState<AppUser | null>(null);
   const [roleDialogTarget, setRoleDialogTarget] = useState<Role>('student');
-  const [roleDialogOwnerId, setRoleDialogOwnerId] = useState('');
 
   // Delete confirmation dialog
   const [deleteDialogUser, setDeleteDialogUser] = useState<AppUser | null>(null);
@@ -181,11 +178,7 @@ export default function AdminPanel() {
         password: newPassword,
         role: newRole,
         full_name: newFullName.trim() || undefined,
-        email: newEmail.trim() || undefined,
       };
-      if (newRole === 'student' && newOwnerId) {
-        payload.owner_id = newOwnerId;
-      }
       const res = await authenticatedFetch('/api/auth', {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -196,9 +189,7 @@ export default function AdminPanel() {
         setNewUsername('');
         setNewPassword('');
         setNewFullName('');
-        setNewEmail('');
         setNewRole('student');
-        setNewOwnerId('');
         loadUsers();
       } else {
         showMsg(data.msg || 'Errore nella creazione', 'error');
@@ -236,11 +227,6 @@ export default function AdminPanel() {
         user_id: roleDialogUser.id,
         new_role: roleDialogTarget,
       };
-      if (roleDialogTarget === 'student' && roleDialogOwnerId) {
-        payload.owner_id = roleDialogOwnerId;
-      } else if (roleDialogUser.role === 'student' && roleDialogTarget !== 'student') {
-        payload.clear_owner = true;
-      }
       const res = await authenticatedFetch('/api/auth', {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -249,7 +235,6 @@ export default function AdminPanel() {
       if (data.ok) {
         showMsg(`Ruolo di ${roleDialogUser.username} aggiornato a ${ROLE_LABELS[roleDialogTarget]}`, 'success');
         setRoleDialogUser(null);
-        setRoleDialogOwnerId('');
         loadUsers();
       } else {
         showMsg(data.msg || 'Errore nell\'aggiornamento', 'error');
@@ -285,7 +270,6 @@ export default function AdminPanel() {
   const openRoleDialog = (u: AppUser) => {
     setRoleDialogUser(u);
     setRoleDialogTarget(u.role as Role);
-    setRoleDialogOwnerId(u.owner_id || '');
   };
 
   const openDeleteDialog = (u: AppUser) => {
@@ -491,35 +475,21 @@ export default function AdminPanel() {
             </div>
           </div>
 
-          {/* Full Name + Email */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-            <div>
-              <label className="block text-[10px] font-bold mb-2 uppercase tracking-[0.15em]" style={{ color: 'var(--text-muted)' }}>
-                Nome completo
-              </label>
-              <input
-                value={newFullName}
-                onChange={(e) => setNewFullName(e.target.value)}
-                className="input-modern text-sm"
-                placeholder="Nome e cognome"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold mb-2 uppercase tracking-[0.15em]" style={{ color: 'var(--text-muted)' }}>
-                Email
-              </label>
-              <input
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                type="email"
-                className="input-modern text-sm"
-                placeholder="email@esempio.it"
-              />
-            </div>
+          {/* Full Name */}
+          <div className="mb-3">
+            <label className="block text-[10px] font-bold mb-2 uppercase tracking-[0.15em]" style={{ color: 'var(--text-muted)' }}>
+              Nome completo
+            </label>
+            <input
+              value={newFullName}
+              onChange={(e) => setNewFullName(e.target.value)}
+              className="input-modern text-sm"
+              placeholder="Nome e cognome"
+            />
           </div>
 
           {/* Role selector */}
-          <div className="mb-3">
+          <div className="mb-5">
             <label className="block text-[10px] font-bold mb-2 uppercase tracking-[0.15em]" style={{ color: 'var(--text-muted)' }}>
               Ruolo
             </label>
@@ -529,10 +499,7 @@ export default function AdminPanel() {
                 <button
                   key={r}
                   type="button"
-                  onClick={() => {
-                    setNewRole(r);
-                    if (r !== 'student') setNewOwnerId('');
-                  }}
+                  onClick={() => setNewRole(r)}
                   className="px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 border cursor-pointer"
                   style={
                     newRole === r
@@ -545,28 +512,6 @@ export default function AdminPanel() {
               ))}
             </div>
           </div>
-
-          {/* Teacher assignment for students */}
-          {newRole === 'student' && (
-            <div className="mb-5 anim-fade">
-              <label className="block text-[10px] font-bold mb-2 uppercase tracking-[0.15em]" style={{ color: 'var(--text-muted)' }}>
-                Assegna a Insegnante
-              </label>
-              <select
-                value={newOwnerId}
-                onChange={(e) => setNewOwnerId(e.target.value)}
-                className="w-full input-modern text-sm"
-                style={{ appearance: 'auto' }}
-              >
-                <option value="">— Nessun insegnante —</option>
-                {teachers.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.full_name || t.username} ({t.student_count || 0} studenti)
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
 
           {/* Submit */}
           <button
@@ -827,42 +772,6 @@ export default function AdminPanel() {
                 </div>
               )}
             </div>
-
-            {/* Teacher assignment when changing to student */}
-            {roleDialogTarget === 'student' && (
-              <div className="mb-5 anim-fade">
-                <label className="block text-[10px] font-bold mb-2 uppercase tracking-[0.15em]" style={{ color: 'var(--text-muted)' }}>
-                  Assegna a Insegnante
-                </label>
-                <select
-                  value={roleDialogOwnerId}
-                  onChange={(e) => setRoleDialogOwnerId(e.target.value)}
-                  className="w-full input-modern text-sm"
-                  style={{ appearance: 'auto' }}
-                >
-                  <option value="">— Nessun insegnante —</option>
-                  {teachers.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.full_name || t.username} ({t.student_count || 0} studenti)
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Warning when changing from student */}
-            {roleDialogUser.role === 'student' && roleDialogTarget !== 'student' && (
-              <div
-                className="p-3 rounded-xl mb-5 text-[12px] anim-fade"
-                style={{
-                  background: 'var(--accent-50)',
-                  border: '1px solid var(--accent-150)',
-                  color: 'var(--accent)',
-                }}
-              >
-                ⚠️ Il legame con l&apos;insegnante verrà rimosso automaticamente.
-              </div>
-            )}
 
             <div className="flex gap-2">
               <button

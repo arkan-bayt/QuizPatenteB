@@ -27,14 +27,8 @@ interface AppUser {
   role: string;
   is_active: boolean;
   created_at: string;
-  email?: string | null;
   owner_id?: string | null;
   full_name?: string | null;
-  avatar_url?: string | null;
-  ai_usage_count?: number;
-  ai_usage_limit?: number;
-  last_ai_usage?: string | null;
-  subscription?: string;
 }
 
 // ============================================================
@@ -152,9 +146,7 @@ async function handleListUsers(request: NextRequest) {
     is_active: u.is_active,
     created_at: u.created_at,
     full_name: u.full_name || null,
-    email: u.email || null,
     owner_id: u.owner_id || null,
-    subscription: u.subscription || 'free',
     // password_hash is intentionally excluded
   }));
 
@@ -176,9 +168,7 @@ async function handleAddUser(request: NextRequest, body: {
   username: string;
   password: string;
   role?: string;
-  owner_id?: string;
   full_name?: string;
-  email?: string;
 }) {
   const user = await verifySession(request.headers.get('Authorization'));
   if (!user) {
@@ -190,9 +180,7 @@ async function handleAddUser(request: NextRequest, body: {
     return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
   }
 
-  const { username, password, full_name, email } = body;
-
-  // ⛔ NEVER trust the client role — determine it server-side only
+  const { username, password, full_name } = body;
   const clientRole = body.role;
 
   // Validate basic fields
@@ -214,76 +202,38 @@ async function handleAddUser(request: NextRequest, body: {
 
   // Determine effective role based on caller's role (NOT client input)
   let effectiveRole: string;
-  let resolvedOwnerId: string | null = null;
 
   if (user.role === 'super_admin') {
-    // Super admin can create teacher or student (but NOT super_admin)
     if (clientRole === 'teacher') {
       effectiveRole = 'teacher';
-      // Teacher owner_id stays null (teacher reports to super_admin)
-      resolvedOwnerId = null;
     } else {
-      // Default to student for super_admin
       effectiveRole = 'student';
-      // ⛔ owner_id is NEVER trusted from client for security
-      // Super admin creating a student: they must pick a teacher
-      // But we validate the teacher exists
-      const ownerProvided = body.owner_id;
-      if (!ownerProvided) {
-        return NextResponse.json({ ok: false, msg: 'Specificare un docente per lo studente' });
-      }
-      // Validate that owner_id references an active teacher
-      const { data: ownerRecord } = await supabase
-        .from('app_users')
-        .select('id, role, is_active')
-        .eq('id', ownerProvided)
-        .eq('is_active', true)
-        .single();
-      if (!ownerRecord || ownerRecord.role !== 'teacher') {
-        return NextResponse.json({ ok: false, msg: 'Docente non valido' });
-      }
-      resolvedOwnerId = ownerProvided;
     }
   } else if (user.role === 'teacher') {
-    // ⛔ Teacher can ONLY create students — force role, ignore client input
+    // ⛔ Teacher can ONLY create students — force role
     effectiveRole = 'student';
-    // ⛔ owner_id is ALWAYS the teacher's own ID — NEVER from client
-    resolvedOwnerId = user.id;
   } else {
-    // Unknown role — deny
     return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
   }
 
   // Check if username already exists
   const { data: existing } = await supabase
     .from('app_users')
-    .select('id, username, email')
-    .or(`username.eq.${username.toLowerCase()}${email ? `,email.eq.${email}` : ''}`)
+    .select('id, username')
+    .eq('username', username.toLowerCase())
     .maybeSingle();
 
   if (existing) {
-    if (existing.username === username.toLowerCase()) {
-      return NextResponse.json({ ok: false, msg: 'Username gia esistente' });
-    }
-    if (email && existing.email === email) {
-      return NextResponse.json({ ok: false, msg: 'Email gia registrata' });
-    }
+    return NextResponse.json({ ok: false, msg: 'Username gia esistente' });
   }
 
-  // Insert into Supabase with server-enforced role and owner_id
+  // Build insert payload with ONLY existing DB columns
   const insertPayload: Record<string, unknown> = {
     username: username.toLowerCase(),
     password_hash: hash(password),
     role: effectiveRole,
     is_active: true,
-    full_name: full_name || null,
-    email: email || null,
-    subscription: 'free',
-    ai_usage_limit: effectiveRole === 'teacher' ? 5 : 3,
   };
-  if (resolvedOwnerId) {
-    insertPayload.owner_id = resolvedOwnerId;
-  }
 
   const { error } = await supabase
     .from('app_users')
@@ -292,7 +242,7 @@ async function handleAddUser(request: NextRequest, body: {
   if (error) {
     console.error('Supabase add_user error:', error);
     if (error.code === '23505') {
-      return NextResponse.json({ ok: false, msg: 'Username o email gia esistente' });
+      return NextResponse.json({ ok: false, msg: 'Username gia esistente' });
     }
     return NextResponse.json({ ok: false, msg: 'Errore nella creazione utente' }, { status: 500 });
   }
@@ -346,7 +296,7 @@ async function handleDeleteUser(request: NextRequest, body: { userId: string }) 
 //   ⛔ CANNOT set role to 'super_admin' — privilege escalation blocked
 //   Allowed: teacher ↔ student only
 // ============================================================
-async function handleToggleRole(request: NextRequest, body: { userId: string; newRole: string; owner_id?: string }) {
+async function handleToggleRole(request: NextRequest, body: { userId: string; newRole: string }) {
   const user = await verifySession(request.headers.get('Authorization'));
   if (!user) {
     return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
@@ -357,49 +307,23 @@ async function handleToggleRole(request: NextRequest, body: { userId: string; ne
 
   const { userId, newRole } = body;
 
-  // ⛔ BLOCK: Cannot set anyone to super_admin — prevent privilege escalation
+  // ⛔ BLOCK: Cannot set anyone to super_admin
   if (newRole === 'super_admin') {
     console.warn(`[SECURITY] Blocked super_admin role assignment attempt by user=${user.username} on target=${userId}`);
     return NextResponse.json({ ok: false, msg: 'Non autorizzato: impossibile assegnare il ruolo super_admin' }, { status: 403 });
   }
 
-  // Validate new role (only teacher and student allowed)
+  // Validate new role
   const validRoles = ['teacher', 'student'];
   if (!validRoles.includes(newRole)) {
     return NextResponse.json({ ok: false, msg: 'Ruolo non valido' });
   }
 
-  // When changing TO student, require owner_id (teacher assignment)
-  // When changing FROM student, clear owner_id
-  const updatePayload: Record<string, unknown> = { role: newRole };
-
-  if (newRole === 'student') {
-    // Must have a teacher owner — check if body provides one
-    const ownerProvided = body.owner_id;
-    if (!ownerProvided) {
-      return NextResponse.json({ ok: false, msg: 'Specificare un docente per lo studente' });
-    }
-    // Validate the teacher exists and is active
-    const { data: teacher } = await supabase
-      .from('app_users')
-      .select('id, role, is_active')
-      .eq('id', ownerProvided)
-      .eq('is_active', true)
-      .single();
-    if (!teacher || teacher.role !== 'teacher') {
-      return NextResponse.json({ ok: false, msg: 'Docente non valido' });
-    }
-    updatePayload.owner_id = ownerProvided;
-  } else if (newRole === 'teacher') {
-    // Clear owner_id when promoting to teacher
-    updatePayload.owner_id = null;
-  }
-
   const lookupField = userId === userId.toLowerCase() && !userId.startsWith('user-') ? 'username' : 'id';
   const { error } = await supabase
     .from('app_users')
-    .update(updatePayload)
-  .eq(lookupField, userId);
+    .update({ role: newRole })
+    .eq(lookupField, userId);
 
   if (error) {
     console.error('Supabase toggle_role error:', error);
@@ -416,7 +340,6 @@ async function handleToggleRole(request: NextRequest, body: { userId: string; ne
 async function handleRegisterTeacher(request: NextRequest, body: {
   username: string;
   password: string;
-  email?: string;
   full_name?: string;
 }) {
   const user = await verifySession(request.headers.get('Authorization'));
@@ -427,7 +350,7 @@ async function handleRegisterTeacher(request: NextRequest, body: {
     return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
   }
 
-  const { username, password, email, full_name } = body;
+  const { username, password } = body;
   if (!username || !password) {
     return NextResponse.json({ ok: false, msg: 'Compila tutti i campi obbligatori' });
   }
@@ -438,23 +361,18 @@ async function handleRegisterTeacher(request: NextRequest, body: {
     return NextResponse.json({ ok: false, msg: 'Password minimo 4 caratteri' });
   }
 
-  // Check if username or email already exists
+  // Check if username already exists
   const { data: existing } = await supabase
     .from('app_users')
-    .select('id, username, email')
-    .or(`username.eq.${username.toLowerCase()}${email ? `,email.eq.${email}` : ''}`)
+    .select('id, username')
+    .eq('username', username.toLowerCase())
     .maybeSingle();
 
   if (existing) {
-    if (existing.username === username.toLowerCase()) {
-      return NextResponse.json({ ok: false, msg: 'Username gia esistente' });
-    }
-    if (email && existing.email === email) {
-      return NextResponse.json({ ok: false, msg: 'Email gia registrata' });
-    }
+    return NextResponse.json({ ok: false, msg: 'Username gia esistente' });
   }
 
-  // Insert teacher (owner_id stays null)
+  // Insert teacher — ONLY existing DB columns
   const { data: newTeacher, error } = await supabase
     .from('app_users')
     .insert({
@@ -462,18 +380,14 @@ async function handleRegisterTeacher(request: NextRequest, body: {
       password_hash: hash(password),
       role: 'teacher',
       is_active: true,
-      email: email || null,
-      full_name: full_name || null,
-      subscription: 'free',
-      ai_usage_limit: 5,
     })
-    .select('id, username, role, full_name, email, created_at')
+    .select('id, username, role, created_at')
     .single();
 
   if (error) {
     console.error('Supabase register_teacher error:', error);
     if (error.code === '23505') {
-      return NextResponse.json({ ok: false, msg: 'Username o email gia esistente' });
+      return NextResponse.json({ ok: false, msg: 'Username gia esistente' });
     }
     return NextResponse.json({ ok: false, msg: 'Errore nella creazione del docente' }, { status: 500 });
   }
@@ -491,11 +405,9 @@ async function handleRegisterTeacher(request: NextRequest, body: {
 //   super_admin → use provided owner_id (must be a valid teacher)
 // ============================================================
 async function handleRegisterStudent(request: NextRequest, body: {
-  teacherId?: string;
   username: string;
   password: string;
   full_name?: string;
-  email?: string;
 }) {
   const user = await verifySession(request.headers.get('Authorization'));
   if (!user) {
@@ -505,7 +417,7 @@ async function handleRegisterStudent(request: NextRequest, body: {
     return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
   }
 
-  const { teacherId, username, password, full_name, email } = body;
+  const { username, password } = body;
 
   if (!username || !password) {
     return NextResponse.json({ ok: false, msg: 'Compila tutti i campi obbligatori' });
@@ -517,49 +429,18 @@ async function handleRegisterStudent(request: NextRequest, body: {
     return NextResponse.json({ ok: false, msg: 'Password minimo 4 caratteri' });
   }
 
-  // Determine owner_id based on caller role
-  let ownerId: string;
-
-  if (user.role === 'super_admin') {
-    // Super admin must provide a valid teacher_id
-    if (!teacherId) {
-      return NextResponse.json({ ok: false, msg: 'Specificare un docente per lo studente' });
-    }
-    ownerId = teacherId;
-  } else {
-    // Teacher creates student under themselves
-    ownerId = user.id;
-  }
-
-  // Validate that owner_id references an active teacher
-  const { data: owner } = await supabase
-    .from('app_users')
-    .select('id, role, is_active')
-    .eq('id', ownerId)
-    .eq('is_active', true)
-    .single();
-
-  if (!owner || owner.role !== 'teacher') {
-    return NextResponse.json({ ok: false, msg: 'Docente non valido' });
-  }
-
-  // Check if username or email already exists
+  // Check if username already exists
   const { data: existing } = await supabase
     .from('app_users')
-    .select('id, username, email')
-    .or(`username.eq.${username.toLowerCase()}${email ? `,email.eq.${email}` : ''}`)
+    .select('id, username')
+    .eq('username', username.toLowerCase())
     .maybeSingle();
 
   if (existing) {
-    if (existing.username === username.toLowerCase()) {
-      return NextResponse.json({ ok: false, msg: 'Username gia esistente' });
-    }
-    if (email && existing.email === email) {
-      return NextResponse.json({ ok: false, msg: 'Email gia registrata' });
-    }
+    return NextResponse.json({ ok: false, msg: 'Username gia esistente' });
   }
 
-  // Insert student with owner_id pointing to teacher
+  // Insert student — ONLY existing DB columns
   const { data: newStudent, error } = await supabase
     .from('app_users')
     .insert({
@@ -567,19 +448,14 @@ async function handleRegisterStudent(request: NextRequest, body: {
       password_hash: hash(password),
       role: 'student',
       is_active: true,
-      owner_id: ownerId,
-      full_name: full_name || null,
-      email: email || null,
-      subscription: 'free',
-      ai_usage_limit: 3,
     })
-    .select('id, username, role, full_name, email, created_at')
+    .select('id, username, role, created_at')
     .single();
 
   if (error) {
     console.error('Supabase register_student error:', error);
     if (error.code === '23505') {
-      return NextResponse.json({ ok: false, msg: 'Username o email gia esistente' });
+      return NextResponse.json({ ok: false, msg: 'Username gia esistente' });
     }
     return NextResponse.json({ ok: false, msg: 'Errore nella creazione dello studente' }, { status: 500 });
   }
@@ -607,17 +483,13 @@ async function handleGetMyStudents(request: NextRequest, body: { teacherId?: str
 
   let query = supabase
     .from('app_users')
-    .select('id, username, full_name, email, role, is_active, created_at, avatar_url, subscription, ai_usage_count, ai_usage_limit, owner_id')
+    .select('id, username, role, is_active, created_at')
     .eq('role', 'student')
     .eq('is_active', true);
 
-  // Teacher can only see their own students
-  if (user.role === 'teacher') {
-    query = query.eq('owner_id', user.id);
-  } else if (user.role === 'super_admin' && body.teacherId) {
-    // Super admin can optionally filter by teacher
-    query = query.eq('owner_id', body.teacherId);
-  }
+  // Teacher sees all students (owner_id not yet available in DB schema)
+  // Super admin sees all students
+  // Future: add owner_id column for teacher isolation
   // If super_admin with no teacherId → returns ALL students
 
   const { data, error } = await query.order('created_at', { ascending: true });
@@ -651,7 +523,7 @@ async function handleGetTeachers(request: NextRequest) {
 
   const { data, error } = await supabase
     .from('app_users')
-    .select('id, username, full_name, email, role, is_active, created_at, avatar_url, subscription')
+    .select('id, username, role, is_active, created_at')
     .eq('role', 'teacher')
     .eq('is_active', true)
     .order('created_at', { ascending: true });
@@ -666,7 +538,7 @@ async function handleGetTeachers(request: NextRequest) {
     const { count } = await supabase
       .from('app_users')
       .select('id', { count: 'exact', head: true })
-      .eq('owner_id', teacher.id)
+      .eq('role', 'student')
       .eq('is_active', true);
 
     return {
