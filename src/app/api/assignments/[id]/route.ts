@@ -63,7 +63,7 @@ export async function GET(
       .from('assignments')
       .select(`
         *,
-        teacher:app_users!assignments_teacher_id_fkey(id, username, full_name)
+        teacher:app_users!assignments_teacher_id_fkey(id, username)
       `)
       .eq('id', id)
       .single();
@@ -80,7 +80,6 @@ export async function GET(
     const response: any = {
       ...assignment,
       teacher_username: assignment.teacher?.username || '',
-      teacher_full_name: assignment.teacher?.full_name || assignment.teacher?.username || '',
       teacher: undefined,
     };
 

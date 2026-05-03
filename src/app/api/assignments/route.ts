@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         .from('assignments')
         .select(`
           *,
-          teacher:app_users!assignments_teacher_id_fkey(id, username, full_name)
+          teacher:app_users!assignments_teacher_id_fkey(id, username)
         `)
         .order('created_at', { ascending: false });
 
@@ -63,7 +63,6 @@ export async function GET(request: NextRequest) {
         return {
           ...a,
           teacher_username: a.teacher?.username || '',
-          teacher_full_name: a.teacher?.full_name || a.teacher?.username || '',
           _student_count: totalStudents || 0,
           _completed_count: completedStudents || 0,
           teacher: undefined,
@@ -81,7 +80,7 @@ export async function GET(request: NextRequest) {
           *,
           assignment:assignments!assignment_students_assignment_id_fkey(
             *,
-            teacher:app_users!assignments_teacher_id_fkey(id, username, full_name)
+            teacher:app_users!assignments_teacher_id_fkey(id, username)
           )
         `)
         .eq('student_id', userId)
@@ -111,7 +110,6 @@ export async function GET(request: NextRequest) {
           _student_assigned_at: sa.assigned_at,
           _best_result: bestResult || null,
           teacher_username: assignment?.teacher?.username || '',
-          teacher_full_name: assignment?.teacher?.full_name || assignment?.teacher?.username || '',
           teacher: undefined,
           assignment: undefined,
         };
@@ -306,7 +304,7 @@ async function handleGetResults(
   if (studentIds.length > 0) {
     const { data: students } = await supabase
       .from('app_users')
-      .select('id, username, full_name, avatar_url')
+      .select('id, username')
       .in('id', studentIds);
     (students || []).forEach((s: any) => {
       studentDetails[s.id] = s;
@@ -335,8 +333,7 @@ async function handleGetResults(
     return {
       student_id: ss.student_id,
       username: details.username || '',
-      full_name: details.full_name || null,
-      avatar_url: details.avatar_url || null,
+      full_name: null,
       status: ss.status,
       attempts: ss.attempts,
       assigned_at: ss.assigned_at,
