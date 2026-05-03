@@ -50,18 +50,18 @@ export default function TeacherDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] pb-12">
+    <div className="min-h-screen pb-12" style={{ background: 'var(--bg-primary)' }}>
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-white border-b border-gray-100">
+      <div className="sticky top-0 z-30 border-b" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3.5 flex items-center gap-3">
-          <button onClick={() => store.goHome()} className="p-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors">
+          <button onClick={() => store.goHome()} className="p-2 rounded-xl transition-colors" style={{ color: 'var(--text-secondary)' }}>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
           </button>
           <div className="flex-1">
-            <h1 className="text-base font-bold text-gray-900">Dashboard Insegnante</h1>
-            <p className="text-[11px] text-gray-400">{teacherName}</p>
+            <h1 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Dashboard Insegnante</h1>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{teacherName}</p>
           </div>
         </div>
       </div>
@@ -89,48 +89,47 @@ export default function TeacherDashboard() {
             <p className="text-xs text-indigo-200 mt-0.5">Assegna quiz agli studenti</p>
           </button>
 
-          <button onClick={() => store.openStudentsList()} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-left hover:shadow-md hover:border-gray-200 transition-all">
+          <button onClick={() => store.openStudentsList()} className="rounded-2xl border shadow-sm p-4 text-left hover:shadow-md transition-all" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
             <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-lg mb-2">👥</div>
-            <p className="text-sm font-bold text-gray-900">I Miei Studenti</p>
-            <p className="text-xs text-gray-400 mt-0.5">{totalStudents} studenti registrati</p>
+            <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>I Miei Studenti</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{totalStudents} studenti registrati</p>
           </button>
         </div>
 
         {/* Assignments */}
         <div className="anim-up">
           <div className="flex items-center gap-2 mb-3 px-1">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500">Compiti Attivi ({activeAssignments.length})</h2>
+            <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Compiti Attivi ({activeAssignments.length})</h2>
           </div>
 
           {loading ? (
-            <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
-              <div className="w-6 h-6 rounded-full border-2 animate-spin mx-auto border-gray-200 border-t-[#4F46E5]" />
-              <p className="text-xs mt-3 text-gray-400">Caricamento...</p>
+            <div className="rounded-2xl border p-8 text-center" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <div className="w-6 h-6 rounded-full border-2 animate-spin mx-auto border-[var(--border)] border-t-[#4F46E5]" />
+              <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>Caricamento...</p>
             </div>
           ) : activeAssignments.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+            <div className="rounded-2xl border p-8 text-center" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
               <div className="text-3xl mb-3">📋</div>
-              <p className="text-sm font-medium text-gray-500">Nessun compito attivo</p>
-              <p className="text-xs mt-1 text-gray-400">Crea il tuo primo compito per iniziare</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Nessun compito attivo</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Crea il tuo primo compito per iniziare</p>
             </div>
           ) : (
             <div className="space-y-2">
               {activeAssignments.map((a, i) => (
                 <button key={a.id} onClick={() => handleViewResults(a.id)}
-                  className="w-full bg-white rounded-xl border border-gray-100 p-4 text-left hover:shadow-md hover:border-gray-200 transition-all anim-up"
-                  style={{ animationDelay: `${i * 30}ms` }}>
+                  className="w-full rounded-xl border p-4 text-left hover:shadow-md transition-all anim-up" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', animationDelay: `${i * 30}ms` }}>
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center text-base flex-shrink-0">📝</div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-900 truncate">{a.title}</p>
-                      {a.description && <p className="text-xs text-gray-400 mt-0.5 truncate">{a.description}</p>}
+                      <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{a.title}</p>
+                      {a.description && <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>{a.description}</p>}
                       <div className="flex items-center gap-3 mt-2">
-                        <span className="text-[10px] text-gray-400">{a.config.number_of_questions} domande</span>
-                        {a.config.time_limit_minutes && <span className="text-[10px] text-gray-400">⏱️ {a.config.time_limit_minutes} min</span>}
-                        <span className="text-[10px] text-gray-400">🔄 Max {a.config.max_attempts} tentativi</span>
+                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{a.config.number_of_questions} domande</span>
+                        {a.config.time_limit_minutes && <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>⏱️ {a.config.time_limit_minutes} min</span>}
+                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>🔄 Max {a.config.max_attempts} tentativi</span>
                       </div>
                     </div>
-                    <svg className="w-5 h-5 text-gray-300 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className="w-5 h-5 flex-shrink-0 mt-1" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                     </svg>
                   </div>
@@ -143,29 +142,29 @@ export default function TeacherDashboard() {
         {/* Students */}
         <div className="anim-up">
           <div className="flex items-center gap-2 mb-3 px-1">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500">Progresso Studenti</h2>
+            <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Progresso Studenti</h2>
           </div>
 
           {students.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+            <div className="rounded-2xl border p-8 text-center" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
               <div className="text-3xl mb-3">👨‍🎓</div>
-              <p className="text-sm font-medium text-gray-500">Nessuno studente registrato</p>
-              <p className="text-xs mt-1 text-gray-400">Aggiungi studenti dalla sezione &quot;I Miei Studenti&quot;</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Nessuno studente registrato</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Aggiungi studenti dalla sezione &quot;I Miei Studenti&quot;</p>
             </div>
           ) : (
             <div className="space-y-2">
               {students.map((s, i) => (
-                <div key={s.id} className="bg-white rounded-xl border border-gray-100 p-3.5 flex items-center gap-3 anim-up" style={{ animationDelay: `${i * 25}ms` }}>
+                <div key={s.id} className="rounded-xl border p-3.5 flex items-center gap-3 anim-up" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', animationDelay: `${i * 25}ms` }}>
                   <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
                     <span className="text-xs font-bold text-[#4F46E5]">{(s.full_name || s.username)[0].toUpperCase()}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{s.full_name || s.username}</p>
-                    <p className="text-[10px] text-gray-400">@{s.username}</p>
+                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{s.full_name || s.username}</p>
+                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>@{s.username}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-xs font-bold text-gray-400">—</p>
-                    <p className="text-[10px] text-gray-400">nessun dato</p>
+                    <p className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>—</p>
+                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>nessun dato</p>
                   </div>
                 </div>
               ))}
@@ -190,10 +189,10 @@ export default function TeacherDashboard() {
 
 function StatCard({ icon, value, label, color, border }: { icon: string; value: number | string; label: string; color: string; border: string }) {
   return (
-    <div className={`bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center transition-all hover:shadow-md ${border} border-l-[3px]`}>
+    <div className="rounded-xl border shadow-sm p-4 text-center transition-all hover:shadow-md" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
       <span className="text-base mb-0.5 block">{icon}</span>
       <p className="text-lg font-bold tabular-nums" style={{ color }}>{value}</p>
-      <p className="text-[10px] mt-0.5 font-semibold uppercase tracking-wider text-gray-400">{label}</p>
+      <p className="text-[10px] mt-0.5 font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</p>
     </div>
   );
 }
@@ -246,13 +245,13 @@ function CreateAssignmentModal({ teacherId, students, chapters, onClose, onSucce
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
-      <div className="relative w-full max-w-md bg-white rounded-2xl border border-gray-100 shadow-xl p-6 anim-up max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="relative w-full max-w-md rounded-2xl border shadow-xl p-6 anim-up max-h-[85vh] overflow-y-auto" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-base font-bold text-gray-900">Nuovo Compito</h2>
-            <p className="text-xs mt-0.5 text-gray-400">Crea un quiz per i tuoi studenti</p>
+            <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Nuovo Compito</h2>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Crea un quiz per i tuoi studenti</p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors">
+          <button onClick={onClose} className="p-2 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -261,16 +260,16 @@ function CreateAssignmentModal({ teacherId, students, chapters, onClose, onSucce
 
         <div className="space-y-4">
           <div>
-            <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider text-gray-400">Titolo *</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" placeholder="Es: Esame Capitoli 1-5" />
+            <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Titolo *</label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} placeholder="Es: Esame Capitoli 1-5" />
           </div>
           <div>
-            <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider text-gray-400">Descrizione</label>
-            <input value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" placeholder="Descrizione opzionale..." />
+            <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Descrizione</label>
+            <input value={description} onChange={(e) => setDescription(e.target.value)} className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} placeholder="Descrizione opzionale..." />
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider text-gray-400">Modalità</label>
+            <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Modalità</label>
             <div className="flex flex-wrap gap-2">
               {[
                 { key: 'exam' as const, label: 'Esame (30 domande)', icon: '📝' },
@@ -278,7 +277,8 @@ function CreateAssignmentModal({ teacherId, students, chapters, onClose, onSucce
                 { key: 'custom' as const, label: 'Personalizzato', icon: '🔢' },
               ].map((m) => (
                 <button key={m.key} onClick={() => setMode(m.key)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border cursor-pointer transition-colors ${mode === m.key ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'text-gray-400 border-gray-100 hover:text-gray-700'}`}>
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border cursor-pointer transition-colors ${mode === m.key ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : ''}`}
+                  style={mode !== m.key ? { color: 'var(--text-muted)', borderColor: 'var(--border)' } : undefined}>
                   <span>{m.icon}</span> {m.label}
                 </button>
               ))}
@@ -288,16 +288,17 @@ function CreateAssignmentModal({ teacherId, students, chapters, onClose, onSucce
           {mode === 'chapters' && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Capitoli</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Capitoli</label>
                 <div className="flex gap-1.5">
-                  <button onClick={() => setSelectedChapters([])} className="text-[10px] font-semibold px-2 py-1 rounded-md text-gray-400 border border-gray-100">Nessuno</button>
+                  <button onClick={() => setSelectedChapters([])} className="text-[10px] font-semibold px-2 py-1 rounded-md border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>Nessuno</button>
                   <button onClick={() => setSelectedChapters(chapters.map((c) => c.id))} className="text-[10px] font-semibold px-2 py-1 rounded-md text-indigo-600 border border-indigo-200 bg-indigo-50">Tutti</button>
                 </div>
               </div>
               <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
                 {chapters.map((ch) => (
                   <button key={ch.id} onClick={() => toggleChapter(ch.id)}
-                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${selectedChapters.includes(ch.id) ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' : 'text-gray-400 border border-gray-100'}`}>
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${selectedChapters.includes(ch.id) ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' : ''}`}
+                    style={selectedChapters.includes(ch.id) ? undefined : { color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                     Cap. {ch.id}
                   </button>
                 ))}
@@ -307,48 +308,50 @@ function CreateAssignmentModal({ teacherId, students, chapters, onClose, onSucce
 
           {mode === 'custom' && (
             <div>
-              <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider text-gray-400">Numero domande</label>
-              <input type="number" value={customQuestionCount} onChange={(e) => setCustomQuestionCount(parseInt(e.target.value) || 1)} min={1} max={100} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
+              <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Numero domande</label>
+              <input type="number" value={customQuestionCount} onChange={(e) => setCustomQuestionCount(parseInt(e.target.value) || 1)} min={1} max={100} className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider text-gray-400">Limite tempo (min)</label>
-              <input type="number" value={timeLimit} onChange={(e) => setTimeLimit(e.target.value)} min={1} placeholder="Opzionale" className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
+              <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Limite tempo (min)</label>
+              <input type="number" value={timeLimit} onChange={(e) => setTimeLimit(e.target.value)} min={1} placeholder="Opzionale" className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
             </div>
             <div>
-              <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider text-gray-400">Tentativi max</label>
-              <input type="number" value={maxAttempts} onChange={(e) => setMaxAttempts(parseInt(e.target.value) || 1)} min={1} max={99} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
+              <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Tentativi max</label>
+              <input type="number" value={maxAttempts} onChange={(e) => setMaxAttempts(parseInt(e.target.value) || 1)} min={1} max={99} className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
             </div>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Studenti *</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Studenti *</label>
               {students.length > 0 && (
-                <button onClick={selectAllStudents} className={`text-[10px] font-semibold px-2 py-1 rounded-md ${selectedStudents.size === students.length ? 'text-indigo-600 bg-indigo-50 border border-indigo-200' : 'text-gray-400 border border-gray-100'}`}>
+                <button onClick={selectAllStudents} className={`text-[10px] font-semibold px-2 py-1 rounded-md ${selectedStudents.size === students.length ? 'text-indigo-600 bg-indigo-50 border border-indigo-200' : ''}`}
+                  style={selectedStudents.size === students.length ? undefined : { color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                   {selectedStudents.size === students.length ? 'Deseleziona tutti' : 'Seleziona tutti'}
                 </button>
               )}
             </div>
             <div className="space-y-1.5 max-h-36 overflow-y-auto">
               {students.length === 0 ? (
-                <p className="text-xs text-center py-3 text-gray-400">Nessuno studente disponibile</p>
+                <p className="text-xs text-center py-3" style={{ color: 'var(--text-muted)' }}>Nessuno studente disponibile</p>
               ) : students.map((s) => (
                 <button key={s.id} onClick={() => toggleStudent(s.id)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left transition-colors ${selectedStudents.has(s.id) ? 'bg-indigo-50 border border-indigo-200' : 'bg-white border border-gray-100 hover:border-gray-200'}`}>
-                  <div className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 ${selectedStudents.has(s.id) ? 'bg-[#4F46E5]' : 'bg-gray-100'}`} style={{ border: selectedStudents.has(s.id) ? 'none' : '1.5px solid #D1D5DB' }}>
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left transition-colors ${selectedStudents.has(s.id) ? 'bg-indigo-50 border border-indigo-200' : ''}`}
+                  style={selectedStudents.has(s.id) ? undefined : { background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                  <div className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 ${selectedStudents.has(s.id) ? 'bg-[#4F46E5]' : ''}`} style={{ border: selectedStudents.has(s.id) ? 'none' : '1.5px solid var(--border)', background: selectedStudents.has(s.id) ? '#4F46E5' : 'var(--bg-tertiary)' }}>
                     {selectedStudents.has(s.id) && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-900 truncate">{s.full_name || s.username}</p>
-                    <p className="text-[10px] text-gray-400">@{s.username}</p>
+                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{s.full_name || s.username}</p>
+                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>@{s.username}</p>
                   </div>
                 </button>
               ))}
             </div>
-            {selectedStudents.size > 0 && <p className="text-[10px] mt-2 text-center text-gray-400">{selectedStudents.size} studenti selezionati</p>}
+            {selectedStudents.size > 0 && <p className="text-[10px] mt-2 text-center" style={{ color: 'var(--text-muted)' }}>{selectedStudents.size} studenti selezionati</p>}
           </div>
 
           <button onClick={handleCreate} disabled={busy || !title.trim() || selectedStudents.size === 0}

@@ -103,10 +103,10 @@ export default function WordTranslator({ word, position, onClose }: WordTranslat
         <div
           className="rounded-2xl p-4 shadow-2xl"
           style={{
-            background: 'rgba(255, 255, 255, 0.85)',
+            background: 'var(--bg-card)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
-            border: '1.5px solid rgba(30, 58, 138, 0.15)',
+            border: '1.5px solid var(--border)',
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06)',
           }}
         >
@@ -125,7 +125,7 @@ export default function WordTranslator({ word, position, onClose }: WordTranslat
             </div>
             <button
               onClick={handleClose}
-              className="w-6 h-6 rounded-full flex items-center justify-center transition-colors hover:bg-black/5"
+              className="w-6 h-6 rounded-full flex items-center justify-center transition-colors hover:bg-black/10 dark:hover:bg-white/10"
             >
               <svg className="w-3.5 h-3.5" style={{ color: '#9CA3AF' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -138,7 +138,7 @@ export default function WordTranslator({ word, position, onClose }: WordTranslat
             <p
               className="text-[16px] font-bold"
               dir="ltr"
-              style={{ color: '#111827' }}
+              style={{ color: 'var(--text-primary)' }}
             >
               {word}
             </p>
@@ -146,7 +146,7 @@ export default function WordTranslator({ word, position, onClose }: WordTranslat
 
           {/* Arrow */}
           <div className="flex items-center gap-1.5 mb-2">
-            <svg className="w-3 h-3 flex-shrink-0" style={{ color: '#9CA3AF' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
             </svg>
           </div>
@@ -159,7 +159,7 @@ export default function WordTranslator({ word, position, onClose }: WordTranslat
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                <span className="text-[12px]" style={{ color: '#6B7280' }}>جاري الترجمة...</span>
+                <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>جاري الترجمة...</span>
               </div>
             ) : translation ? (
               <p
@@ -170,7 +170,7 @@ export default function WordTranslator({ word, position, onClose }: WordTranslat
                 {translation}
               </p>
             ) : (
-              <p className="text-[12px]" dir="rtl" style={{ color: '#6B7280', fontStyle: 'italic' }}>
+              <p className="text-[12px]" dir="rtl" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
                 لم يتم العثور على ترجمة
               </p>
             )}
@@ -183,9 +183,9 @@ export default function WordTranslator({ word, position, onClose }: WordTranslat
               disabled={playingIt}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all duration-200 hover:scale-105 disabled:opacity-50"
               style={{
-                background: '#F3F4F6',
-                border: '1px solid #E5E7EB',
-                color: '#374151',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
               }}
             >
               {playingIt ? (

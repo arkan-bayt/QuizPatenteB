@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { getUniqueTopics, getChaptersByTopic, getQuestionsByChapters, getRandomQuestions } from '@/data/quizData';
 import { useOverallStats, useUserStats, useWrongAnswers } from './hooks';
@@ -40,6 +40,27 @@ export default function HomeScreen() {
 
   const [showExamModal, setShowExamModal] = useState(false);
   const [showChapterSelect, setShowChapterSelect] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('theme');
+    const hasDarkClass = document.documentElement.classList.contains('dark');
+    if (stored === 'dark' || hasDarkClass) {
+      setIsDark(true);
+    }
+  }, []);
+
+  const toggleDark = () => {
+    const next = !isDark;
+    setIsDark(next);
+    if (next) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
 
   const examChapterIds = selectedChapterIds.length > 0 ? selectedChapterIds : chapters.map((c) => c.id);
   const availableExamQs = useMemo(() => getQuestionsByChapters(allQuestions, examChapterIds), [allQuestions, examChapterIds]);
@@ -76,9 +97,9 @@ export default function HomeScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] pb-12">
+    <div className="min-h-screen bg-mesh pb-12">
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-white border-b border-gray-100">
+      <div className="sticky top-0 z-30 glass-header">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-[#4F46E5] flex items-center justify-center">
@@ -87,29 +108,32 @@ export default function HomeScreen() {
               </svg>
             </div>
             <div>
-              <h1 className="text-sm font-bold text-gray-900">Quiz Patente B</h1>
-              <p className="text-[11px] text-gray-400">Ciao, <span className="text-[#4F46E5]">{username}</span></p>
+              <h1 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Quiz Patente B</h1>
+              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Ciao, <span className="text-[#4F46E5]">{username}</span></p>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
             {(isAdmin || isTeacher) && (
-              <button onClick={() => store.openTeacherDashboard()} className="text-xs px-3 py-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors font-medium flex items-center gap-1.5">
+              <button onClick={() => store.openTeacherDashboard()} className="text-xs px-3 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors font-medium flex items-center gap-1.5">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5" /></svg>
                 Dashboard
               </button>
             )}
             {isStudent && (
-              <button onClick={() => store.openStudentDashboard()} className="text-xs px-3 py-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors font-medium flex items-center gap-1.5">
+              <button onClick={() => store.openStudentDashboard()} className="text-xs px-3 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors font-medium flex items-center gap-1.5">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5" /></svg>
                 Dashboard
               </button>
             )}
             {isAdmin && (
-              <button onClick={() => store.setScreen('admin')} className="text-xs px-3 py-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors">
+              <button onClick={() => store.setScreen('admin')} className="text-xs px-3 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
               </button>
             )}
-            <button onClick={handleLogout} className="text-xs px-3 py-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors font-medium flex items-center gap-1.5">
+            <button onClick={toggleDark} className="text-xs px-3 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors font-medium flex items-center gap-1.5" title={isDark ? 'Passa al tema chiaro' : 'Passa al tema scuro'}>
+              <span className="text-sm">{isDark ? '☀️' : '🌙'}</span>
+            </button>
+            <button onClick={handleLogout} className="text-xs px-3 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors font-medium flex items-center gap-1.5">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
               </svg>
@@ -122,8 +146,8 @@ export default function HomeScreen() {
       <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
         {/* Welcome */}
         <div className="anim-up">
-          <h1 className="text-xl font-bold tracking-tight text-gray-900">Allenati per la Patente B</h1>
-          <p className="text-sm mt-1 text-gray-500">Rispondi, impara e supera l&apos;esame al primo tentativo.</p>
+          <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Allenati per la Patente B</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Rispondi, impara e supera l&apos;esame al primo tentativo.</p>
         </div>
 
         {/* Stats Grid */}
@@ -135,27 +159,27 @@ export default function HomeScreen() {
         </div>
 
         {/* Overall Progress */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 anim-up">
+        <div className="card p-5 anim-up">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-bold text-gray-900">Progresso globale</span>
+            <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Progresso globale</span>
             <div className="text-right">
-              <span className="text-lg font-bold tabular-nums text-gray-900">{globalPct}%</span>
-              <p className="text-[10px] text-gray-400">{totalAnswered} / {allQuestions.length}</p>
+              <span className="text-lg font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>{globalPct}%</span>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{totalAnswered} / {allQuestions.length}</p>
             </div>
           </div>
-          <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
+          <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'var(--bg-tertiary)' }}>
             <div className="h-full rounded-full bg-[#4F46E5] transition-all duration-700" style={{ width: `${globalPct}%` }} />
           </div>
           {accuracy > 0 && (
-            <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-50">
+            <div className="flex items-center gap-4 mt-3 pt-3 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-[11px] text-gray-500">Accuratezza: <span className="font-semibold text-emerald-600">{accuracy}%</span></span>
+                <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Accuratezza: <span className="font-semibold text-emerald-600">{accuracy}%</span></span>
               </div>
               {stats.examsPassed > 0 && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-[11px]">🏆</span>
-                  <span className="text-[11px] text-gray-500">Esami superati: <span className="font-semibold text-amber-600">{stats.examsPassed}</span></span>
+                  <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Esami superati: <span className="font-semibold text-amber-600">{stats.examsPassed}</span></span>
                 </div>
               )}
             </div>
@@ -164,16 +188,16 @@ export default function HomeScreen() {
 
         {/* AI Features */}
         <div className="grid grid-cols-2 gap-3 anim-up">
-          <button onClick={() => store.setScreen('aiChat')} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-left hover:shadow-md hover:border-gray-200 transition-all">
+          <button onClick={() => store.setScreen('aiChat')} className="card p-4 text-left hover:shadow-md transition-all">
             <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-lg mb-2">💬</div>
-            <p className="text-sm font-bold text-gray-900">Chiedi all&apos;IA</p>
-            <p className="text-xs text-gray-400 mt-0.5">Domande su segnali e regole</p>
+            <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Chiedi all&apos;IA</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Domande su segnali e regole</p>
           </button>
 
-          <button onClick={() => store.setScreen('studyPlan')} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-left hover:shadow-md hover:border-gray-200 transition-all">
+          <button onClick={() => store.setScreen('studyPlan')} className="card p-4 text-left hover:shadow-md transition-all">
             <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-lg mb-2">📋</div>
-            <p className="text-sm font-bold text-gray-900">Piano di Studio</p>
-            <p className="text-xs text-gray-400 mt-0.5">Piano personalizzato IA</p>
+            <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Piano di Studio</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Piano personalizzato IA</p>
           </button>
         </div>
 
@@ -193,7 +217,7 @@ export default function HomeScreen() {
         </button>
 
         {/* Exam Section */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 anim-up">
+        <div className="card p-5 anim-up">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
@@ -202,12 +226,13 @@ export default function HomeScreen() {
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-900">Esame</p>
-                <p className="text-xs text-gray-400">{isAllChapters ? 'Tutti i capitoli' : `${selectedCount} capitoli selezionati`} · {availableExamQs.length} domande</p>
+                <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Esame</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{isAllChapters ? 'Tutti i capitoli' : `${selectedCount} capitoli selezionati`} · {availableExamQs.length} domande</p>
               </div>
             </div>
             <button onClick={() => setShowChapterSelect(!showChapterSelect)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-gray-50 text-gray-500 hover:text-gray-900 border border-gray-100">
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-subtle)' }}>
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d={showChapterSelect ? 'M19.5 8.25l-7.5 7.5-7.5-7.5' : 'M8.25 4.5l7.5 7.5-7.5 7.5'} />
               </svg>
@@ -218,7 +243,7 @@ export default function HomeScreen() {
           {showChapterSelect && (
             <div className="anim-fade mb-4">
               <div className="flex items-center gap-2 mb-2">
-                <button onClick={() => store.deselectAllChapters()} className="text-[10px] font-semibold px-2 py-1 rounded-md bg-gray-50 text-gray-400 border border-gray-100 hover:text-gray-700">Nessuno</button>
+                <button onClick={() => store.deselectAllChapters()} className="text-[10px] font-semibold px-2 py-1 rounded-md border text-[var(--text-muted)] hover:text-[var(--text-primary)]" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-subtle)' }}>Nessuno</button>
                 <button onClick={() => store.selectAllChapters()} className="text-[10px] font-semibold px-2 py-1 rounded-md bg-indigo-50 text-indigo-600 border border-indigo-100">Tutti</button>
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -228,8 +253,8 @@ export default function HomeScreen() {
                     <button key={ch.id} onClick={() => store.toggleChapterId(ch.id)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
                       style={{
-                        background: isSelected ? (CHAPTER_COLORS[ch.id] || '#6B7280') : '#F3F4F6',
-                        color: isSelected ? 'white' : '#9CA3AF',
+                        background: isSelected ? (CHAPTER_COLORS[ch.id] || '#6B7280') : 'var(--bg-secondary)',
+                        color: isSelected ? 'white' : 'var(--text-muted)',
                       }}>
                       <ChapterIcon chapterId={ch.id} size={14} /> {ch.id}
                     </button>
@@ -255,21 +280,21 @@ export default function HomeScreen() {
         </div>
 
         {/* Wrong Answers Retry */}
-        <button onClick={handleWrongRetry} className={`w-full bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-left hover:shadow-md hover:border-gray-200 transition-all anim-up ${wrong.total === 0 ? 'opacity-40 pointer-events-none' : ''}`}>
+        <button onClick={handleWrongRetry} className={`w-full card p-5 text-left hover:shadow-md transition-all anim-up ${wrong.total === 0 ? 'opacity-40 pointer-events-none' : ''}`}>
           <div className="flex items-center gap-4">
             <div className="w-11 h-11 rounded-xl bg-red-50 flex items-center justify-center text-xl">🔄</div>
             <div className="flex-1">
-              <p className="text-sm font-bold text-gray-900">Ripeti Errori</p>
-              <p className="text-xs text-gray-400">{wrong.total} da ripassare</p>
+              <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Ripeti Errori</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{wrong.total} da ripassare</p>
             </div>
             {wrong.total > 0 && (
               <div className="flex-1 max-w-[100px]">
-                <div className="w-full h-1.5 rounded-full bg-gray-100">
+                <div className="w-full h-1.5 rounded-full" style={{ background: 'var(--bg-tertiary)' }}>
                   <div className="h-full rounded-full bg-red-400" style={{ width: `${Math.min(100, wrong.total * 3)}%` }} />
                 </div>
               </div>
             )}
-            <svg className="w-5 h-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: 'var(--text-muted)' }}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
             </svg>
           </div>
@@ -289,14 +314,14 @@ export default function HomeScreen() {
                 <div className="text-lg">{tm.icon}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500">{topic}</h2>
-                    <span className="text-[10px] text-gray-400">{topicChapters.length} cap.</span>
+                    <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>{topic}</h2>
+                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{topicChapters.length} cap.</span>
                   </div>
                   <div className="flex items-center gap-2 mt-1">
-                    <div className="w-16 h-1 rounded-full bg-gray-100">
+                    <div className="w-16 h-1 rounded-full" style={{ background: 'var(--bg-tertiary)' }}>
                       <div className="h-full rounded-full bg-[#4F46E5] transition-all duration-700" style={{ width: `${topicPct}%` }} />
                     </div>
-                    <span className="text-[10px] text-gray-400">{topicAnswered}/{topicTotal}</span>
+                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{topicAnswered}/{topicTotal}</span>
                   </div>
                 </div>
               </div>
@@ -312,7 +337,7 @@ export default function HomeScreen() {
 
                   return (
                     <button key={ch.id} onClick={() => store.openChapter(ch.id)}
-                      className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md hover:border-gray-200 transition-all text-left anim-up"
+                      className="card overflow-hidden hover:shadow-md transition-all text-left anim-up"
                       style={{ animationDelay: `${(ti * 60) + (ci * 30) + 180}ms` }}>
                       {/* Top colored section */}
                       <div className="px-3 pt-4 pb-3" style={{ background: `${color}08` }}>
@@ -327,14 +352,14 @@ export default function HomeScreen() {
                           </div>
                         </div>
                         <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color }}>{`Cap. ${ch.id}`}</span>
-                        <div className="w-full h-1 rounded-full mt-1.5 bg-gray-100">
+                        <div className="w-full h-1 rounded-full mt-1.5" style={{ background: 'var(--bg-tertiary)' }}>
                           <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pctVal}%`, background: color }} />
                         </div>
                       </div>
                       {/* Bottom section */}
-                      <div className="px-3 py-2.5 border-t border-gray-50">
-                        <p className="text-[11px] font-semibold leading-tight text-gray-900 line-clamp-2">{ch.name}</p>
-                        <p className="text-[9px] text-gray-400 mt-0.5">{answered}/{totalQ}</p>
+                      <div className="px-3 py-2.5 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+                        <p className="text-[11px] font-semibold leading-tight line-clamp-2" style={{ color: 'var(--text-primary)' }}>{ch.name}</p>
+                        <p className="text-[9px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{answered}/{totalQ}</p>
                       </div>
                     </button>
                   );
@@ -359,10 +384,10 @@ export default function HomeScreen() {
 
 function StatCard({ icon, value, label, color, border }: { icon: string; value: number; label: string; color: string; border: string }) {
   return (
-    <div className={`bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center transition-all hover:shadow-md ${border} border-l-[3px]`}>
+    <div className={`card p-4 text-center transition-all hover:shadow-md ${border} border-l-[3px]`}>
       <span className="text-base mb-0.5 block">{icon}</span>
       <p className="text-lg font-bold tabular-nums" style={{ color }}>{value}</p>
-      <p className="text-[10px] mt-0.5 font-semibold uppercase tracking-wider text-gray-400">{label}</p>
+      <p className="text-[10px] mt-0.5 font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</p>
     </div>
   );
 }
