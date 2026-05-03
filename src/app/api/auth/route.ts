@@ -428,6 +428,10 @@ async function handleToggleRole(request: NextRequest, body: { user_id?: string; 
     return NextResponse.json({ ok: false, msg: 'Ruolo non valido' });
   }
 
+  if (!userId) {
+    return NextResponse.json({ ok: false, msg: 'ID utente mancante' });
+  }
+
   const lookupField = userId === userId.toLowerCase() && !userId.startsWith('user-') ? 'username' : 'id';
   const { error } = await supabase
     .from('app_users')
