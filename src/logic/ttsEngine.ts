@@ -1,212 +1,333 @@
 // ============================================================
-// LOGIC - Text-to-Speech (Improved)
-// Supports Italian and Arabic pronunciation
-// Fixed: async voice loading, cross-device compatibility
+// LOGIC - Text-to-Speech (Universal)
+// Works on ALL devices and browsers
+// Strategy: Try Web Speech API first, fall back to Google TTS API
 // ============================================================
 let _utt: SpeechSynthesisUtterance | null = null;
-let _voicesLoaded = false;
-let _cachedVoices: SpeechSynthesisVoice[] = [];
+let _fallbackAudio: HTMLAudioElement | null = null;
+let _speechAvailable: boolean | null = null;
+let _fallbackAvailable: boolean | null = null;
 
 // ============================================================
-// VOICE LOADING (handles Chrome async bug)
+// CHECK BROWSER SUPPORT
 // ============================================================
-function loadVoices(): Promise<SpeechSynthesisVoice[]> {
-  return new Promise((resolve) => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) {
-      resolve([]);
-      return;
-    }
-
-    const tryGet = () => {
-      const voices = window.speechSynthesis!.getVoices();
-      if (voices.length > 0) {
-        _cachedVoices = voices;
-        _voicesLoaded = true;
-        resolve(voices);
-        return true;
-      }
-      return false;
-    };
-
-    // Try immediately
-    if (tryGet()) return;
-
-    // Try after a short delay (Chrome loads voices async)
-    if (window.speechSynthesis!.onvoiceschanged !== undefined) {
-      window.speechSynthesis!.onvoiceschanged = () => {
-        tryGet();
-      };
-    }
-
-    // Fallback: try multiple times with increasing delay
-    let attempts = 0;
-    const interval = setInterval(() => {
-      attempts++;
-      if (tryGet() || attempts > 20) {
-        clearInterval(interval);
-        resolve(_cachedVoices);
-      }
-    }, 100);
-  });
+function isSpeechSupported(): boolean {
+  if (_speechAvailable !== null) return _speechAvailable;
+  _speechAvailable = typeof window !== 'undefined' && !!window.speechSynthesis;
+  return _speechAvailable;
 }
 
 // ============================================================
-// FIND BEST VOICE
+// WEB SPEECH API - Advanced Voice Loader
 // ============================================================
-function findVoice(voices: SpeechSynthesisVoice[], langPrefix: string): SpeechSynthesisVoice | null {
-  // 1. Prefer local service voice for the exact language
+function getVoicesSync(): SpeechSynthesisVoice[] {
+  if (!window.speechSynthesis) return [];
+  return window.speechSynthesis.getVoices();
+}
+
+function findBestVoice(voices: SpeechSynthesisVoice[], langPrefix: string): SpeechSynthesisVoice | null {
+  // 1. Local service voice for exact language
   const local = voices.find((v) => v.lang.startsWith(langPrefix) && v.localService);
   if (local) return local;
 
-  // 2. Any voice for the language (including remote/cloud)
+  // 2. Any voice for the language
   const any = voices.find((v) => v.lang.startsWith(langPrefix));
   if (any) return any;
 
-  // 3. For Italian, try broader match (it vs it-IT, it-CH etc.)
+  // 3. Broader match
   if (langPrefix === 'it') {
-    const broader = voices.find((v) => v.lang.includes('it'));
-    if (broader) return broader;
+    return voices.find((v) => v.lang.includes('it')) || null;
   }
-
-  // 4. For Arabic, try broader match
   if (langPrefix === 'ar') {
-    const broader = voices.find((v) => v.lang.includes('ar'));
-    if (broader) return broader;
+    return voices.find((v) => v.lang.includes('ar')) || null;
   }
 
   return null;
 }
 
-// ============================================================
-// SPEAK TEXT
-// ============================================================
-export function speakText(text: string, lang = 'it-IT'): void {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return;
+// Chrome bug fix: speechSynthesis pauses after ~15 seconds on Android
+// Solution: speak a tiny silent utterance to keep it alive
+let _keepAliveInterval: ReturnType<typeof setInterval> | null = null;
 
-  stopSpeech();
-
-  // Chrome bug: need to resume if paused
-  if (window.speechSynthesis.paused) {
-    window.speechSynthesis.resume();
-  }
-
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = lang;
-  u.rate = 0.9;
-  u.volume = 1;
-  u.pitch = 1;
-
-  const voices = window.speechSynthesis.getVoices();
-  if (voices.length > 0) {
-    const v = findVoice(voices, 'it');
-    if (v) u.voice = v;
-  }
-
-  u.onerror = (e) => {
-    console.warn('[TTS] Speech error:', e.error);
-  };
-
-  _utt = u;
-  window.speechSynthesis.speak(u);
+function startKeepAlive() {
+  if (_keepAliveInterval || typeof window === 'undefined' || !window.speechSynthesis) return;
+  _keepAliveInterval = setInterval(() => {
+    try {
+      if (window.speechSynthesis.speaking) return;
+      const u = new SpeechSynthesisUtterance('');
+      u.volume = 0;
+      u.rate = 10;
+      window.speechSynthesis.speak(u);
+    } catch (e) {
+      // Ignore errors from keep-alive
+    }
+  }, 14000);
 }
 
 // ============================================================
-// STOP SPEECH
+// WEB SPEECH API - Speak
+// ============================================================
+function speakNative(text: string, lang: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!window.speechSynthesis) {
+      resolve(false);
+      return;
+    }
+
+    // Chrome bug fix: cancel and resume
+    window.speechSynthesis.cancel();
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang;
+    u.rate = 0.85;
+    u.volume = 1;
+    u.pitch = 1;
+
+    const voices = getVoicesSync();
+    if (voices.length > 0) {
+      const voice = findBestVoice(voices, lang.startsWith('it') ? 'it' : 'ar');
+      if (voice) {
+        u.voice = voice;
+        u.lang = voice.lang;
+      }
+    }
+
+    let finished = false;
+
+    u.onstart = () => {
+      finished = false;
+    };
+
+    u.onend = () => {
+      finished = true;
+      _utt = null;
+      resolve(true);
+    };
+
+    u.onerror = (e) => {
+      if (!finished) {
+        finished = true;
+        _utt = null;
+        console.warn('[TTS] Native speech error:', e.error, 'for lang:', lang);
+        resolve(false);
+      }
+    };
+
+    // Timeout: if speech doesn't start within 3 seconds, reject
+    setTimeout(() => {
+      if (!finished) {
+        finished = true;
+        _utt = null;
+        window.speechSynthesis.cancel();
+        resolve(false);
+      }
+    }, 3000);
+
+    _utt = u;
+    window.speechSynthesis.speak(u);
+  });
+}
+
+// ============================================================
+// GOOGLE TTS API FALLBACK - Speak via server proxy
+// ============================================================
+async function speakFallback(text: string, lang: string): Promise<boolean> {
+  try {
+    stopFallbackAudio();
+
+    const langCode = lang.startsWith('ar') ? 'ar' : 'it';
+    const maxLen = 200;
+    const trimmed = text.trim().substring(0, maxLen);
+
+    const audioUrl = `/api/tts?text=${encodeURIComponent(trimmed)}&lang=${langCode}`;
+
+    const audio = new Audio();
+    audio.volume = 1;
+    audio.preload = 'auto';
+
+    return new Promise((resolve) => {
+      let finished = false;
+
+      audio.oncanplaythrough = () => {
+        audio.play().then(() => {
+          // Playing successfully
+        }).catch((err) => {
+          console.warn('[TTS] Audio play error:', err.message);
+          if (!finished) {
+            finished = true;
+            resolve(false);
+          }
+        });
+      };
+
+      audio.onended = () => {
+        finished = true;
+        _fallbackAudio = null;
+        resolve(true);
+      };
+
+      audio.onerror = () => {
+        if (!finished) {
+          finished = true;
+          _fallbackAudio = null;
+          console.warn('[TTS] Audio load error');
+          resolve(false);
+        }
+      };
+
+      // Timeout: if audio doesn't load within 8 seconds, reject
+      setTimeout(() => {
+        if (!finished) {
+          finished = true;
+          audio.pause();
+          _fallbackAudio = null;
+          resolve(false);
+        }
+      }, 8000);
+
+      audio.src = audioUrl;
+      _fallbackAudio = audio;
+    });
+  } catch (e: any) {
+    console.warn('[TTS] Fallback error:', e.message);
+    return false;
+  }
+}
+
+function stopFallbackAudio() {
+  if (_fallbackAudio) {
+    try {
+      _fallbackAudio.pause();
+      _fallbackAudio.currentTime = 0;
+      _fallbackAudio.src = '';
+    } catch (e) {
+      // Ignore
+    }
+    _fallbackAudio = null;
+  }
+}
+
+// ============================================================
+// PUBLIC API - speakText (main function)
+// ============================================================
+export async function speakText(text: string, lang = 'it-IT'): Promise<void> {
+  if (typeof window === 'undefined') return;
+
+  // 1. Try native Web Speech API first
+  if (isSpeechSupported()) {
+    startKeepAlive();
+    const success = await speakNative(text, lang);
+    if (success) return;
+
+    // Native failed, try fallback
+    console.log('[TTS] Native speech failed, trying fallback...');
+  }
+
+  // 2. Fall back to Google TTS API
+  const fallbackSuccess = await speakFallback(text, lang);
+  if (fallbackSuccess) return;
+
+  // 3. Both failed - try one more time with native using default voice
+  if (isSpeechSupported()) {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang;
+    u.rate = 0.85;
+    u.onerror = () => {};
+    _utt = u;
+    window.speechSynthesis.speak(u);
+  }
+}
+
+// ============================================================
+// PUBLIC API - stopSpeech
 // ============================================================
 export function stopSpeech(): void {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return;
-  try {
-    window.speechSynthesis.cancel();
-  } catch (e) {
-    // Ignore cancel errors
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch (e) {
+      // Ignore
+    }
   }
   _utt = null;
+  stopFallbackAudio();
 }
 
 // ============================================================
-// PRELOAD VOICES
+// PUBLIC API - preloadVoices (called on app start)
 // ============================================================
 export async function preloadVoices(): Promise<void> {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return;
+  if (typeof window === 'undefined') return;
 
-  const voices = await loadVoices();
-  if (voices.length > 0) {
-    console.log('[TTS] Loaded', voices.length, 'voices');
+  // Try Web Speech API voices
+  if (window.speechSynthesis) {
+    // Immediate check
+    const voices = getVoicesSync();
+    if (voices.length > 0) {
+      _speechAvailable = true;
+      console.log('[TTS] Voices loaded:', voices.length);
+      logAvailableVoices(voices);
+    } else {
+      // Wait for async loading (Chrome)
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = () => {
+          const v = getVoicesSync();
+          if (v.length > 0) {
+            _speechAvailable = true;
+            console.log('[TTS] Voices loaded (async):', v.length);
+            logAvailableVoices(v);
+          }
+        };
+      }
+    }
 
-    // Log available Italian and Arabic voices
-    const itVoices = voices.filter((v) => v.lang.startsWith('it'));
-    const arVoices = voices.filter((v) => v.lang.startsWith('ar'));
-    if (itVoices.length > 0) {
-      console.log('[TTS] Italian voices:', itVoices.map((v) => `${v.name} (${v.lang})`));
-    }
-    if (arVoices.length > 0) {
-      console.log('[TTS] Arabic voices:', arVoices.map((v) => `${v.name} (${v.lang})`));
-    }
+    // Test if speech actually works
+    startKeepAlive();
+  }
+}
+
+function logAvailableVoices(voices: SpeechSynthesisVoice[]) {
+  const itVoices = voices.filter((v) => v.lang.startsWith('it'));
+  const arVoices = voices.filter((v) => v.lang.startsWith('ar'));
+  if (itVoices.length > 0) {
+    console.log('[TTS] Italian:', itVoices.map((v) => `${v.name} (${v.lang}, ${v.localService ? 'local' : 'remote'})`));
   } else {
-    console.log('[TTS] No voices available on this device');
+    console.log('[TTS] No Italian voices - will use fallback API');
+  }
+  if (arVoices.length > 0) {
+    console.log('[TTS] Arabic:', arVoices.map((v) => `${v.name} (${v.lang}, ${v.localService ? 'local' : 'remote'})`));
   }
 }
 
 // ============================================================
-// SPEAK A SINGLE WORD (Italian or Arabic)
+// PUBLIC API - speakWord
 // ============================================================
-export function speakWord(word: string, lang: 'it' | 'ar' = 'it'): void {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return;
+export async function speakWord(word: string, lang: 'it' | 'ar' = 'it'): Promise<void> {
+  if (typeof window === 'undefined') return;
   if (!word || word.trim().length === 0) return;
 
-  stopSpeech();
-
-  // Chrome bug fix: resume if paused
-  if (window.speechSynthesis.paused) {
-    window.speechSynthesis.resume();
-  }
-
-  const u = new SpeechSynthesisUtterance(word.trim());
-  u.rate = 0.75;
-  u.volume = 1;
-  u.pitch = 1;
-
-  const voices = window.speechSynthesis.getVoices();
-
-  if (lang === 'ar') {
-    u.lang = 'ar-SA';
-    const arVoice = findVoice(voices, 'ar');
-    if (arVoice) {
-      u.voice = arVoice;
-      u.lang = arVoice.lang; // Use the actual voice language
-    }
-  } else {
-    u.lang = 'it-IT';
-    const itVoice = findVoice(voices, 'it');
-    if (itVoice) {
-      u.voice = itVoice;
-      u.lang = itVoice.lang;
-    }
-  }
-
-  u.onerror = (e) => {
-    console.warn('[TTS] Speech error:', e.error);
-  };
-
-  _utt = u;
-  window.speechSynthesis.speak(u);
+  const targetLang = lang === 'ar' ? 'ar-SA' : 'it-IT';
+  await speakText(word.trim(), targetLang);
 }
 
 // ============================================================
-// CHECK IF VOICE AVAILABLE
+// PUBLIC API - hasVoiceForLang
 // ============================================================
 export function hasVoiceForLang(lang: 'it' | 'ar'): boolean {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return false;
-  const voices = window.speechSynthesis.getVoices();
+  if (!isSpeechSupported()) return false;
+  const voices = getVoicesSync();
   return voices.some((v) => v.lang.startsWith(lang));
 }
 
 // ============================================================
-// GET ALL AVAILABLE VOICES (for debugging)
+// PUBLIC API - getAvailableVoices
 // ============================================================
 export function getAvailableVoices(): { lang: string; name: string; local: boolean }[] {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return [];
-  return window.speechSynthesis.getVoices().map((v) => ({
+  if (!isSpeechSupported()) return [];
+  return getVoicesSync().map((v) => ({
     lang: v.lang,
     name: v.name,
     local: v.localService,
