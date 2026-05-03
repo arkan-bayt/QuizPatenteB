@@ -35,7 +35,7 @@ export async function verifySession(authHeader: string | null): Promise<Verified
 
     const { data, error } = await supabase
       .from('app_users')
-      .select('id, username, role, is_active')
+      .select('*')
       .eq('username', username.toLowerCase())
       .eq('is_active', true)
       .single();
