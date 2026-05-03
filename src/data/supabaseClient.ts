@@ -32,6 +32,8 @@ export interface AppUser {
   ai_usage_limit?: number;
   last_ai_usage?: string | null;
   subscription?: SubscriptionType;
+  // Class fields
+  class_id?: string | null;
 }
 
 // ============================================================
@@ -125,6 +127,23 @@ export interface AssignmentResult {
   // Joined fields (optional)
   student_username?: string;
   student_full_name?: string;
+}
+
+// ============================================================
+// SCHOOL CLASS TYPES
+// ============================================================
+
+export interface SchoolClass {
+  id: string;
+  name: string;
+  description?: string | null;
+  image_url?: string | null;
+  color?: string | null;
+  icon?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  // Joined fields (optional)
+  student_count?: number;
 }
 
 // ============================================================

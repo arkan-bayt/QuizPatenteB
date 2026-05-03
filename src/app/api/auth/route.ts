@@ -605,14 +605,13 @@ async function handleGetMyStudents(request: NextRequest, body: { teacherId?: str
 
   let query = supabase
     .from('app_users')
-    .select('id, username, role, is_active, created_at')
+    .select('id, username, role, is_active, created_at, class_id')
     .eq('role', 'student')
     .eq('is_active', true);
 
   // Teacher sees all students (owner_id not yet available in DB schema)
   // Super admin sees all students
-  // Future: add owner_id column for teacher isolation
-  // If super_admin with no teacherId → returns ALL students
+  // Students are grouped by class_id
 
   const { data, error } = await query.order('created_at', { ascending: true });
 
@@ -624,6 +623,7 @@ async function handleGetMyStudents(request: NextRequest, body: { teacherId?: str
   const students = (data || []).map((u: any) => ({
     ...u,
     password_hash: '',
+    class_id: u.class_id || null,
   }));
 
   return NextResponse.json({ ok: true, students });

@@ -7,6 +7,38 @@ import { Assignment, AssignmentConfig, AppUser } from '@/data/supabaseClient';
 import { authenticatedFetch } from '@/lib/api';
 import { getUniqueTopics, getChaptersByTopic } from '@/data/quizData';
 
+// ============================================================
+// School Class type (inline to avoid import issues)
+// ============================================================
+interface SchoolClass {
+  id: string;
+  name: string;
+  description?: string | null;
+  image_url?: string | null;
+  color?: string | null;
+  icon?: string | null;
+  created_at: string;
+  student_count?: number;
+}
+
+// ============================================================
+// PREDEFINED CLASS ICONS & COLORS
+// ============================================================
+const CLASS_PRESETS = [
+  { icon: '📚', label: 'Libri', color: '#4F46E5' },
+  { icon: '🔬', label: 'Scienze', color: '#059669' },
+  { icon: '🧮', label: 'Matematica', color: '#D97706' },
+  { icon: '🎨', label: 'Arte', color: '#DC2626' },
+  { icon: '⚽', label: 'Sport', color: '#7C3AED' },
+  { icon: '💻', label: 'Informatica', color: '#0891B2' },
+  { icon: '🎵', label: 'Musica', color: '#BE185D' },
+  { icon: '🌍', label: 'Geografia', color: '#65A30D' },
+  { icon: '📐', label: 'Architettura', color: '#B45309' },
+  { icon: '📖', label: 'Storia', color: '#1D4ED8' },
+  { icon: '🚗', label: 'Guida', color: '#EA580C' },
+  { icon: '🏠', label: 'Casa', color: '#6366F1' },
+];
+
 export default function TeacherDashboard() {
   const store = useStore();
   const { user, chapters } = store;
@@ -14,8 +46,10 @@ export default function TeacherDashboard() {
 
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [students, setStudents] = useState<AppUser[]>([]);
+  const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateClassModal, setShowCreateClassModal] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState<'success' | 'error'>('success');
 
@@ -23,6 +57,18 @@ export default function TeacherDashboard() {
     setMsg(text);
     setMsgType(type);
     setTimeout(() => setMsg(''), 3000);
+  };
+
+  const loadClasses = async () => {
+    try {
+      const res = await authenticatedFetch('/api/classes?action=list');
+      const data = await res.json();
+      if (data.ok && data.classes) {
+        setClasses(data.classes);
+      }
+    } catch {
+      setClasses([]);
+    }
   };
 
   const loadData = async () => {
@@ -42,6 +88,7 @@ export default function TeacherDashboard() {
     } catch {
       setStudents([]);
     }
+    await loadClasses();
     setLoading(false);
   };
 
@@ -55,6 +102,42 @@ export default function TeacherDashboard() {
 
   const handleViewResults = (assignmentId: string) => {
     store.openAssignmentResults(assignmentId);
+  };
+
+  const handleCreateClass = async (name: string, icon: string, color: string) => {
+    try {
+      const res = await authenticatedFetch('/api/classes', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'create', name, icon, color }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showMsg('Classe creata con successo!', 'success');
+        await loadClasses();
+      } else {
+        showMsg(data.msg || 'Errore', 'error');
+      }
+    } catch {
+      showMsg('Errore di connessione', 'error');
+    }
+  };
+
+  const handleDeleteClass = async (classId: string) => {
+    try {
+      const res = await authenticatedFetch('/api/classes', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete', class_id: classId }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showMsg('Classe eliminata', 'success');
+        await loadClasses();
+      } else {
+        showMsg(data.msg || 'Errore', 'error');
+      }
+    } catch {
+      showMsg('Errore di connessione', 'error');
+    }
   };
 
   return (
@@ -84,8 +167,8 @@ export default function TeacherDashboard() {
         {/* Stats */}
         <div className="grid grid-cols-4 gap-3 anim-up stagger">
           <StatCard icon="👥" value={totalStudents} label="Studenti" color="#4F46E5" border="border-l-indigo-400" />
-          <StatCard icon="📝" value={activeAssignments.length} label="Compiti attivi" color="#059669" border="border-l-emerald-400" />
-          <StatCard icon="📊" value={`${avgClassScore}%`} label="Media classe" color="#D97706" border="border-l-amber-400" />
+          <StatCard icon="🏫" value={classes.length} label="Classi" color="#059669" border="border-l-emerald-400" />
+          <StatCard icon="📝" value={activeAssignments.length} label="Compiti attivi" color="#D97706" border="border-l-amber-400" />
           <StatCard icon="⚠️" value={studentsNeedingHelp} label="Da aiutare" color="#DC2626" border="border-l-red-400" />
         </div>
 
@@ -102,6 +185,51 @@ export default function TeacherDashboard() {
             <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>I Miei Studenti</p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{totalStudents} studenti registrati</p>
           </button>
+        </div>
+
+        {/* Classes Section */}
+        <div className="anim-up">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Le Mie Classi ({classes.length})</h2>
+            <button onClick={() => setShowCreateClassModal(true)} className="text-[10px] font-semibold px-2.5 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition-colors">
+              + Nuova Classe
+            </button>
+          </div>
+
+          {classes.length === 0 ? (
+            <div className="rounded-2xl border p-6 text-center" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+              <div className="text-3xl mb-2">🏫</div>
+              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Nessuna classe creata</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Crea una classe per organizzare i tuoi studenti</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {classes.map((cls, i) => {
+                const classStudents = students.filter(s => s.class_id === cls.id);
+                return (
+                  <div key={cls.id} className="rounded-2xl border overflow-hidden anim-up" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', animationDelay: `${i * 40}ms` }}>
+                    <div className="h-2" style={{ background: cls.color || '#4F46E5' }} />
+                    <div className="p-3.5">
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ background: (cls.color || '#4F46E5') + '15' }}>
+                          {cls.icon || '📚'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{cls.name}</p>
+                          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{classStudents.length} studenti</p>
+                        </div>
+                      </div>
+                      {cls.image_url && (
+                        <div className="mt-2 rounded-lg overflow-hidden h-16">
+                          <img src={cls.image_url} alt={cls.name} className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Assignments */}
@@ -161,21 +289,33 @@ export default function TeacherDashboard() {
             </div>
           ) : (
             <div className="space-y-2">
-              {students.map((s, i) => (
-                <div key={s.id} className="rounded-xl border p-3.5 flex items-center gap-3 anim-up" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', animationDelay: `${i * 25}ms` }}>
-                  <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-bold text-[#4F46E5]">{(s.full_name || s.username)[0].toUpperCase()}</span>
+              {students.map((s, i) => {
+                const studentClass = classes.find(c => c.id === s.class_id);
+                return (
+                  <div key={s.id} className="rounded-xl border p-3.5 flex items-center gap-3 anim-up" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', animationDelay: `${i * 25}ms` }}>
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: studentClass ? (studentClass.color || '#4F46E5') + '15' : 'var(--bg-tertiary)' }}>
+                      <span className="text-xs font-bold" style={{ color: studentClass ? (studentClass.color || '#4F46E5') : '#4F46E5' }}>
+                        {(s.full_name || s.username)[0].toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{s.full_name || s.username}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>@{s.username}</p>
+                        {studentClass && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-md font-semibold" style={{ background: (studentClass.color || '#4F46E5') + '15', color: studentClass.color || '#4F46E5' }}>
+                            {studentClass.icon} {studentClass.name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>—</p>
+                      <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>nessun dato</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{s.full_name || s.username}</p>
-                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>@{s.username}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>—</p>
-                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>nessun dato</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -185,10 +325,20 @@ export default function TeacherDashboard() {
         <CreateAssignmentModal
           teacherId={teacherId}
           students={students}
+          classes={classes}
           chapters={chapters}
           onClose={() => setShowCreateModal(false)}
           onSuccess={() => { setShowCreateModal(false); showMsg('Compito creato con successo!', 'success'); loadData(); }}
           onError={(msg) => showMsg(msg, 'error')}
+        />
+      )}
+
+      {showCreateClassModal && (
+        <CreateClassModal
+          onCreate={handleCreateClass}
+          onClose={() => setShowCreateClassModal(false)}
+          onDelete={handleDeleteClass}
+          classes={classes}
         />
       )}
     </div>
@@ -205,8 +355,128 @@ function StatCard({ icon, value, label, color, border }: { icon: string; value: 
   );
 }
 
-function CreateAssignmentModal({ teacherId, students, chapters, onClose, onSuccess, onError }: {
-  teacherId: string; students: AppUser[]; chapters: { id: number; name: string }[];
+// ============================================================
+// CREATE CLASS MODAL
+// ============================================================
+function CreateClassModal({ onCreate, onClose, onDelete, classes }: {
+  onCreate: (name: string, icon: string, color: string) => void;
+  onClose: () => void;
+  onDelete: (classId: string) => void;
+  classes: SchoolClass[];
+}) {
+  const [name, setName] = useState('');
+  const [selectedIcon, setSelectedIcon] = useState('📚');
+  const [selectedColor, setSelectedColor] = useState('#4F46E5');
+  const [tab, setTab] = useState<'create' | 'manage'>('create');
+
+  const handleCreate = () => {
+    if (!name.trim()) return;
+    onCreate(name.trim(), selectedIcon, selectedColor);
+    setName('');
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+      <div className="relative w-full max-w-md rounded-2xl border shadow-xl p-6 anim-up max-h-[85vh] overflow-y-auto" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Gestione Classi</h2>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Crea e gestisci le tue classi</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-2 mb-4">
+          <button onClick={() => setTab('create')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${tab === 'create' ? 'bg-indigo-50 text-indigo-600' : ''}`} style={tab !== 'create' ? { color: 'var(--text-muted)' } : undefined}>
+            Nuova Classe
+          </button>
+          <button onClick={() => setTab('manage')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${tab === 'manage' ? 'bg-indigo-50 text-indigo-600' : ''}`} style={tab !== 'manage' ? { color: 'var(--text-muted)' } : undefined}>
+            Gestisci ({classes.length})
+          </button>
+        </div>
+
+        {tab === 'create' ? (
+          <div className="space-y-4">
+            {/* Class Name */}
+            <div>
+              <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Nome Classe *</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} placeholder="Es: Classe A, 3° B, Gruppo 1..." />
+            </div>
+
+            {/* Icon Selection */}
+            <div>
+              <label className="block text-[10px] font-bold mb-2 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Icona</label>
+              <div className="grid grid-cols-6 gap-2">
+                {CLASS_PRESETS.map((preset) => (
+                  <button key={preset.icon} onClick={() => { setSelectedIcon(preset.icon); setSelectedColor(preset.color); }}
+                    className={`aspect-square rounded-xl flex items-center justify-center text-xl transition-all ${selectedIcon === preset.icon ? 'ring-2 ring-offset-2 ring-indigo-400 scale-105' : 'hover:scale-105'}`}
+                    style={{ background: selectedIcon === preset.icon ? preset.color + '20' : 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
+                    {preset.icon}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Preview */}
+            <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>Anteprima</p>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl" style={{ background: selectedColor + '15' }}>
+                  {selectedIcon}
+                </div>
+                <div>
+                  <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{name || 'Nome Classe'}</p>
+                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>0 studenti</p>
+                </div>
+              </div>
+            </div>
+
+            <button onClick={handleCreate} disabled={!name.trim()}
+              className="w-full py-3.5 text-white font-bold text-sm rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] transition-colors disabled:opacity-50">
+              Crea Classe
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {classes.length === 0 ? (
+              <div className="text-center py-6">
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nessuna classe creata</p>
+              </div>
+            ) : classes.map((cls) => (
+              <div key={cls.id} className="flex items-center gap-3 p-3 rounded-xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style={{ background: (cls.color || '#4F46E5') + '15' }}>
+                  {cls.icon || '📚'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{cls.name}</p>
+                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{cls.student_count || 0} studenti</p>
+                </div>
+                <button onClick={() => { if (confirm(`Eliminare la classe "${cls.name}"? Gli studenti verranno rimossi dalla classe.`)) onDelete(cls.id); }}
+                  className="p-2 rounded-lg transition-colors hover:bg-red-50" style={{ color: '#DC2626' }}>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// CREATE ASSIGNMENT MODAL — WITH CLASS SELECTOR
+// ============================================================
+function CreateAssignmentModal({ teacherId, students, classes, chapters, onClose, onSuccess, onError }: {
+  teacherId: string; students: AppUser[]; classes: SchoolClass[]; chapters: { id: number; name: string }[];
   onClose: () => void; onSuccess: () => void; onError: (msg: string) => void;
 }) {
   const [title, setTitle] = useState('');
@@ -217,6 +487,8 @@ function CreateAssignmentModal({ teacherId, students, chapters, onClose, onSucce
   const [timeLimit, setTimeLimit] = useState('');
   const [maxAttempts, setMaxAttempts] = useState(3);
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [showClassDropdown, setShowClassDropdown] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const toggleChapter = (id: number) => setSelectedChapters((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
@@ -224,9 +496,26 @@ function CreateAssignmentModal({ teacherId, students, chapters, onClose, onSucce
     setSelectedStudents((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   };
   const selectAllStudents = () => {
-    if (selectedStudents.size === students.length) setSelectedStudents(new Set());
-    else setSelectedStudents(new Set(students.map((s) => s.id)));
+    if (selectedStudents.size === filteredStudents.length) setSelectedStudents(new Set());
+    else setSelectedStudents(new Set(filteredStudents.map((s) => s.id)));
   };
+
+  // When a class is selected, auto-select all students in that class
+  const handleSelectClass = (classId: string | null) => {
+    setSelectedClassId(classId);
+    setShowClassDropdown(false);
+    if (classId) {
+      const classStudentIds = students.filter(s => s.class_id === classId).map(s => s.id);
+      setSelectedStudents(new Set(classStudentIds));
+    }
+  };
+
+  // Filtered students based on selected class (or all if no class selected)
+  const filteredStudents = selectedClassId
+    ? students.filter(s => s.class_id === selectedClassId)
+    : students;
+
+  const selectedClassName = selectedClassId ? classes.find(c => c.id === selectedClassId) : null;
 
   const handleCreate = async () => {
     if (!title.trim()) { onError('Inserisci un titolo'); return; }
@@ -274,6 +563,95 @@ function CreateAssignmentModal({ teacherId, students, chapters, onClose, onSucce
           <div>
             <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Descrizione</label>
             <input value={description} onChange={(e) => setDescription(e.target.value)} className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} placeholder="Descrizione opzionale..." />
+          </div>
+
+          {/* ============================================================ */}
+          {/* CLASS SELECTOR - VISUAL DROPDOWN WITH IMAGES/ICONS */}
+          {/* ============================================================ */}
+          <div className="relative">
+            <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Classe (opzionale)</label>
+            <button
+              onClick={() => setShowClassDropdown(!showClassDropdown)}
+              className="w-full border rounded-xl px-4 py-3 text-sm text-left flex items-center gap-3 transition-all outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+              style={{ background: 'var(--bg-card)', borderColor: showClassDropdown ? '#4F46E5' : 'var(--border)', color: selectedClassName ? 'var(--text-primary)' : 'var(--text-muted)' }}
+            >
+              {selectedClassName ? (
+                <>
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0" style={{ background: (selectedClassName.color || '#4F46E5') + '15' }}>
+                    {selectedClassName.icon || '📚'}
+                  </div>
+                  <span className="font-semibold">{selectedClassName.name}</span>
+                  <span className="text-[10px] ml-auto" style={{ color: 'var(--text-muted)' }}>{filteredStudents.length} studenti</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
+                  </svg>
+                  <span>Seleziona una classe...</span>
+                </>
+              )}
+              <svg className={`w-4 h-4 ml-auto flex-shrink-0 transition-transform ${showClassDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+
+            {/* Class Dropdown */}
+            {showClassDropdown && (
+              <div className="absolute z-20 top-full left-0 right-0 mt-1 rounded-xl border shadow-lg overflow-hidden anim-slide-down" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', maxHeight: '200px', overflowY: 'auto' }}>
+                {/* All students option */}
+                <button
+                  onClick={() => handleSelectClass(null)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${selectedClassId === null ? 'bg-indigo-50' : 'hover:bg-gray-50'}`}
+                >
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm bg-gray-100">
+                    👥
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Tutti gli studenti</p>
+                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{students.length} studenti</p>
+                  </div>
+                  {selectedClassId === null && (
+                    <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                  )}
+                </button>
+
+                {classes.length === 0 ? (
+                  <div className="px-4 py-3 text-center">
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nessuna classe creata</p>
+                  </div>
+                ) : classes.map((cls) => {
+                  const classStudentsCount = students.filter(s => s.class_id === cls.id).length;
+                  return (
+                    <button
+                      key={cls.id}
+                      onClick={() => handleSelectClass(cls.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${selectedClassId === cls.id ? 'bg-indigo-50' : 'hover:bg-gray-50'}`}
+                    >
+                      {/* Class Image or Icon */}
+                      {cls.image_url ? (
+                        <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
+                          <img src={cls.image_url} alt={cls.name} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0" style={{ background: (cls.color || '#4F46E5') + '15' }}>
+                          {cls.icon || '📚'}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{cls.name}</p>
+                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{classStudentsCount} studenti</p>
+                      </div>
+                      {/* Color indicator */}
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: cls.color || '#4F46E5' }} />
+                      {selectedClassId === cls.id && (
+                        <svg className="w-4 h-4 text-indigo-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div>
@@ -332,32 +710,47 @@ function CreateAssignmentModal({ teacherId, students, chapters, onClose, onSucce
             </div>
           </div>
 
+          {/* Students */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Studenti *</label>
-              {students.length > 0 && (
-                <button onClick={selectAllStudents} className={`text-[10px] font-semibold px-2 py-1 rounded-md ${selectedStudents.size === students.length ? 'text-indigo-600 bg-indigo-50 border border-indigo-200' : ''}`}
-                  style={selectedStudents.size === students.length ? undefined : { color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
-                  {selectedStudents.size === students.length ? 'Deseleziona tutti' : 'Seleziona tutti'}
+              <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                Studenti * {selectedClassName && <span style={{ color: selectedClassName.color || '#4F46E5' }}>({selectedClassName.name})</span>}
+              </label>
+              {filteredStudents.length > 0 && (
+                <button onClick={selectAllStudents} className={`text-[10px] font-semibold px-2 py-1 rounded-md ${selectedStudents.size === filteredStudents.length ? 'text-indigo-600 bg-indigo-50 border border-indigo-200' : ''}`}
+                  style={selectedStudents.size === filteredStudents.length ? undefined : { color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                  {selectedStudents.size === filteredStudents.length ? 'Deseleziona tutti' : 'Seleziona tutti'}
                 </button>
               )}
             </div>
             <div className="space-y-1.5 max-h-36 overflow-y-auto">
-              {students.length === 0 ? (
-                <p className="text-xs text-center py-3" style={{ color: 'var(--text-muted)' }}>Nessuno studente disponibile</p>
-              ) : students.map((s) => (
-                <button key={s.id} onClick={() => toggleStudent(s.id)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left transition-colors ${selectedStudents.has(s.id) ? 'bg-indigo-50 border border-indigo-200' : ''}`}
-                  style={selectedStudents.has(s.id) ? undefined : { background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-                  <div className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 ${selectedStudents.has(s.id) ? 'bg-[#4F46E5]' : ''}`} style={{ border: selectedStudents.has(s.id) ? 'none' : '1.5px solid var(--border)', background: selectedStudents.has(s.id) ? '#4F46E5' : 'var(--bg-tertiary)' }}>
-                    {selectedStudents.has(s.id) && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{s.full_name || s.username}</p>
-                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>@{s.username}</p>
-                  </div>
-                </button>
-              ))}
+              {filteredStudents.length === 0 ? (
+                <p className="text-xs text-center py-3" style={{ color: 'var(--text-muted)' }}>
+                  {selectedClassId ? 'Nessuno studente in questa classe' : 'Nessuno studente disponibile'}
+                </p>
+              ) : filteredStudents.map((s) => {
+                const studentClass = classes.find(c => c.id === s.class_id);
+                return (
+                  <button key={s.id} onClick={() => toggleStudent(s.id)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left transition-colors ${selectedStudents.has(s.id) ? 'bg-indigo-50 border border-indigo-200' : ''}`}
+                    style={selectedStudents.has(s.id) ? undefined : { background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                    <div className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 ${selectedStudents.has(s.id) ? 'bg-[#4F46E5]' : ''}`} style={{ border: selectedStudents.has(s.id) ? 'none' : '1.5px solid var(--border)', background: selectedStudents.has(s.id) ? '#4F46E5' : 'var(--bg-tertiary)' }}>
+                      {selectedStudents.has(s.id) && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{s.full_name || s.username}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>@{s.username}</p>
+                        {studentClass && (
+                          <span className="text-[9px] px-1 py-0.5 rounded" style={{ background: (studentClass.color || '#4F46E5') + '15', color: studentClass.color || '#4F46E5' }}>
+                            {studentClass.icon}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
             {selectedStudents.size > 0 && <p className="text-[10px] mt-2 text-center" style={{ color: 'var(--text-muted)' }}>{selectedStudents.size} studenti selezionati</p>}
           </div>
@@ -371,3 +764,5 @@ function CreateAssignmentModal({ teacherId, students, chapters, onClose, onSucce
     </div>
   );
 }
+
+
