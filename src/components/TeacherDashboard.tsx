@@ -51,6 +51,8 @@ export default function TeacherDashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCreateClassModal, setShowCreateClassModal] = useState(false);
   const [dbSetupNeeded, setDbSetupNeeded] = useState(false);
+  const [dbPassword, setDbPassword] = useState('');
+  const [dbSetupBusy, setDbSetupBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState<'success' | 'error'>('success');
 
@@ -81,6 +83,28 @@ export default function TeacherDashboard() {
     } catch {
       setDbSetupNeeded(false);
     }
+  };
+
+  const handleRunMigration = async () => {
+    if (!dbPassword.trim()) { showMsg('Inserisci la password del database', 'error'); return; }
+    setDbSetupBusy(true);
+    try {
+      const res = await authenticatedFetch('/api/setup', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'run_migration', db_password: dbPassword.trim() }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showMsg('Setup completato! Ricarica la pagina...', 'success');
+        setDbSetupNeeded(false);
+        await loadClasses();
+      } else {
+        showMsg(data.msg || 'Errore', 'error');
+      }
+    } catch {
+      showMsg('Errore di connessione', 'error');
+    }
+    setDbSetupBusy(false);
   };
 
   const loadData = async () => {
@@ -227,6 +251,26 @@ CREATE INDEX IF NOT EXISTS idx_app_users_class_id ON app_users(class_id);`).then
                   className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700 transition-colors">
                   📋 Copia SQL
                 </button>
+                <div className="mt-3 pt-3 border-t border-amber-200">
+                  <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider mb-1.5">Oppure setup automatico:</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      value={dbPassword}
+                      onChange={(e) => setDbPassword(e.target.value)}
+                      placeholder="Database Password"
+                      className="flex-1 border rounded-lg px-3 py-2 text-xs outline-none focus:border-amber-400"
+                      style={{ background: 'white', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                    />
+                    <button onClick={handleRunMigration} disabled={dbSetupBusy || !dbPassword.trim()}
+                      className="px-3 py-2 rounded-lg text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700 transition-colors disabled:opacity-50 whitespace-nowrap">
+                      {dbSetupBusy ? '⏳...' : '▶ Setup'}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-amber-600 mt-1">
+                    Trova la password in: Supabase Dashboard → Settings → Database → Database password
+                  </p>
+                </div>
               </div>
             </div>
           </div>

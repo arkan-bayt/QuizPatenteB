@@ -1,6 +1,6 @@
 // ============================================================
-// ONE-TIME SETUP - Creates school_classes table
-// Must be called by super_admin only
+// SETUP - Run SQL migration using direct PostgreSQL connection
+// Accepts database password from super_admin
 // ============================================================
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySession, requireSuperAdmin } from '@/lib/auth';
@@ -15,6 +15,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Solo il super admin può eseguire il setup' }, { status: 403 });
     }
 
+    const body = await request.json();
+    const { action } = body;
+
+    if (action === 'run_migration') {
+      return handleRunMigration(body);
+    }
+
+    // Default: check if setup is needed
     const { createClient } = require('@supabase/supabase-js');
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -22,21 +30,13 @@ export async function POST(request: NextRequest) {
 
     const results: Record<string, { ok: boolean; error?: string }> = {};
 
-    // 1. Create school_classes table via insert attempt (check if exists)
-    const { error: checkError } = await supabase.from('school_classes').select('id').limit(1);
-    if (!checkError) {
-      results.school_classes = { ok: true };
-    } else {
-      results.school_classes = { ok: false, error: checkError.message };
-    }
+    // Check school_classes table
+    const { error: checkError1 } = await supabase.from('school_classes').select('id').limit(1);
+    results.school_classes = { ok: !checkError1, error: checkError1?.message };
 
-    // Check if class_id column exists on app_users
-    const { error: colError } = await supabase.from('app_users').select('id, class_id').limit(1);
-    if (!colError) {
-      results.app_users_class_id = { ok: true };
-    } else {
-      results.app_users_class_id = { ok: false, error: colError.message };
-    }
+    // Check class_id column
+    const { error: checkError2 } = await supabase.from('app_users').select('id, class_id').limit(1);
+    results.app_users_class_id = { ok: !checkError2, error: checkError2?.message };
 
     const allReady = results.school_classes.ok && results.app_users_class_id.ok;
 
@@ -44,9 +44,23 @@ export async function POST(request: NextRequest) {
       ok: allReady,
       results,
       sql_needed: !allReady,
-      sql: allReady ? '' : `-- Esegui questo SQL nel Supabase SQL Editor:
--- https://supabase.com/dashboard/project/jdahzuhkwimridgskcqd/sql
+    });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
 
+async function handleRunMigration(body: { db_password: string }) {
+  const { db_password } = body;
+
+  if (!db_password || db_password.length < 4) {
+    return NextResponse.json({ ok: false, msg: 'Password database non valida' });
+  }
+
+  try {
+    const { Client } = require('pg');
+
+    const SQL = `
 CREATE TABLE IF NOT EXISTS school_classes (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
@@ -60,13 +74,31 @@ CREATE TABLE IF NOT EXISTS school_classes (
 
 ALTER TABLE app_users ADD COLUMN IF NOT EXISTS class_id UUID REFERENCES school_classes(id) ON DELETE SET NULL;
 
-CREATE INDEX IF NOT EXISTS idx_app_users_class_id ON app_users(class_id);`,
-      instructions: allReady ? '' : `1. Vai su https://supabase.com/dashboard/project/jdahzuhkwimridgskcqd/sql
-2. Incolla il SQL qui sopra
-3. Clicca "Run"
-4. Torna qui e ricarica la pagina`,
+CREATE INDEX IF NOT EXISTS idx_app_users_class_id ON app_users(class_id);
+`;
+
+    const client = new Client({
+      host: 'db.jdahzuhkwimridgskcqd.supabase.co',
+      port: 5432,
+      database: 'postgres',
+      user: 'postgres',
+      password: db_password,
+      ssl: { rejectUnauthorized: false },
+      connectionTimeoutMillis: 10000,
     });
+
+    await client.connect();
+    await client.query(SQL);
+    await client.end();
+
+    return NextResponse.json({ ok: true, msg: 'Setup completato con successo! Ricarica la pagina.' });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    console.error('Migration error:', e.message);
+    return NextResponse.json({
+      ok: false,
+      msg: e.message?.includes('password') || e.message?.includes('auth')
+        ? 'Password database non corretta. Trovala in Supabase Dashboard > Settings > Database > Database password.'
+        : 'Errore: ' + e.message?.substring(0, 100)
+    });
   }
 }
