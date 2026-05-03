@@ -50,6 +50,7 @@ export default function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCreateClassModal, setShowCreateClassModal] = useState(false);
+  const [dbSetupNeeded, setDbSetupNeeded] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState<'success' | 'error'>('success');
 
@@ -65,9 +66,20 @@ export default function TeacherDashboard() {
       const data = await res.json();
       if (data.ok && data.classes) {
         setClasses(data.classes);
+        setDbSetupNeeded(false);
       }
     } catch {
       setClasses([]);
+ }
+  };
+
+  const checkDbSetup = async () => {
+    try {
+      const res = await authenticatedFetch('/api/setup', { method: 'POST' });
+      const data = await res.json();
+      setDbSetupNeeded(data.sql_needed || false);
+    } catch {
+      setDbSetupNeeded(false);
     }
   };
 
@@ -89,6 +101,9 @@ export default function TeacherDashboard() {
       setStudents([]);
     }
     await loadClasses();
+    if (classes.length === 0) {
+      await checkDbSetup();
+    }
     setLoading(false);
   };
 
@@ -161,6 +176,59 @@ export default function TeacherDashboard() {
         {msg && (
           <div className={`p-4 rounded-xl text-sm text-center anim-slide-down ${msgType === 'success' ? 'bg-emerald-50 border border-emerald-100 text-emerald-700' : 'bg-red-50 border border-red-100 text-red-700'}`}>
             {msg}
+          </div>
+        )}
+
+        {/* Database Setup Banner */}
+        {dbSetupNeeded && (
+          <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 anim-up">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-lg flex-shrink-0">⚠️</div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-amber-800">Setup Database Richiesto</p>
+                <p className="text-xs text-amber-700 mt-1">
+                  Per utilizzare le classi, devi eseguire un comando SQL nel Supabase SQL Editor.
+                </p>
+                <ol className="text-xs text-amber-700 mt-2 space-y-1 list-decimal list-inside">
+                  <li>Vai su <a href="https://supabase.com/dashboard/project/jdahzuhkwimridgskcqd/sql" target="_blank" rel="noopener noreferrer" className="font-bold underline text-amber-900">Supabase SQL Editor</a></li>
+                  <li>Incolla il SQL e clicca &quot;Run&quot;</li>
+                  <li>Ricarica questa pagina</li>
+                </ol>
+                <div className="mt-3 p-3 rounded-lg bg-white/60 border border-amber-200 max-h-32 overflow-auto">
+                  <code className="text-[10px] text-amber-900 whitespace-pre-wrap leading-relaxed">CREATE TABLE IF NOT EXISTS school_classes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  image_url TEXT,
+  color TEXT DEFAULT '#4F46E5',
+  icon TEXT DEFAULT '📚',
+  created_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS class_id UUID REFERENCES school_classes(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_app_users_class_id ON app_users(class_id);</code>
+                </div>
+                <button onClick={() => navigator.clipboard.writeText(`CREATE TABLE IF NOT EXISTS school_classes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  image_url TEXT,
+  color TEXT DEFAULT '#4F46E5',
+  icon TEXT DEFAULT '📚',
+  created_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS class_id UUID REFERENCES school_classes(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_app_users_class_id ON app_users(class_id);`).then(() => showMsg('SQL copiato negli appunti!', 'success'))}
+                  className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700 transition-colors">
+                  📋 Copia SQL
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
