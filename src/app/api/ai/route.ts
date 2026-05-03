@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 import { createClient } from '@supabase/supabase-js';
+import { verifySession } from '@/lib/auth';
 
 export const maxDuration = 15; // Allow up to 15 seconds for translation APIs
 
@@ -15,7 +16,8 @@ export const maxDuration = 15; // Allow up to 15 seconds for translation APIs
 const DEFAULT_AI_LIMIT = 5; // Free users get 5 AI uses per day
 
 async function checkAndIncrementAIUsage(
-  username: string
+  username: string,
+  userId?: string
 ): Promise<{ allowed: boolean; remaining: number; limit: number }> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -23,14 +25,27 @@ async function checkAndIncrementAIUsage(
 
   const today = new Date().toISOString().split('T')[0];
 
-  // Fetch user from app_users by username
-  const { data: user, error: userError } = await supabase
-    .from('app_users')
-    .select('id, subscription, ai_usage_count, ai_usage_limit, last_ai_usage')
-    .eq('username', username)
-    .single();
+  // Fetch user - prefer by ID (verified), fallback to username
+  let user: any = null;
+  if (userId) {
+    const { data } = await supabase
+      .from('app_users')
+      .select('id, username, subscription, ai_usage_count, ai_usage_limit, last_ai_usage')
+      .eq('id', userId)
+      .single();
+    user = data;
+  }
 
-  if (userError || !user) {
+  if (!user && username) {
+    const { data } = await supabase
+      .from('app_users')
+      .select('id, username, subscription, ai_usage_count, ai_usage_limit, last_ai_usage')
+      .eq('username', username)
+      .single();
+    user = data;
+  }
+
+  if (!user) {
     // User not found - allow but don't track
     return { allowed: true, remaining: DEFAULT_AI_LIMIT, limit: DEFAULT_AI_LIMIT };
   }
@@ -98,14 +113,23 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { action, username } = body;
 
+    // Verify session - don't block request, but use verified identity for tracking
+    const authUser = await verifySession(req.headers.get('Authorization'));
+    const verifiedUserId = authUser?.id;
+    const verifiedUsername = authUser?.username;
+
+    // For explain and hint: use verified user ID for accurate tracking
+    const trackingUsername = verifiedUsername || username;
+    const trackingUserId = verifiedUserId;
+
     // AI usage limiting for 'explain' and 'hint' actions
     if (action === 'explain' || action === 'hint') {
-      if (!username) {
-        // No username provided - allow without tracking
+      if (!trackingUsername) {
+        // No username available at all - allow without tracking
         if (action === 'explain') return handleExplain(body);
         if (action === 'hint') return handleHint(body);
       } else {
-        const usage = await checkAndIncrementAIUsage(username);
+        const usage = await checkAndIncrementAIUsage(trackingUsername, trackingUserId);
         if (!usage.allowed) {
           return NextResponse.json({
             error: 'AI usage limit reached for today',

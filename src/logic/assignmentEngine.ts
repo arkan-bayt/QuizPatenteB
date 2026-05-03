@@ -4,6 +4,7 @@
 // Calls the /api/assignments endpoints
 // ============================================================
 import type { Assignment, AssignmentResult } from '@/data/supabaseClient';
+import { authenticatedFetch } from '@/lib/api';
 
 // ============================================================
 // TYPES
@@ -139,9 +140,8 @@ export async function createAssignment(
   params: CreateAssignmentParams
 ): Promise<{ ok: boolean; msg: string; assignment?: any }> {
   try {
-    const res = await fetch('/api/assignments', {
+    const res = await authenticatedFetch('/api/assignments', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'create', ...params }),
     });
     const data = await res.json();
@@ -159,7 +159,7 @@ export async function createAssignment(
  */
 export async function getTeacherAssignments(teacherId: string): Promise<Assignment[]> {
   try {
-    const res = await fetch(`/api/assignments?userId=${teacherId}&role=teacher`);
+    const res = await authenticatedFetch(`/api/assignments?userId=${teacherId}&role=teacher`);
     const data = await res.json();
     if (data.ok && data.assignments) return data.assignments as Assignment[];
     return [];
@@ -173,7 +173,7 @@ export async function getTeacherAssignments(teacherId: string): Promise<Assignme
  */
 export async function getAllAssignments(): Promise<Assignment[]> {
   try {
-    const res = await fetch(`/api/assignments?userId=super-admin&role=super_admin`);
+    const res = await authenticatedFetch(`/api/assignments?userId=super-admin&role=super_admin`);
     const data = await res.json();
     if (data.ok && data.assignments) return data.assignments as Assignment[];
     return [];
@@ -187,7 +187,7 @@ export async function getAllAssignments(): Promise<Assignment[]> {
  */
 export async function getStudentAssignments(studentId: string): Promise<Assignment[]> {
   try {
-    const res = await fetch(`/api/assignments?userId=${studentId}&role=student`);
+    const res = await authenticatedFetch(`/api/assignments?userId=${studentId}&role=student`);
     const data = await res.json();
     if (data.ok && data.assignments) return data.assignments as Assignment[];
     return [];
@@ -205,7 +205,7 @@ export async function getAssignmentDetail(
   role: string
 ): Promise<{ ok: boolean; assignment?: Assignment }> {
   try {
-    const res = await fetch(`/api/assignments/${assignmentId}?userId=${userId}&role=${role}`);
+    const res = await authenticatedFetch(`/api/assignments/${assignmentId}?userId=${userId}&role=${role}`);
     const data = await res.json();
     if (data.ok) return { ok: true, assignment: data.assignment as Assignment };
     return { ok: false };
@@ -226,9 +226,8 @@ export async function startAssignment(
   studentId: string
 ): Promise<StartAssignmentResponse> {
   try {
-    const res = await fetch(`/api/assignments/${assignmentId}`, {
+    const res = await authenticatedFetch(`/api/assignments/${assignmentId}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'start', studentId }),
     });
     const data = await res.json();
@@ -246,9 +245,8 @@ export async function submitAssignmentResult(
   params: SubmitResultParams
 ): Promise<SubmitResultResponse> {
   try {
-    const res = await fetch(`/api/assignments/${assignmentId}`, {
+    const res = await authenticatedFetch(`/api/assignments/${assignmentId}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'submit', ...params }),
     });
     const data = await res.json();
@@ -266,9 +264,8 @@ export async function getAssignmentStatus(
   studentId: string
 ): Promise<AssignmentStatusResponse> {
   try {
-    const res = await fetch(`/api/assignments/${assignmentId}`, {
+    const res = await authenticatedFetch(`/api/assignments/${assignmentId}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'status', studentId }),
     });
     const data = await res.json();
@@ -297,9 +294,8 @@ export async function getStudentResult(
   resultId?: string
 ): Promise<{ ok: boolean; result?: any; all_results?: AssignmentResult[] }> {
   try {
-    const res = await fetch(`/api/assignments/${assignmentId}`, {
+    const res = await authenticatedFetch(`/api/assignments/${assignmentId}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'result', studentId, resultId }),
     });
     const data = await res.json();
@@ -322,9 +318,8 @@ export async function getAssignmentResults(
   teacherId?: string
 ): Promise<AssignmentResultsResponse> {
   try {
-    const res = await fetch('/api/assignments', {
+    const res = await authenticatedFetch('/api/assignments', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'results', assignmentId, teacherId }),
     });
     const data = await res.json();
@@ -354,9 +349,8 @@ export async function updateAssignment(
   }
 ): Promise<{ ok: boolean; msg: string }> {
   try {
-    const res = await fetch('/api/assignments', {
+    const res = await authenticatedFetch('/api/assignments', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'update', assignmentId, teacherId, ...updates }),
     });
     const data = await res.json();
@@ -374,9 +368,8 @@ export async function deleteAssignment(
   teacherId: string
 ): Promise<{ ok: boolean; msg: string }> {
   try {
-    const res = await fetch('/api/assignments', {
+    const res = await authenticatedFetch('/api/assignments', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', assignmentId, teacherId }),
     });
     const data = await res.json();

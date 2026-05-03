@@ -54,7 +54,7 @@ export default function StudentDashboard() {
             </svg>
           </button>
           <div className="flex-1">
-            <h1 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Il Mio Dashboard</h1>
+            <h1 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Dashboard Studente</h1>
             <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{user?.full_name || user?.username || ''}</p>
           </div>
         </div>

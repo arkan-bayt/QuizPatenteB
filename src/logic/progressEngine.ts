@@ -4,6 +4,7 @@
 // localStorage is only a cache for offline access
 // ============================================================
 import { ChapterProgress, UserStats } from '@/data/supabaseClient';
+import { authenticatedFetch } from '@/lib/api';
 
 // ---- Local Storage Keys ----
 function key(username: string): string { return `qp_progress_${username}`; }
@@ -21,7 +22,7 @@ async function cloudLoad(username: string): Promise<{
   theme: string | null;
 } | null> {
   try {
-    const res = await fetch(`/api/progress?username=${encodeURIComponent(username)}`);
+    const res = await authenticatedFetch(`/api/progress?username=${encodeURIComponent(username)}`);
     if (!res.ok) return null;
     const data = await res.json();
     return {
@@ -43,9 +44,8 @@ function scheduleCloudSync(username: string) {
     const wrong = getWrongAnswerIds(username);
     const theme = getThemePreference(username);
     try {
-      await fetch('/api/progress', {
+      await authenticatedFetch('/api/progress', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username,
           stats,
@@ -65,9 +65,8 @@ export function forceSyncToCloud(username: string) {
   const cp = getChapterProgress(username);
   const wrong = getWrongAnswerIds(username);
   const theme = getThemePreference(username);
-  fetch('/api/progress', {
+  authenticatedFetch('/api/progress', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       username,
       stats,
@@ -233,9 +232,8 @@ export function startAutoSync(username: string): void {
     const cp = getChapterProgress(username);
     const wrong = getWrongAnswerIds(username);
     const theme = getThemePreference(username);
-    fetch('/api/progress', {
+    authenticatedFetch('/api/progress', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         username,
         stats,

@@ -3,6 +3,8 @@
 // Client-side cache with localStorage persistence
 // ============================================================
 
+import { authenticatedFetch } from '@/lib/api';
+
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 interface CacheEntry {
@@ -74,9 +76,8 @@ export async function translateWord(word: string): Promise<string> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch('/api/ai', {
+    const res = await authenticatedFetch('/api/ai', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'translate', word, from: 'it', to: 'ar' }),
       signal: controller.signal,
     });

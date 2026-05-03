@@ -2,17 +2,16 @@
 // API Route - Auth (login + user management via Supabase)
 // Multi-tenant B2B SaaS: supports super_admin, teacher, student roles
 // All users persisted in app_users table
+// SECURED: All actions require server-side session verification
 // ============================================================
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifySession, requireSuperAdmin, requireTeacherOrAbove } from '@/lib/auth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// Hardcoded admin (super admin)
-const SUPER_ADMIN = { username: 'arkan', password: 'arkan1', role: 'super_admin' };
 
 // Simple hash function (same as client-side)
 function hash(str: string): string {
@@ -38,14 +37,17 @@ interface AppUser {
   subscription?: string;
 }
 
+// ============================================================
+// MAIN ROUTER
+// ============================================================
 // POST /api/auth?action=login
 // POST /api/auth?action=list_users
 // POST /api/auth?action=add_user
 // POST /api/auth?action=delete_user
 // POST /api/auth?action=toggle_role
 // POST /api/auth?action=register_teacher    (super_admin creates a teacher)
-// POST /api/auth?action=register_student    (teacher creates a student)
-// POST /api/auth?action=get_my_students     (teacher gets their students)
+// POST /api/auth?action=register_student    (teacher/super_admin creates a student)
+// POST /api/auth?action=get_my_students     (teacher/super_admin gets students)
 // POST /api/auth?action=get_teachers        (super_admin gets all teachers)
 export async function POST(request: NextRequest) {
   try {
@@ -54,14 +56,14 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case 'login': return handleLogin(body);
-      case 'list_users': return handleListUsers();
-      case 'add_user': return handleAddUser(body);
-      case 'delete_user': return handleDeleteUser(body);
-      case 'toggle_role': return handleToggleRole(body);
-      case 'register_teacher': return handleRegisterTeacher(body);
-      case 'register_student': return handleRegisterStudent(body);
-      case 'get_my_students': return handleGetMyStudents(body);
-      case 'get_teachers': return handleGetTeachers();
+      case 'list_users': return handleListUsers(request);
+      case 'add_user': return handleAddUser(request, body);
+      case 'delete_user': return handleDeleteUser(request, body);
+      case 'toggle_role': return handleToggleRole(request, body);
+      case 'register_teacher': return handleRegisterTeacher(request, body);
+      case 'register_student': return handleRegisterStudent(request, body);
+      case 'get_my_students': return handleGetMyStudents(request, body);
+      case 'get_teachers': return handleGetTeachers(request);
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
@@ -70,22 +72,14 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ---- LOGIN ----
+// ============================================================
+// LOGIN — No auth required (user doesn't have a token yet)
+// Returns session_token so the client can store it.
+// ============================================================
 async function handleLogin(body: { username: string; password: string }) {
   const { username, password } = body;
-  if (!username || !password) return NextResponse.json({ ok: false, msg: 'Missing credentials' });
-
-  // Check super admin first
-  if (username === SUPER_ADMIN.username && password === SUPER_ADMIN.password) {
-    return NextResponse.json({
-      ok: true,
-      user: {
-        id: 'super-admin', username: 'arkan', password_hash: '', role: 'super_admin',
-        is_active: true, created_at: '', subscription: 'pro',
-        full_name: 'Super Admin', email: null, owner_id: null,
-        ai_usage_count: 0, ai_usage_limit: 999, last_ai_usage: null,
-      },
-    });
+  if (!username || !password) {
+    return NextResponse.json({ ok: false, msg: 'Missing credentials' });
   }
 
   // Check Supabase app_users table
@@ -105,16 +99,46 @@ async function handleLogin(body: { username: string; password: string }) {
     return NextResponse.json({ ok: false, msg: 'Username o password non corretti' });
   }
 
-  return NextResponse.json({ ok: true, user: data as AppUser });
+  const sessionToken = Buffer.from(JSON.stringify({ username: data.username, ts: Date.now() })).toString('base64');
+
+  // Strip password_hash before returning user data
+  const { password_hash: _pw, ...userData } = data as AppUser;
+
+  return NextResponse.json({
+    ok: true,
+    session_token: sessionToken,
+    user: userData,
+  });
 }
 
-// ---- LIST USERS ----
-async function handleListUsers() {
-  const { data, error } = await supabase
+// ============================================================
+// LIST USERS — Auth required
+//   super_admin → all active users (exclude password_hash)
+//   teacher     → only students where owner_id = teacher.id
+//   student     → ERROR 403 "Accesso negato"
+// ============================================================
+async function handleListUsers(request: NextRequest) {
+  const user = await verifySession(request.headers.get('Authorization'));
+  if (!user) {
+    return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
+  }
+
+  // Students are not allowed to list users
+  if (user.role === 'student') {
+    return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+  }
+
+  let query = supabase
     .from('app_users')
     .select('*')
-    .eq('is_active', true)
-    .order('created_at', { ascending: true });
+    .eq('is_active', true);
+
+  // Teachers only see their own students
+  if (user.role === 'teacher') {
+    query = query.eq('owner_id', user.id);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: true });
 
   if (error) {
     console.error('Supabase list_users error:', error);
@@ -127,42 +151,50 @@ async function handleListUsers() {
     role: u.role,
     is_active: u.is_active,
     created_at: u.created_at,
-    password_hash: '',
     full_name: u.full_name || null,
     email: u.email || null,
     owner_id: u.owner_id || null,
     subscription: u.subscription || 'free',
+    // password_hash is intentionally excluded
   }));
-
-  // Add super admin to list
-  users.unshift({
-    id: 'super-admin',
-    username: 'arkan',
-    role: 'super_admin',
-    is_active: true,
-    created_at: new Date().toISOString(),
-    password_hash: '',
-    full_name: 'Super Admin',
-    email: null,
-    owner_id: null,
-    subscription: 'pro',
-  });
 
   return NextResponse.json({ ok: true, users });
 }
 
-// ---- ADD USER (legacy - super_admin only) ----
-async function handleAddUser(body: { username: string; password: string; role: string; adminUsername: string }) {
-  const { username, password, role, adminUsername } = body;
-
-  // Only admin can add users
-  if (adminUsername !== SUPER_ADMIN.username) {
-    return NextResponse.json({ ok: false, msg: 'Non autorizzato' });
+// ============================================================
+// ADD USER — Auth required, super_admin only
+//   Accept role directly: 'super_admin' | 'teacher' | 'student'
+//   teacher → owner_id = null
+//   student → owner_id required (must be a valid teacher ID)
+// ============================================================
+async function handleAddUser(request: NextRequest, body: {
+  username: string;
+  password: string;
+  role: string;
+  owner_id?: string;
+}) {
+  const user = await verifySession(request.headers.get('Authorization'));
+  if (!user) {
+    return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
   }
-  if (!username || !password) return NextResponse.json({ ok: false, msg: 'Compila tutti i campi' });
-  if (username.length < 3) return NextResponse.json({ ok: false, msg: 'Username minimo 3 caratteri' });
-  if (password.length < 4) return NextResponse.json({ ok: false, msg: 'Password minimo 4 caratteri' });
-  if (username.toLowerCase() === SUPER_ADMIN.username) return NextResponse.json({ ok: false, msg: 'Username gia esistente' });
+  if (!requireSuperAdmin(user)) {
+    return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
+  }
+
+  const { username, password, role, owner_id } = body;
+  if (!username || !password) {
+    return NextResponse.json({ ok: false, msg: 'Compila tutti i campi' });
+  }
+  if (username.length < 3) {
+    return NextResponse.json({ ok: false, msg: 'Username minimo 3 caratteri' });
+  }
+  if (password.length < 4) {
+    return NextResponse.json({ ok: false, msg: 'Password minimo 4 caratteri' });
+  }
+
+  // Validate role
+  const validRoles = ['super_admin', 'teacher', 'student'];
+  const effectiveRole = role && validRoles.includes(role) ? role : 'student';
 
   // Check if username already exists in Supabase
   const { data: existing } = await supabase
@@ -175,18 +207,42 @@ async function handleAddUser(body: { username: string; password: string; role: s
     return NextResponse.json({ ok: false, msg: 'Username gia esistente' });
   }
 
-  // Map legacy roles to new roles
-  const mappedRole = role === 'admin' ? 'super_admin' : role === 'user' ? 'student' : role;
+  // Determine owner_id based on role
+  let resolvedOwnerId: string | null = null;
+
+  if (effectiveRole === 'student') {
+    // Students MUST have an owner_id pointing to a valid teacher
+    if (!owner_id) {
+      return NextResponse.json({ ok: false, msg: 'Specificare un docente per lo studente' });
+    }
+    // Validate that owner_id references a teacher
+    const { data: ownerRecord } = await supabase
+      .from('app_users')
+      .select('id, role, is_active')
+      .eq('id', owner_id)
+      .eq('is_active', true)
+      .single();
+    if (!ownerRecord || ownerRecord.role !== 'teacher') {
+      return NextResponse.json({ ok: false, msg: 'Docente non valido' });
+    }
+    resolvedOwnerId = owner_id;
+  }
+  // For teacher and super_admin, owner_id stays null
 
   // Insert into Supabase
+  const insertPayload: Record<string, unknown> = {
+    username: username.toLowerCase(),
+    password_hash: hash(password),
+    role: effectiveRole,
+    is_active: true,
+  };
+  if (resolvedOwnerId) {
+    insertPayload.owner_id = resolvedOwnerId;
+  }
+
   const { error } = await supabase
     .from('app_users')
-    .insert({
-      username: username.toLowerCase(),
-      password_hash: hash(password),
-      role: mappedRole || 'student',
-      is_active: true,
-    });
+    .insert(insertPayload);
 
   if (error) {
     console.error('Supabase add_user error:', error);
@@ -199,31 +255,38 @@ async function handleAddUser(body: { username: string; password: string; role: s
   return NextResponse.json({ ok: true, msg: 'Utente creato con successo' });
 }
 
-// ---- DELETE USER (super_admin only) ----
-async function handleDeleteUser(body: { userId: string; adminUsername: string }) {
-  const { userId, adminUsername } = body;
-  if (adminUsername !== SUPER_ADMIN.username) {
-    return NextResponse.json({ ok: false, msg: 'Non autorizzato' });
+// ============================================================
+// DELETE USER — Auth required, super_admin only
+//   Soft delete (set is_active = false)
+// ============================================================
+async function handleDeleteUser(request: NextRequest, body: { userId: string }) {
+  const user = await verifySession(request.headers.get('Authorization'));
+  if (!user) {
+    return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
   }
-  if (userId === 'super-admin') {
-    return NextResponse.json({ ok: false, msg: 'Impossibile eliminare il super admin' });
+  if (!requireSuperAdmin(user)) {
+    return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
   }
 
-  const { data: user, error: findError } = await supabase
+  const { userId } = body;
+
+  // Find the user record
+  const { data: userRecord, error: findError } = await supabase
     .from('app_users')
     .select('*')
     .or(`id.eq.${userId},username.eq.${userId}`)
     .eq('is_active', true)
     .single();
 
-  if (findError || !user) {
+  if (findError || !userRecord) {
     return NextResponse.json({ ok: false, msg: 'Utente non trovato' });
   }
 
+  // Soft delete
   const { error: deleteError } = await supabase
     .from('app_users')
     .update({ is_active: false })
-    .eq('username', user.username);
+    .eq('username', userRecord.username);
 
   if (deleteError) {
     console.error('Supabase delete_user error:', deleteError);
@@ -233,12 +296,20 @@ async function handleDeleteUser(body: { userId: string; adminUsername: string })
   return NextResponse.json({ ok: true, msg: 'Utente eliminato' });
 }
 
-// ---- TOGGLE ROLE (super_admin only) ----
-async function handleToggleRole(body: { userId: string; newRole: string; adminUsername: string }) {
-  const { userId, newRole, adminUsername } = body;
-  if (adminUsername !== SUPER_ADMIN.username) {
-    return NextResponse.json({ ok: false, msg: 'Non autorizzato' });
+// ============================================================
+// TOGGLE ROLE — Auth required, super_admin only
+//   Allow toggling between: super_admin, teacher, student
+// ============================================================
+async function handleToggleRole(request: NextRequest, body: { userId: string; newRole: string }) {
+  const user = await verifySession(request.headers.get('Authorization'));
+  if (!user) {
+    return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
   }
+  if (!requireSuperAdmin(user)) {
+    return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
+  }
+
+  const { userId, newRole } = body;
 
   // Validate new role
   const validRoles = ['super_admin', 'teacher', 'student'];
@@ -260,20 +331,25 @@ async function handleToggleRole(body: { userId: string; newRole: string; adminUs
   return NextResponse.json({ ok: true, msg: 'Ruolo aggiornato' });
 }
 
-// ---- REGISTER TEACHER (super_admin creates a teacher) ----
-async function handleRegisterTeacher(body: {
-  adminUsername: string;
+// ============================================================
+// REGISTER TEACHER — Auth required, super_admin only
+//   Creates user with role='teacher', owner_id=null
+// ============================================================
+async function handleRegisterTeacher(request: NextRequest, body: {
   username: string;
   password: string;
   email?: string;
   full_name?: string;
 }) {
-  const { adminUsername, username, password, email, full_name } = body;
-
-  // Only super_admin can register teachers
-  if (adminUsername !== SUPER_ADMIN.username) {
-    return NextResponse.json({ ok: false, msg: 'Non autorizzato' });
+  const user = await verifySession(request.headers.get('Authorization'));
+  if (!user) {
+    return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
   }
+  if (!requireSuperAdmin(user)) {
+    return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
+  }
+
+  const { username, password, email, full_name } = body;
   if (!username || !password) {
     return NextResponse.json({ ok: false, msg: 'Compila tutti i campi obbligatori' });
   }
@@ -282,9 +358,6 @@ async function handleRegisterTeacher(body: {
   }
   if (password.length < 4) {
     return NextResponse.json({ ok: false, msg: 'Password minimo 4 caratteri' });
-  }
-  if (username.toLowerCase() === SUPER_ADMIN.username) {
-    return NextResponse.json({ ok: false, msg: 'Username gia esistente' });
   }
 
   // Check if username or email already exists
@@ -303,7 +376,7 @@ async function handleRegisterTeacher(body: {
     }
   }
 
-  // Insert teacher
+  // Insert teacher (owner_id stays null)
   const { data: newTeacher, error } = await supabase
     .from('app_users')
     .insert({
@@ -334,17 +407,29 @@ async function handleRegisterTeacher(body: {
   });
 }
 
-// ---- REGISTER STUDENT (teacher creates a student under them) ----
-async function handleRegisterStudent(body: {
-  teacherId: string;
+// ============================================================
+// REGISTER STUDENT — Auth required, teacher or super_admin
+//   teacher     → owner_id = caller.id
+//   super_admin → use provided owner_id (must be a valid teacher)
+// ============================================================
+async function handleRegisterStudent(request: NextRequest, body: {
+  teacherId?: string;
   username: string;
   password: string;
   full_name?: string;
   email?: string;
 }) {
+  const user = await verifySession(request.headers.get('Authorization'));
+  if (!user) {
+    return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
+  }
+  if (!requireTeacherOrAbove(user)) {
+    return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
+  }
+
   const { teacherId, username, password, full_name, email } = body;
 
-  if (!teacherId || !username || !password) {
+  if (!username || !password) {
     return NextResponse.json({ ok: false, msg: 'Compila tutti i campi obbligatori' });
   }
   if (username.length < 3) {
@@ -354,19 +439,30 @@ async function handleRegisterStudent(body: {
     return NextResponse.json({ ok: false, msg: 'Password minimo 4 caratteri' });
   }
 
-  // Verify teacher exists and is active
-  const { data: teacher, error: teacherError } = await supabase
+  // Determine owner_id based on caller role
+  let ownerId: string;
+
+  if (user.role === 'super_admin') {
+    // Super admin must provide a valid teacher_id
+    if (!teacherId) {
+      return NextResponse.json({ ok: false, msg: 'Specificare un docente per lo studente' });
+    }
+    ownerId = teacherId;
+  } else {
+    // Teacher creates student under themselves
+    ownerId = user.id;
+  }
+
+  // Validate that owner_id references an active teacher
+  const { data: owner } = await supabase
     .from('app_users')
     .select('id, role, is_active')
-    .eq('id', teacherId)
+    .eq('id', ownerId)
     .eq('is_active', true)
     .single();
 
-  if (teacherError || !teacher) {
-    return NextResponse.json({ ok: false, msg: 'Docente non trovato' });
-  }
-  if (teacher.role !== 'teacher' && teacher.role !== 'super_admin') {
-    return NextResponse.json({ ok: false, msg: 'Solo i docenti possono creare studenti' });
+  if (!owner || owner.role !== 'teacher') {
+    return NextResponse.json({ ok: false, msg: 'Docente non valido' });
   }
 
   // Check if username or email already exists
@@ -393,7 +489,7 @@ async function handleRegisterStudent(body: {
       password_hash: hash(password),
       role: 'student',
       is_active: true,
-      owner_id: teacherId,
+      owner_id: ownerId,
       full_name: full_name || null,
       email: email || null,
       subscription: 'free',
@@ -417,20 +513,36 @@ async function handleRegisterStudent(body: {
   });
 }
 
-// ---- GET MY STUDENTS (teacher gets their students) ----
-async function handleGetMyStudents(body: { teacherId: string }) {
-  const { teacherId } = body;
-
-  if (!teacherId) {
-    return NextResponse.json({ ok: false, msg: 'ID docente mancante' });
+// ============================================================
+// GET MY STUDENTS — Auth required, teacher or super_admin
+//   teacher     → students where owner_id = teacher.id
+//   super_admin → all students (optionally filtered by teacherId)
+// ============================================================
+async function handleGetMyStudents(request: NextRequest, body: { teacherId?: string }) {
+  const user = await verifySession(request.headers.get('Authorization'));
+  if (!user) {
+    return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
+  }
+  if (!requireTeacherOrAbove(user)) {
+    return NextResponse.json({ error: 'Non autorizzato' }, { status: 403 });
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('app_users')
-    .select('id, username, full_name, email, role, is_active, created_at, avatar_url, subscription, ai_usage_count, ai_usage_limit')
-    .eq('owner_id', teacherId)
-    .eq('is_active', true)
-    .order('created_at', { ascending: true });
+    .select('id, username, full_name, email, role, is_active, created_at, avatar_url, subscription, ai_usage_count, ai_usage_limit, owner_id')
+    .eq('role', 'student')
+    .eq('is_active', true);
+
+  // Teacher can only see their own students
+  if (user.role === 'teacher') {
+    query = query.eq('owner_id', user.id);
+  } else if (user.role === 'super_admin' && body.teacherId) {
+    // Super admin can optionally filter by teacher
+    query = query.eq('owner_id', body.teacherId);
+  }
+  // If super_admin with no teacherId → returns ALL students
+
+  const { data, error } = await query.order('created_at', { ascending: true });
 
   if (error) {
     console.error('Supabase get_my_students error:', error);
@@ -445,8 +557,20 @@ async function handleGetMyStudents(body: { teacherId: string }) {
   return NextResponse.json({ ok: true, students });
 }
 
-// ---- GET TEACHERS (super_admin gets all teachers) ----
-async function handleGetTeachers() {
+// ============================================================
+// GET TEACHERS — Auth required, super_admin ONLY
+//   Teachers MUST NOT access this endpoint.
+//   Returns all teachers with student counts.
+// ============================================================
+async function handleGetTeachers(request: NextRequest) {
+  const user = await verifySession(request.headers.get('Authorization'));
+  if (!user) {
+    return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
+  }
+  if (!requireSuperAdmin(user)) {
+    return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
+  }
+
   const { data, error } = await supabase
     .from('app_users')
     .select('id, username, full_name, email, role, is_active, created_at, avatar_url, subscription')

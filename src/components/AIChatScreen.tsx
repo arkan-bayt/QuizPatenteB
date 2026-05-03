@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
+import { authenticatedFetch } from '@/lib/api';
 
 interface ChatMessage {
   id: string;
@@ -80,9 +81,8 @@ export default function AIChatScreen() {
 
     try {
       const history = messages.slice(-8).map(m => ({ role: m.role, content: m.content }));
-      const res = await fetch('/api/ai', {
+      const res = await authenticatedFetch('/api/ai', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'chat', message: text.trim(), history }),
       });
       const data = await res.json();

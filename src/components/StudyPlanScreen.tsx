@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
+import { authenticatedFetch } from '@/lib/api';
 import { useOverallStats, useUserStats } from './hooks';
 
 interface StudyPlanItem {
@@ -60,9 +61,8 @@ export default function StudyPlanScreen() {
       wrongTopics: [],
     };
 
-    fetch('/api/ai', {
+    authenticatedFetch('/api/ai', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
       .then(res => {

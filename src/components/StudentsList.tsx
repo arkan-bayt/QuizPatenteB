@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { AppUser } from '@/data/supabaseClient';
-import { getAllUsers, addUser, deleteUser } from '@/logic/authEngine';
+import { authenticatedFetch } from '@/lib/api';
 
 export default function StudentsList() {
   const store = useStore();
@@ -27,8 +27,28 @@ export default function StudentsList() {
 
   const loadStudents = async () => {
     setLoading(true);
-    const allUsers = await getAllUsers();
-    setStudents(allUsers.filter((u) => u.role === 'student' && u.owner_id === teacherId));
+    try {
+      const res = await authenticatedFetch('/api/auth', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'get_my_students', teacherId }),
+      });
+      const data = await res.json();
+      if (data.ok && data.students) {
+        setStudents(data.students);
+      } else {
+        // Fallback: load all users and filter
+        const allRes = await authenticatedFetch('/api/auth', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'list_users' }),
+        });
+        const allData = await allRes.json();
+        if (allData.ok && allData.users) {
+          setStudents(allData.users.filter((u: any) => u.role === 'student' && (u.owner_id === teacherId || !u.owner_id)));
+        }
+      }
+    } catch {
+      setStudents([]);
+    }
     setLoading(false);
   };
 
@@ -37,22 +57,45 @@ export default function StudentsList() {
   const handleAdd = async () => {
     if (!newUsername.trim() || !newPassword.trim()) { showMsg('Inserisci username e password', 'error'); return; }
     setBusy(true);
-    const adminName = user?.username || '';
-    const res = await addUser(newUsername.trim(), newPassword, 'student' as any, adminName);
-    setBusy(false);
-    if (res.ok) {
-      showMsg('Studente aggiunto con successo', 'success');
-      setNewUsername(''); setNewPassword(''); setNewFullName(''); setNewEmail('');
-      loadStudents();
-    } else { showMsg(res.msg, 'error'); }
+    try {
+      const res = await authenticatedFetch('/api/auth', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'register_student',
+          teacherId,
+          username: newUsername.trim(),
+          password: newPassword,
+          full_name: newFullName.trim() || undefined,
+          email: newEmail.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      setBusy(false);
+      if (data.ok) {
+        showMsg('Studente aggiunto con successo', 'success');
+        setNewUsername(''); setNewPassword(''); setNewFullName(''); setNewEmail('');
+        loadStudents();
+      } else { showMsg(data.msg || 'Errore', 'error'); }
+    } catch {
+      setBusy(false);
+      showMsg('Errore di connessione', 'error');
+    }
   };
 
   const handleDelete = async (studentId: string) => {
-    const adminName = user?.username || '';
-    const res = await deleteUser(studentId, adminName);
-    setDeleteTarget(null);
-    if (res.ok) { showMsg('Studente eliminato', 'success'); loadStudents(); }
-    else { showMsg(res.msg, 'error'); }
+    try {
+      const res = await authenticatedFetch('/api/auth', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete_user', userId: studentId, adminUsername: '' }),
+      });
+      const data = await res.json();
+      setDeleteTarget(null);
+      if (data.ok) { showMsg('Studente eliminato', 'success'); loadStudents(); }
+      else { showMsg(data.msg || 'Errore', 'error'); }
+    } catch {
+      setDeleteTarget(null);
+      showMsg('Errore di connessione', 'error');
+    }
   };
 
   return (

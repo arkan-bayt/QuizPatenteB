@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { login, saveSession } from '@/logic/authEngine';
-import { loadCloudProgress } from '@/logic/progressEngine';
+import { loadCloudProgress, startAutoSync, getThemePreference } from '@/logic/progressEngine';
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
@@ -19,11 +19,20 @@ export default function LoginScreen() {
     const res = await login(username, password);
     setBusy(false);
     if (res.ok && res.user) {
-      saveSession(res.user);
+      // Save session with optional session_token (handles both old and new API response formats)
+      saveSession(res.user, res.session_token);
       setUser(res.user);
       setBusy(true);
       await loadCloudProgress(res.user.username);
       setBusy(false);
+      // Apply theme preference from cloud data
+      const savedTheme = getThemePreference(res.user.username);
+      if (savedTheme === 'dark' || savedTheme === 'light') {
+        document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+      }
+      // Start auto-sync with correct username
+      startAutoSync(res.user.username);
+      // Route based on role
       if (res.user.role === 'super_admin' || res.user.role === 'admin') {
         setScreen('home');
       } else if (res.user.role === 'teacher') {

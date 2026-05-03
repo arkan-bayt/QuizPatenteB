@@ -64,7 +64,14 @@ export default function Page() {
     const session = loadSession();
     if (session) {
       store.setUser(session);
-      store.setScreen('home');
+      // Route based on role
+      if (session.role === 'teacher') {
+        store.setScreen('teacherDashboard');
+      } else if (session.role === 'student') {
+        store.setScreen('studentDashboard');
+      } else {
+        store.setScreen('home');
+      }
       // Load cloud progress on app start
       if (session.username) {
         setSyncing(true);

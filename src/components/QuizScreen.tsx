@@ -4,6 +4,7 @@ import { useStore } from '@/store/useStore';
 import { speakText, stopSpeech } from '@/logic/ttsEngine';
 import { recordExamResult, recordAnswer, updateChapterProgress, addWrongAnswer, removeWrongAnswer, saveQuizResume, clearQuizResume } from '@/logic/progressEngine';
 import { submitAssignmentResult } from '@/logic/assignmentEngine';
+import { authenticatedFetch } from '@/lib/api';
 import WordTranslator from './WordTranslator';
 
 // Italian prepositions, articles, conjunctions - these are NOT tappable
@@ -208,9 +209,8 @@ export default function QuizScreen() {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
-      const res = await fetch('/api/ai', {
+      const res = await authenticatedFetch('/api/ai', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'translate', word: cleaned }),
         signal: controller.signal,
       });
@@ -267,9 +267,8 @@ export default function QuizScreen() {
     let cancelled = false;
     setAiLoading(true);
 
-    fetch('/api/ai', {
+    authenticatedFetch('/api/ai', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'explain',
         question: q.question,
@@ -430,9 +429,8 @@ export default function QuizScreen() {
     const q = quizQuestions[currentIdx];
     if (!q) return;
     setHintLoading(true);
-    fetch('/api/ai', {
+    authenticatedFetch('/api/ai', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'hint',
         question: q.question,

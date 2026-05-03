@@ -1,9 +1,11 @@
 // ============================================================
 // API Route - Assignments (list, create, get results)
+// SECURED: All actions require server-side session verification
 // Teachers create assignments, students view assigned ones
 // ============================================================
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifySession, requireTeacherOrAbove, type VerifiedUser } from '@/lib/auth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -11,16 +13,17 @@ const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ============================================================
-// GET /api/assignments - List assignments
-// Query params: ?userId=xxx&role=teacher|student|super_admin
+// GET /api/assignments - List assignments (SECURED)
 // ============================================================
 export async function GET(request: NextRequest) {
-  const userId = request.nextUrl.searchParams.get('userId');
-  const role = request.nextUrl.searchParams.get('role');
-
-  if (!userId || !role) {
-    return NextResponse.json({ error: 'Missing userId or role' }, { status: 400 });
+  const user = await verifySession(request.headers.get('Authorization'));
+  if (!user) {
+    return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
   }
+
+  // Use verified user info, ignore query params
+  const userId = user.id;
+  const role = user.role;
 
   try {
     if (role === 'teacher' || role === 'super_admin') {
@@ -125,19 +128,23 @@ export async function GET(request: NextRequest) {
 }
 
 // ============================================================
-// POST /api/assignments
-// Body: { action: 'create' | 'results', ... }
+// POST /api/assignments (SECURED)
 // ============================================================
 export async function POST(request: NextRequest) {
+  const user = await verifySession(request.headers.get('Authorization'));
+  if (!user) {
+    return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { action } = body;
 
     switch (action) {
-      case 'create': return handleCreateAssignment(body);
-      case 'results': return handleGetResults(body);
-      case 'update': return handleUpdateAssignment(body);
-      case 'delete': return handleDeleteAssignment(body);
+      case 'create': return handleCreateAssignment(user, body);
+      case 'results': return handleGetResults(user, body);
+      case 'update': return handleUpdateAssignment(user, body);
+      case 'delete': return handleDeleteAssignment(user, body);
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
@@ -147,32 +154,64 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ---- CREATE ASSIGNMENT ----
-async function handleCreateAssignment(body: {
-  teacherId: string;
-  title: string;
-  description?: string;
-  config: {
-    chapters: number[];
-    number_of_questions: number;
-    time_limit_minutes?: number | null;
-    max_attempts: number;
-    mode: 'exam' | 'practice' | 'chapters';
-  };
-  studentIds: string[];
-}) {
-  const { teacherId, title, description, config, studentIds } = body;
+// ---- CREATE ASSIGNMENT (SECURED) ----
+async function handleCreateAssignment(
+  verifiedUser: VerifiedUser,
+  body: {
+    teacherId: string;
+    title: string;
+    description?: string;
+    config: {
+      chapters: number[];
+      number_of_questions: number;
+      time_limit_minutes?: number | null;
+      max_attempts: number;
+      mode: 'exam' | 'practice' | 'chapters';
+    };
+    studentIds: string[];
+  }
+) {
+  if (!requireTeacherOrAbove(verifiedUser)) {
+    return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
+  }
 
-  if (!teacherId || !title || !config || !studentIds || studentIds.length === 0) {
+  const { title, description, config, studentIds } = body;
+  const teacherId = verifiedUser.id; // Always use verified user's ID
+
+  if (!title || !config || !studentIds || studentIds.length === 0) {
     return NextResponse.json({ ok: false, msg: 'Compila tutti i campi obbligatori' });
   }
 
-  // Validate config
   if (!config.chapters || config.chapters.length === 0) {
     return NextResponse.json({ ok: false, msg: 'Seleziona almeno un capitolo' });
   }
   if (!config.number_of_questions || config.number_of_questions < 1) {
     return NextResponse.json({ ok: false, msg: 'Il numero di domande deve essere almeno 1' });
+  }
+
+  // Teacher can only assign their own students (verify owner_id = teacherId)
+  if (verifiedUser.role === 'teacher') {
+    const { data: studentUsers, error: stError } = await supabase
+      .from('app_users')
+      .select('id, owner_id')
+      .in('id', studentIds);
+
+    if (stError) {
+      console.error('Verify students error:', stError);
+      return NextResponse.json({ ok: false, msg: "Errore nella verifica degli studenti" }, { status: 500 });
+    }
+
+    const validStudentIds = (studentUsers || [])
+      .filter((s: any) => s.owner_id === teacherId)
+      .map((s: any) => s.id);
+
+    if (validStudentIds.length === 0) {
+      return NextResponse.json({ ok: false, msg: 'Nessuno degli studenti selezionati appartiene alla tua classe' });
+    }
+
+    // Filter studentIds to only include verified students
+    studentIds.length = 0;
+    studentIds.push(...validStudentIds);
   }
 
   // Create the assignment
@@ -212,9 +251,8 @@ async function handleCreateAssignment(body: {
 
   if (studentsError) {
     console.error('Create assignment_students error:', studentsError);
-    // Rollback: delete the assignment
     await supabase.from('assignments').delete().eq('id', assignment.id);
-    return NextResponse.json({ ok: false, msg: 'Errore nell\'assegnazione agli studenti' }, { status: 500 });
+    return NextResponse.json({ ok: false, msg: "Errore nell'assegnazione agli studenti" }, { status: 500 });
   }
 
   return NextResponse.json({
@@ -229,12 +267,15 @@ async function handleCreateAssignment(body: {
   });
 }
 
-// ---- GET RESULTS ----
-async function handleGetResults(body: {
-  assignmentId: string;
-  teacherId?: string;
-}) {
-  const { assignmentId, teacherId } = body;
+// ---- GET RESULTS (SECURED) ----
+async function handleGetResults(
+  verifiedUser: VerifiedUser,
+  body: {
+    assignmentId: string;
+    teacherId?: string;
+  }
+) {
+  const { assignmentId } = body;
 
   if (!assignmentId) {
     return NextResponse.json({ ok: false, msg: 'ID compito mancante' });
@@ -251,9 +292,22 @@ async function handleGetResults(body: {
     return NextResponse.json({ ok: false, msg: 'Compito non trovato' });
   }
 
-  // Verify teacher owns this assignment (optional, for security)
-  if (teacherId && assignment.teacher_id !== teacherId) {
-    return NextResponse.json({ ok: false, msg: 'Non autorizzato' });
+  // Verify ownership: teacher must own, super_admin sees all
+  if (verifiedUser.role === 'teacher' && assignment.teacher_id !== verifiedUser.id) {
+    return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
+  }
+
+  // Students can also view results of their own assignments
+  if (verifiedUser.role === 'student') {
+    const { data: studentAssignment } = await supabase
+      .from('assignment_students')
+      .select('id')
+      .eq('assignment_id', assignmentId)
+      .eq('student_id', verifiedUser.id)
+      .maybeSingle();
+    if (!studentAssignment) {
+      return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
+    }
   }
 
   // Get student statuses
@@ -267,7 +321,6 @@ async function handleGetResults(body: {
     return NextResponse.json({ ok: false, msg: 'Errore nel caricamento risultati' }, { status: 500 });
   }
 
-  // Get student details and results
   const studentIds = (studentStatuses || []).map((s) => s.student_id);
 
   let studentDetails: Record<string, any> = {};
@@ -281,7 +334,6 @@ async function handleGetResults(body: {
     });
   }
 
-  // Get all results for this assignment
   let allResults: Record<string, any[]> = {};
   if (studentIds.length > 0) {
     const { data: results } = await supabase
@@ -296,11 +348,10 @@ async function handleGetResults(body: {
     });
   }
 
-  // Build response
   const students = (studentStatuses || []).map((ss) => {
     const details = studentDetails[ss.student_id] || {};
     const results = allResults[ss.student_id] || [];
-    const bestResult = results.length > 0 ? results[0] : null; // Already sorted by score desc
+    const bestResult = results.length > 0 ? results[0] : null;
 
     return {
       student_id: ss.student_id,
@@ -328,7 +379,6 @@ async function handleGetResults(body: {
     };
   });
 
-  // Compute class averages
   const completedStudents = students.filter((s) => s.status === 'completed');
   const avgScore = completedStudents.length > 0
     ? Math.round(completedStudents.reduce((sum, s) => sum + s.best_score, 0) / completedStudents.length)
@@ -356,24 +406,31 @@ async function handleGetResults(body: {
   });
 }
 
-// ---- UPDATE ASSIGNMENT ----
-async function handleUpdateAssignment(body: {
-  assignmentId: string;
-  teacherId: string;
-  title?: string;
-  description?: string;
-  config?: any;
-  is_active?: boolean;
-  addStudentIds?: string[];
-  removeStudentIds?: string[];
-}) {
-  const { assignmentId, teacherId, title, description, config, is_active, addStudentIds, removeStudentIds } = body;
+// ---- UPDATE ASSIGNMENT (SECURED) ----
+async function handleUpdateAssignment(
+  verifiedUser: VerifiedUser,
+  body: {
+    assignmentId: string;
+    teacherId: string;
+    title?: string;
+    description?: string;
+    config?: any;
+    is_active?: boolean;
+    addStudentIds?: string[];
+    removeStudentIds?: string[];
+  }
+) {
+  if (!requireTeacherOrAbove(verifiedUser)) {
+    return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
+  }
 
-  if (!assignmentId || !teacherId) {
+  const { assignmentId, title, description, config, is_active, addStudentIds, removeStudentIds } = body;
+
+  if (!assignmentId) {
     return NextResponse.json({ ok: false, msg: 'Dati mancanti' });
   }
 
-  // Verify ownership
+  // Verify ownership (teacher must own the assignment, super_admin bypasses)
   const { data: existing, error: findError } = await supabase
     .from('assignments')
     .select('id, teacher_id')
@@ -383,8 +440,8 @@ async function handleUpdateAssignment(body: {
   if (findError || !existing) {
     return NextResponse.json({ ok: false, msg: 'Compito non trovato' });
   }
-  if (existing.teacher_id !== teacherId) {
-    return NextResponse.json({ ok: false, msg: 'Non autorizzato' });
+  if (verifiedUser.role === 'teacher' && existing.teacher_id !== verifiedUser.id) {
+    return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
   }
 
   // Update assignment fields
@@ -402,11 +459,10 @@ async function handleUpdateAssignment(body: {
 
     if (updateError) {
       console.error('Update assignment error:', updateError);
-      return NextResponse.json({ ok: false, msg: 'Errore nell\'aggiornamento' }, { status: 500 });
+      return NextResponse.json({ ok: false, msg: "Errore nell'aggiornamento" }, { status: 500 });
     }
   }
 
-  // Add new students
   if (addStudentIds && addStudentIds.length > 0) {
     const newStudentRows = addStudentIds.map((sid) => ({
       assignment_id: assignmentId,
@@ -423,7 +479,6 @@ async function handleUpdateAssignment(body: {
     }
   }
 
-  // Remove students
   if (removeStudentIds && removeStudentIds.length > 0) {
     const { error: removeError } = await supabase
       .from('assignment_students')
@@ -439,14 +494,21 @@ async function handleUpdateAssignment(body: {
   return NextResponse.json({ ok: true, msg: 'Compito aggiornato' });
 }
 
-// ---- DELETE ASSIGNMENT ----
-async function handleDeleteAssignment(body: {
-  assignmentId: string;
-  teacherId: string;
-}) {
-  const { assignmentId, teacherId } = body;
+// ---- DELETE ASSIGNMENT (SECURED) ----
+async function handleDeleteAssignment(
+  verifiedUser: VerifiedUser,
+  body: {
+    assignmentId: string;
+    teacherId: string;
+  }
+) {
+  if (!requireTeacherOrAbove(verifiedUser)) {
+    return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
+  }
 
-  if (!assignmentId || !teacherId) {
+  const { assignmentId } = body;
+
+  if (!assignmentId) {
     return NextResponse.json({ ok: false, msg: 'Dati mancanti' });
   }
 
@@ -460,11 +522,10 @@ async function handleDeleteAssignment(body: {
   if (findError || !existing) {
     return NextResponse.json({ ok: false, msg: 'Compito non trovato' });
   }
-  if (existing.teacher_id !== teacherId) {
-    return NextResponse.json({ ok: false, msg: 'Non autorizzato' });
+  if (verifiedUser.role === 'teacher' && existing.teacher_id !== verifiedUser.id) {
+    return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
   }
 
-  // Delete assignment (cascade will handle assignment_students and assignment_results)
   const { error: deleteError } = await supabase
     .from('assignments')
     .delete()

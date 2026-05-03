@@ -1,9 +1,11 @@
 // ============================================================
-// API Route - Individual Assignment Operations
+// API Route - Individual Assignment Operations (SECURED)
 // POST /api/assignments/[id]?action=start|submit|status
+// All actions require server-side session verification
 // ============================================================
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifySession } from '@/lib/auth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -11,27 +13,27 @@ const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ============================================================
-// POST /api/assignments/[id]
-// Actions:
-//   - start: student marks assignment as in_progress
-//   - submit: student submits quiz result
-//   - status: get student's status for this assignment
-//   - result: get student's result for this assignment
+// POST /api/assignments/[id] (SECURED)
 // ============================================================
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const user = await verifySession(request.headers.get('Authorization'));
+  if (!user) {
+    return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
+  }
+
   try {
     const { id } = await params;
     const body = await request.json();
     const { action } = body;
 
     switch (action) {
-      case 'start': return handleStartAssignment(id, body);
-      case 'submit': return handleSubmitResult(id, body);
-      case 'status': return handleGetStatus(id, body);
-      case 'result': return handleGetResult(id, body);
+      case 'start': return handleStartAssignment(user, id, body);
+      case 'submit': return handleSubmitResult(user, id, body);
+      case 'status': return handleGetStatus(user, id, body);
+      case 'result': return handleGetResult(user, id, body);
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
@@ -42,20 +44,19 @@ export async function POST(
 }
 
 // ============================================================
-// GET /api/assignments/[id] - Get single assignment details
+// GET /api/assignments/[id] - Get single assignment details (SECURED)
 // ============================================================
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const user = await verifySession(request.headers.get('Authorization'));
+  if (!user) {
+    return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
+  }
+
   try {
     const { id } = await params;
-    const userId = request.nextUrl.searchParams.get('userId');
-    const role = request.nextUrl.searchParams.get('role');
-
-    if (!id) {
-      return NextResponse.json({ error: 'Missing assignment ID' }, { status: 400 });
-    }
 
     // Get assignment details
     const { data: assignment, error } = await supabase
@@ -71,6 +72,11 @@ export async function GET(
       return NextResponse.json({ error: 'Compito non trovato' }, { status: 404 });
     }
 
+    // Teachers can only access their own assignments
+    if (user.role === 'teacher' && assignment.teacher_id !== user.id) {
+      return NextResponse.json({ error: 'Non autorizzato' }, { status: 403 });
+    }
+
     const response: any = {
       ...assignment,
       teacher_username: assignment.teacher?.username || '',
@@ -79,31 +85,32 @@ export async function GET(
     };
 
     // If student, get their status and best result
-    if (role === 'student' && userId) {
+    if (user.role === 'student') {
       const { data: studentAssignment } = await supabase
         .from('assignment_students')
         .select('status, attempts, assigned_at')
         .eq('assignment_id', id)
-        .eq('student_id', userId)
+        .eq('student_id', user.id)
         .single();
 
-      if (studentAssignment) {
-        response._student_status = studentAssignment.status;
-        response._student_attempts = studentAssignment.attempts;
-        response._student_assigned_at = studentAssignment.assigned_at;
-
-        // Get best result
-        const { data: bestResult } = await supabase
-          .from('assignment_results')
-          .select('score, total_questions, correct_count, mistakes_count, completed_at')
-          .eq('assignment_id', id)
-          .eq('student_id', userId)
-          .order('score', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        response._best_result = bestResult || null;
+      if (!studentAssignment) {
+        return NextResponse.json({ error: 'Non autorizzato' }, { status: 403 });
       }
+
+      response._student_status = studentAssignment.status;
+      response._student_attempts = studentAssignment.attempts;
+      response._student_assigned_at = studentAssignment.assigned_at;
+
+      const { data: bestResult } = await supabase
+        .from('assignment_results')
+        .select('score, total_questions, correct_count, completed_at')
+        .eq('assignment_id', id)
+        .eq('student_id', user.id)
+        .order('score', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      response._best_result = bestResult || null;
     }
 
     return NextResponse.json({ ok: true, assignment: response });
@@ -113,16 +120,22 @@ export async function GET(
   }
 }
 
-// ---- START ASSIGNMENT ----
-// Student marks the assignment as in_progress
-async function handleStartAssignment(assignmentId: string, body: { studentId: string }) {
-  const { studentId } = body;
+// ---- START ASSIGNMENT (SECURED - student only) ----
+async function handleStartAssignment(
+  verifiedUser: { id: string; role: string },
+  assignmentId: string,
+  body: { studentId: string }
+) {
+  if (verifiedUser.role !== 'student') {
+    return NextResponse.json({ ok: false, msg: 'Solo gli studenti possono iniziare compiti' }, { status: 403 });
+  }
 
-  if (!assignmentId || !studentId) {
+  const studentId = verifiedUser.id; // Always use verified user's ID
+
+  if (!assignmentId) {
     return NextResponse.json({ ok: false, msg: 'Dati mancanti' });
   }
 
-  // Get the assignment to check max_attempts and config
   const { data: assignment, error: aError } = await supabase
     .from('assignments')
     .select('id, config, is_active')
@@ -137,7 +150,6 @@ async function handleStartAssignment(assignmentId: string, body: { studentId: st
     return NextResponse.json({ ok: false, msg: 'Questo compito non e piu attivo' });
   }
 
-  // Get current student status
   const { data: studentAssignment, error: saError } = await supabase
     .from('assignment_students')
     .select('id, status, attempts')
@@ -151,7 +163,6 @@ async function handleStartAssignment(assignmentId: string, body: { studentId: st
 
   const maxAttempts = assignment.config?.max_attempts || 1;
 
-  // Check if student can start (attempts limit)
   if (studentAssignment.attempts >= maxAttempts) {
     return NextResponse.json({
       ok: false,
@@ -162,7 +173,6 @@ async function handleStartAssignment(assignmentId: string, body: { studentId: st
     });
   }
 
-  // Check if already in_progress
   if (studentAssignment.status === 'in_progress') {
     return NextResponse.json({
       ok: true,
@@ -173,18 +183,15 @@ async function handleStartAssignment(assignmentId: string, body: { studentId: st
     });
   }
 
-  // Update status to in_progress
   const { error: updateError } = await supabase
     .from('assignment_students')
-    .update({
-      status: 'in_progress',
-    })
+    .update({ status: 'in_progress' })
     .eq('assignment_id', assignmentId)
     .eq('student_id', studentId);
 
   if (updateError) {
     console.error('Start assignment error:', updateError);
-    return NextResponse.json({ ok: false, msg: 'Errore nell\'avvio del compito' }, { status: 500 });
+    return NextResponse.json({ ok: false, msg: "Errore nell'avvio del compito" }, { status: 500 });
   }
 
   return NextResponse.json({
@@ -197,9 +204,9 @@ async function handleStartAssignment(assignmentId: string, body: { studentId: st
   });
 }
 
-// ---- SUBMIT RESULT ----
-// Student submits their quiz result
+// ---- SUBMIT RESULT (SECURED - student only) ----
 async function handleSubmitResult(
+  verifiedUser: { id: string; role: string },
   assignmentId: string,
   body: {
     studentId: string;
@@ -216,21 +223,25 @@ async function handleSubmitResult(
     }>;
   }
 ) {
+  if (verifiedUser.role !== 'student') {
+    return NextResponse.json({ ok: false, msg: 'Solo gli studenti possono inviare risultati' }, { status: 403 });
+  }
+
+  const studentId = verifiedUser.id; // Always use verified user's ID
+
   const {
-    studentId, score, total_questions, correct_count,
+    score, total_questions, correct_count,
     mistakes_count, time_taken_seconds, answers,
   } = body;
 
-  if (!assignmentId || !studentId) {
+  if (!assignmentId) {
     return NextResponse.json({ ok: false, msg: 'Dati mancanti' });
   }
 
-  // Validate required fields
   if (total_questions === undefined || correct_count === undefined) {
     return NextResponse.json({ ok: false, msg: 'Dati del risultato incompleti' });
   }
 
-  // Get assignment config and student status
   const { data: assignment, error: aError } = await supabase
     .from('assignments')
     .select('id, config, is_active')
@@ -255,15 +266,13 @@ async function handleSubmitResult(
   const maxAttempts = assignment.config?.max_attempts || 1;
   const isPassed = score >= 60;
 
-  // Determine new status
   let newStatus: string;
   if (isPassed || studentAssignment.attempts + 1 >= maxAttempts) {
     newStatus = 'completed';
   } else {
-    newStatus = 'pending'; // Can try again
+    newStatus = 'pending';
   }
 
-  // Insert result
   const { data: result, error: resultError } = await supabase
     .from('assignment_results')
     .insert({
@@ -284,7 +293,6 @@ async function handleSubmitResult(
     return NextResponse.json({ ok: false, msg: 'Errore nel salvataggio del risultato' }, { status: 500 });
   }
 
-  // Update student assignment status and attempts
   const { error: updateError } = await supabase
     .from('assignment_students')
     .update({
@@ -296,7 +304,6 @@ async function handleSubmitResult(
 
   if (updateError) {
     console.error('Update student assignment error:', updateError);
-    // Result was saved, but status update failed - not critical
   }
 
   return NextResponse.json({
@@ -316,13 +323,33 @@ async function handleSubmitResult(
   });
 }
 
-// ---- GET STATUS ----
-// Get student's current status for an assignment
-async function handleGetStatus(assignmentId: string, body: { studentId: string }) {
-  const { studentId } = body;
+// ---- GET STATUS (SECURED) ----
+async function handleGetStatus(
+  verifiedUser: { id: string; role: string },
+  assignmentId: string,
+  body: { studentId: string }
+) {
+  const studentId = verifiedUser.role === 'student' ? verifiedUser.id : (body.studentId || verifiedUser.id);
 
   if (!assignmentId || !studentId) {
     return NextResponse.json({ ok: false, msg: 'Dati mancanti' });
+  }
+
+  // Students can only check their own status
+  if (verifiedUser.role === 'student' && studentId !== verifiedUser.id) {
+    return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
+  }
+
+  // Teachers can only check their own students' status
+  if (verifiedUser.role === 'teacher' && studentId !== verifiedUser.id) {
+    const { data: targetStudent } = await supabase
+      .from('app_users')
+      .select('id, owner_id')
+      .eq('id', studentId)
+      .single();
+    if (!targetStudent || targetStudent.owner_id !== verifiedUser.id) {
+      return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
+    }
   }
 
   const { data: studentAssignment, error } = await supabase
@@ -336,7 +363,6 @@ async function handleGetStatus(assignmentId: string, body: { studentId: string }
     return NextResponse.json({ ok: false, msg: 'Non sei assegnato a questo compito' });
   }
 
-  // Get assignment config for context
   const { data: assignment } = await supabase
     .from('assignments')
     .select('config, is_active')
@@ -348,7 +374,6 @@ async function handleGetStatus(assignmentId: string, body: { studentId: string }
     ? studentAssignment.attempts < maxAttempts
     : studentAssignment.status !== 'expired';
 
-  // Get best result
   const { data: bestResult } = await supabase
     .from('assignment_results')
     .select('score, total_questions, correct_count, completed_at')
@@ -370,19 +395,38 @@ async function handleGetStatus(assignmentId: string, body: { studentId: string }
   });
 }
 
-// ---- GET RESULT ----
-// Get a specific student's result for an assignment
-async function handleGetResult(assignmentId: string, body: {
-  studentId: string;
-  resultId?: string;
-}) {
-  const { studentId, resultId } = body;
+// ---- GET RESULT (SECURED) ----
+async function handleGetResult(
+  verifiedUser: { id: string; role: string },
+  assignmentId: string,
+  body: {
+    studentId: string;
+    resultId?: string;
+  }
+) {
+  const studentId = verifiedUser.role === 'student' ? verifiedUser.id : (body.studentId || verifiedUser.id);
 
   if (!assignmentId || !studentId) {
     return NextResponse.json({ ok: false, msg: 'Dati mancanti' });
   }
 
-  // Get all results for this student in this assignment
+  // Students can only view their own results
+  if (verifiedUser.role === 'student' && studentId !== verifiedUser.id) {
+    return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
+  }
+
+  // Teachers can only view their own students' results
+  if (verifiedUser.role === 'teacher' && studentId !== verifiedUser.id) {
+    const { data: targetStudent } = await supabase
+      .from('app_users')
+      .select('id, owner_id')
+      .eq('id', studentId)
+      .single();
+    if (!targetStudent || targetStudent.owner_id !== verifiedUser.id) {
+      return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
+    }
+  }
+
   const { data: results, error } = await supabase
     .from('assignment_results')
     .select('*')
@@ -395,12 +439,10 @@ async function handleGetResult(assignmentId: string, body: {
     return NextResponse.json({ ok: false, msg: 'Errore nel caricamento dei risultati' }, { status: 500 });
   }
 
-  // If specific result requested, filter it
   let targetResult;
-  if (resultId) {
-    targetResult = (results || []).find((r) => r.id === resultId);
+  if (body.resultId) {
+    targetResult = (results || []).find((r) => r.id === body.resultId);
   } else {
-    // Return latest result
     targetResult = (results || [])[0] || null;
   }
 

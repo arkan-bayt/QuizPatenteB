@@ -3,9 +3,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useStore } from '@/store/useStore';
 import { useOverallStats, useWrongAnswers } from './hooks';
 import { getTeacherAssignments, getAssignmentResults, createAssignment } from '@/logic/assignmentEngine';
-import { Assignment, AssignmentConfig } from '@/data/supabaseClient';
-import { getAllUsers } from '@/logic/authEngine';
-import { AppUser } from '@/data/supabaseClient';
+import { Assignment, AssignmentConfig, AppUser } from '@/data/supabaseClient';
+import { authenticatedFetch } from '@/lib/api';
 import { getUniqueTopics, getChaptersByTopic } from '@/data/quizData';
 
 export default function TeacherDashboard() {
@@ -28,12 +27,21 @@ export default function TeacherDashboard() {
 
   const loadData = async () => {
     setLoading(true);
-    const [assignmentsData, usersData] = await Promise.all([
-      getTeacherAssignments(teacherId),
-      getAllUsers(),
-    ]);
+    const assignmentsData = await getTeacherAssignments(teacherId);
     setAssignments(assignmentsData);
-    setStudents(usersData.filter((u) => u.role === 'student' && u.owner_id === teacherId));
+    // Load students via authenticated API
+    try {
+      const res = await authenticatedFetch('/api/auth', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'get_my_students', teacherId }),
+      });
+      const data = await res.json();
+      if (data.ok && data.students) {
+        setStudents(data.students);
+      }
+    } catch {
+      setStudents([]);
+    }
     setLoading(false);
   };
 

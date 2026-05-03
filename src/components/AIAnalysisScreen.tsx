@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
+import { authenticatedFetch } from '@/lib/api';
 import { useOverallStats, useUserStats, useWrongAnswers } from './hooks';
 import { useChapterProgress } from './hooks';
 import { getSubtopicsForChapter, getQuestionsBySubtopic } from '@/data/quizData';
@@ -75,9 +76,8 @@ export default function AIAnalysisScreen() {
       wrongTopics,
     };
 
-    fetch('/api/ai', {
+    authenticatedFetch('/api/ai', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
       .then(res => {
