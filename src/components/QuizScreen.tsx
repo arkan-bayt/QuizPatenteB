@@ -582,7 +582,7 @@ export default function QuizScreen() {
                   className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-105 ${hintUsed ? 'ring-2 ring-amber-400/50' : ''}`}
                   style={{
                     background: aiLimitReached ? 'var(--bg-tertiary)' : hint ? 'rgba(217, 119, 6, 0.1)' : 'var(--bg-tertiary)',
-                    border: `1px solid ${aiLimitReached ? 'var(--border)' : hint ? 'rgba(217, 119, 6, 0.2)' : 'var(--border)'`,
+                    border: `1px solid ${aiLimitReached ? 'var(--border)' : hint ? 'rgba(217, 119, 6, 0.2)' : 'var(--border)'}`,
                     opacity: aiLimitReached ? 0.5 : 1,
                   }}
                   title={aiLimitReached ? 'Limite raggiunto per oggi' : 'Indizio IA'}
