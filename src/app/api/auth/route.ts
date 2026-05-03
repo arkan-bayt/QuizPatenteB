@@ -116,6 +116,7 @@ export async function POST(request: NextRequest) {
       case 'list_users': return handleListUsers(request);
       case 'add_user': return handleAddUser(request, body);
       case 'delete_user': return handleDeleteUser(request, body);
+      case 'toggle_active': return handleToggleActive(request, body);
       case 'toggle_role': return handleToggleRole(request, body);
       case 'register_teacher': return handleRegisterTeacher(request, body);
       case 'register_student': return handleRegisterStudent(request, body);
@@ -314,7 +315,7 @@ async function handleAddUser(request: NextRequest, body: {
 // DELETE USER — Auth required, super_admin only
 //   Soft delete (set is_active = false)
 // ============================================================
-async function handleDeleteUser(request: NextRequest, body: { userId: string }) {
+async function handleDeleteUser(request: NextRequest, body: { user_id?: string; userId?: string }) {
   const user = await verifySession(request.headers.get('Authorization'));
   if (!user) {
     return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
@@ -323,7 +324,7 @@ async function handleDeleteUser(request: NextRequest, body: { userId: string }) 
     return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
   }
 
-  const { userId } = body;
+  const userId = body.user_id || body.userId;
 
   // Find the user record
   const { data: userRecord, error: findError } = await supabase
@@ -352,11 +353,10 @@ async function handleDeleteUser(request: NextRequest, body: { userId: string }) 
 }
 
 // ============================================================
-// TOGGLE ROLE — Auth required, super_admin only
-//   ⛔ CANNOT set role to 'super_admin' — privilege escalation blocked
-//   Allowed: teacher ↔ student only
+// TOGGLE ACTIVE — Auth required, super_admin only
+//   Toggle is_active true/false for a user
 // ============================================================
-async function handleToggleRole(request: NextRequest, body: { userId: string; newRole: string }) {
+async function handleToggleActive(request: NextRequest, body: { user_id?: string; userId?: string }) {
   const user = await verifySession(request.headers.get('Authorization'));
   if (!user) {
     return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
@@ -365,7 +365,56 @@ async function handleToggleRole(request: NextRequest, body: { userId: string; ne
     return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
   }
 
-  const { userId, newRole } = body;
+  const targetId = body.user_id || body.userId;
+  if (!targetId) {
+    return NextResponse.json({ ok: false, msg: 'ID utente mancante' });
+  }
+
+  // Find current user state
+  const { data: targetUser, error: findError } = await supabase
+    .from('app_users')
+    .select('id, username, is_active')
+    .or(`id.eq.${targetId},username.eq.${targetId}`)
+    .single();
+
+  if (findError || !targetUser) {
+    return NextResponse.json({ ok: false, msg: 'Utente non trovato' });
+  }
+
+  const newActiveState = !targetUser.is_active;
+
+  const { error: updateError } = await supabase
+    .from('app_users')
+    .update({ is_active: newActiveState })
+    .eq('username', targetUser.username);
+
+  if (updateError) {
+    console.error('Supabase toggle_active error:', updateError);
+    return NextResponse.json({ ok: false, msg: 'Errore aggiornamento stato' }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    msg: newActiveState ? 'Utente riattivato' : 'Utente disattivato',
+  });
+}
+
+// ============================================================
+// TOGGLE ROLE — Auth required, super_admin only
+//   ⛔ CANNOT set role to 'super_admin' — privilege escalation blocked
+//   Allowed: teacher ↔ student only
+// ============================================================
+async function handleToggleRole(request: NextRequest, body: { user_id?: string; userId?: string; new_role?: string; newRole?: string }) {
+  const user = await verifySession(request.headers.get('Authorization'));
+  if (!user) {
+    return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
+  }
+  if (!requireSuperAdmin(user)) {
+    return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
+  }
+
+  const userId = body.user_id || body.userId;
+  const newRole = body.new_role || body.newRole;
 
   // ⛔ BLOCK: Cannot set anyone to super_admin
   if (newRole === 'super_admin') {
@@ -375,7 +424,7 @@ async function handleToggleRole(request: NextRequest, body: { userId: string; ne
 
   // Validate new role
   const validRoles = ['teacher', 'student'];
-  if (!validRoles.includes(newRole)) {
+  if (!newRole || !validRoles.includes(newRole)) {
     return NextResponse.json({ ok: false, msg: 'Ruolo non valido' });
   }
 
