@@ -1,24 +1,22 @@
 'use client';
 import React, { useEffect, useState, useMemo } from 'react';
 import { useStore } from '@/store/useStore';
-import { useOverallStats, useWrongAnswers } from './hooks';
 import { getTeacherAssignments, createAssignment } from '@/logic/assignmentEngine';
 import { Assignment, AssignmentConfig, AppUser } from '@/data/supabaseClient';
 import { authenticatedFetch } from '@/lib/api';
+import { Chapter, getUniqueTopics, getChaptersByTopic } from '@/data/quizData';
+import ChapterIcon from './ChapterIcons';
 
 // ============================================================
-// School Class type
+// CHAPTER COLORS (same as HomeScreen)
 // ============================================================
-interface SchoolClass {
-  id: string;
-  name: string;
-  description?: string | null;
-  image_url?: string | null;
-  color?: string | null;
-  icon?: string | null;
-  created_at: string;
-  student_count?: number;
-}
+const CHAPTER_COLORS: Record<number, string> = {
+  1: '#3B82F6', 2: '#EF4444', 3: '#DC2626', 4: '#2563EB', 5: '#F59E0B',
+  6: '#8B5CF6', 7: '#10B981', 8: '#06B6D4', 9: '#F97316', 10: '#6366F1',
+  11: '#EC4899', 12: '#14B8A6', 13: '#0EA5E9', 14: '#A855F7', 15: '#22C55E',
+  16: '#3B82F6', 17: '#64748B', 18: '#FBBF24', 19: '#F43F5E', 20: '#78716C',
+  21: '#7C3AED', 22: '#BE185D', 23: '#475569', 24: '#059669', 25: '#B45309',
+};
 
 export default function TeacherDashboard() {
   const store = useStore();
@@ -27,7 +25,6 @@ export default function TeacherDashboard() {
 
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [students, setStudents] = useState<AppUser[]>([]);
-  const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [msg, setMsg] = useState('');
@@ -54,16 +51,6 @@ export default function TeacherDashboard() {
       }
     } catch {
       setStudents([]);
-    }
-    // Load classes
-    try {
-      const res = await authenticatedFetch('/api/classes?action=list');
-      const data = await res.json();
-      if (data.ok && data.classes) {
-        setClasses(data.classes);
-      }
-    } catch {
-      setClasses([]);
     }
     setLoading(false);
   };
@@ -103,9 +90,8 @@ export default function TeacherDashboard() {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 anim-up stagger">
+        <div className="grid grid-cols-2 gap-3 anim-up stagger">
           <StatCard icon="👥" value={totalStudents} label="Studenti" color="#4F46E5" />
-          <StatCard icon="🏫" value={classes.length} label="Classi" color="#059669" />
           <StatCard icon="📝" value={activeAssignments.length} label="Compiti attivi" color="#D97706" />
         </div>
 
@@ -205,7 +191,6 @@ export default function TeacherDashboard() {
         <CreateAssignmentModal
           teacherId={teacherId}
           students={students}
-          classes={classes}
           chapters={chapters}
           onClose={() => setShowCreateModal(false)}
           onSuccess={() => { setShowCreateModal(false); showMsg('Compito creato con successo!', 'success'); loadData(); }}
@@ -227,76 +212,118 @@ function StatCard({ icon, value, label, color }: { icon: string; value: number |
 }
 
 // ============================================================
-// CREATE ASSIGNMENT MODAL — WITH VISUAL CLASS/STUDENT SELECTOR
+// CREATE ASSIGNMENT MODAL — SIMPLIFIED FLOW
+// Field 1: Title
+// Field 2: Chapters (25 chapters, multi-select)
+// Field 3: Number of questions (30 / All / Custom)
+// Field 4: Exam time
+// Field 5: Students (all listed, select all or individual)
 // ============================================================
-function CreateAssignmentModal({ teacherId, students, classes, chapters, onClose, onSuccess, onError }: {
-  teacherId: string; students: AppUser[]; classes: SchoolClass[]; chapters: { id: number; name: string }[];
-  onClose: () => void; onSuccess: () => void; onError: (msg: string) => void;
+function CreateAssignmentModal({ teacherId, students, chapters, onClose, onSuccess, onError }: {
+  teacherId: string;
+  students: AppUser[];
+  chapters: Chapter[];
+  onClose: () => void;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
 }) {
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [mode, setMode] = useState<'exam' | 'chapters' | 'custom'>('exam');
   const [selectedChapters, setSelectedChapters] = useState<number[]>([]);
-  const [customQuestionCount, setCustomQuestionCount] = useState(30);
+  const [questionMode, setQuestionMode] = useState<'thirty' | 'all' | 'custom'>('thirty');
+  const [customQuestionCount, setCustomQuestionCount] = useState(20);
   const [timeLimit, setTimeLimit] = useState('');
-  const [maxAttempts, setMaxAttempts] = useState(3);
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
-  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
-  const [showClassDropdown, setShowClassDropdown] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const toggleChapter = (id: number) => setSelectedChapters((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-  const toggleStudent = (id: string) => {
-    setSelectedStudents((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
-  };
-  const selectAllStudents = () => {
-    if (selectedStudents.size === filteredStudents.length) setSelectedStudents(new Set());
-    else setSelectedStudents(new Set(filteredStudents.map((s) => s.id)));
+  // Group chapters by topic
+  const topics = useMemo(() => getUniqueTopics(chapters), [chapters]);
+
+  // Calculate total available questions from selected chapters
+  const totalAvailableQuestions = useMemo(() => {
+    return chapters.filter(c => selectedChapters.includes(c.id)).reduce((sum, c) => sum + c.questionCount, 0);
+  }, [chapters, selectedChapters]);
+
+  // Get final question count
+  const getQuestionCount = (): number => {
+    if (questionMode === 'thirty') return 30;
+    if (questionMode === 'all') return totalAvailableQuestions;
+    return customQuestionCount;
   };
 
-  // When a class is selected, auto-select all its students
-  const handleSelectClass = (classId: string | null) => {
-    setSelectedClassId(classId);
-    setShowClassDropdown(false);
-    if (classId) {
-      const classStudentIds = students.filter(s => s.class_id === classId).map(s => s.id);
-      setSelectedStudents(new Set(classStudentIds));
-    } else {
+  const toggleChapter = (id: number) => {
+    setSelectedChapters((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const selectAllChapters = () => {
+    setSelectedChapters(chapters.map((c) => c.id));
+  };
+
+  const deselectAllChapters = () => {
+    setSelectedChapters([]);
+  };
+
+  const toggleStudent = (id: string) => {
+    setSelectedStudents((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllStudents = () => {
+    if (selectedStudents.size === students.length) {
       setSelectedStudents(new Set());
+    } else {
+      setSelectedStudents(new Set(students.map((s) => s.id)));
     }
   };
 
-  const filteredStudents = selectedClassId
-    ? students.filter(s => s.class_id === selectedClassId)
-    : students;
-
-  const selectedClassName = selectedClassId ? classes.find(c => c.id === selectedClassId) : null;
-
   const handleCreate = async () => {
     if (!title.trim()) { onError('Inserisci un titolo'); return; }
+    if (selectedChapters.length === 0) { onError('Seleziona almeno un capitolo'); return; }
     if (selectedStudents.size === 0) { onError('Seleziona almeno uno studente'); return; }
-    if (mode === 'chapters' && selectedChapters.length === 0) { onError('Seleziona almeno un capitolo'); return; }
 
-    let questionCount = mode === 'exam' ? 30 : mode === 'chapters' ? 0 : customQuestionCount;
     const config: AssignmentConfig = {
-      chapters: mode === 'chapters' ? selectedChapters : [],
-      number_of_questions: questionCount,
+      chapters: selectedChapters,
+      number_of_questions: getQuestionCount(),
       time_limit_minutes: timeLimit ? parseInt(timeLimit) : null,
-      max_attempts: maxAttempts,
-      mode: mode === 'chapters' ? 'chapters' : 'exam',
+      max_attempts: 3,
+      mode: 'chapters',
     };
 
+    // Build description from selected chapters
+    const chapterNames = selectedChapters.sort((a, b) => a - b).map(id => {
+      const ch = chapters.find(c => c.id === id);
+      return ch ? `Cap.${id}` : '';
+    }).filter(Boolean).join(', ');
+    const description = `${selectedChapters.length} capitoli (${chapterNames})`;
+
     setBusy(true);
-    const res = await createAssignment({ teacherId, title: title.trim(), description: description.trim() || undefined, config, studentIds: Array.from(selectedStudents) });
+    const res = await createAssignment({
+      teacherId,
+      title: title.trim(),
+      description,
+      config,
+      studentIds: Array.from(selectedStudents),
+    });
     setBusy(false);
-    if (res.ok) onSuccess(); else onError(res.msg);
+    if (res.ok) onSuccess();
+    else onError(res.msg);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
-      <div className="relative w-full max-w-md rounded-2xl border shadow-xl p-6 anim-up max-h-[85vh] overflow-y-auto" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-5">
+      <div
+        className="relative w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl border shadow-xl anim-up max-h-[92vh] sm:max-h-[85vh] flex flex-col"
+        style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header - fixed */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
           <div>
             <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Nuovo Compito</h2>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Crea un quiz per i tuoi studenti</p>
@@ -308,201 +335,314 @@ function CreateAssignmentModal({ teacherId, students, classes, chapters, onClose
           </button>
         </div>
 
-        <div className="space-y-4">
-          {/* Titolo */}
+        {/* Scrollable content */}
+        <div className="overflow-y-auto px-5 pb-5 space-y-5 flex-1">
+
+          {/* ============ FIELD 1: TITOLO ============ */}
           <div>
-            <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Titolo *</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} placeholder="Es: Esame Capitoli 1-5" />
+            <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+              Titolo *
+            </label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
+              style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+              placeholder="Es: Esame Capitoli 1-5"
+            />
           </div>
 
-          {/* Descrizione */}
+          {/* ============ FIELD 2: CAPITOLI (25 chapters) ============ */}
           <div>
-            <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Descrizione</label>
-            <input value={description} onChange={(e) => setDescription(e.target.value)} className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} placeholder="Descrizione opzionale..." />
-          </div>
-
-          {/* ============================================================ */}
-          {/* SELEZIONE CLASSE - VISUAL DROPDOWN CON IMMAGINI */}
-          {/* ============================================================ */}
-          <div>
-            <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Seleziona Classe *</label>
-
-            {/* Selected class display or dropdown trigger */}
-            <button
-              onClick={() => setShowClassDropdown(!showClassDropdown)}
-              className="w-full border rounded-xl px-4 py-3 text-sm text-left flex items-center gap-3 transition-all outline-none"
-              style={{ background: selectedClassName ? (selectedClassName.color || '#4F46E5') + '10' : 'var(--bg-card)', borderColor: showClassDropdown ? '#4F46E5' : 'var(--border)', color: selectedClassName ? 'var(--text-primary)' : 'var(--text-muted)' }}
-            >
-              {selectedClassName ? (
-                <>
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ background: (selectedClassName.color || '#4F46E5') + '20' }}>
-                    {selectedClassName.icon || '📚'}
-                  </div>
-                  <div className="flex-1">
-                    <span className="font-bold">{selectedClassName.name}</span>
-                    <span className="text-[10px] ml-2" style={{ color: 'var(--text-muted)' }}>{filteredStudents.length} studenti selezionati</span>
-                  </div>
-                  <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                </>
-              ) : (
-                <>
-                  <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
-                    </svg>
-                  </div>
-                  <span className="flex-1">Clicca per selezionare una classe...</span>
-                </>
-              )}
-              <svg className={`w-4 h-4 flex-shrink-0 transition-transform ${showClassDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-              </svg>
-            </button>
-
-            {/* Dropdown */}
-            {showClassDropdown && (
-              <div className="absolute z-20 left-4 right-4 mt-1 rounded-2xl border-2 shadow-xl overflow-hidden anim-slide-down" style={{ background: 'var(--bg-card)', borderColor: '#4F46E5' }}>
-                <div className="max-h-[50vh] overflow-y-auto p-2">
-                  {/* All students option */}
-                  <button
-                    onClick={() => handleSelectClass(null)}
-                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors ${!selectedClassId ? 'bg-indigo-50 border border-indigo-200' : 'hover:bg-gray-50 border border-transparent'}`}
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-lg">👥</div>
-                    <div className="flex-1 text-left">
-                      <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Tutti gli studenti</p>
-                      <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{students.length} studenti</p>
-                    </div>
-                    {!selectedClassId && <span className="text-emerald-500 font-bold text-xs">✓</span>}
-                  </button>
-
-                  {/* Class cards with images */}
-                  {classes.map((cls) => {
-                    const count = students.filter(s => s.class_id === cls.id).length;
-                    return (
-                      <button
-                        key={cls.id}
-                        onClick={() => handleSelectClass(cls.id)}
-                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors mt-1 ${selectedClassId === cls.id ? 'border-2 border-indigo-400 bg-indigo-50' : 'hover:bg-gray-50 border-2 border-transparent'}`}
-                      >
-                        {/* Image or Icon */}
-                        {cls.image_url ? (
-                          <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
-                            <img src={cls.image_url} alt={cls.name} className="w-full h-full object-cover" />
-                          </div>
-                        ) : (
-                          <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0" style={{ background: (cls.color || '#4F46E5') + '15' }}>
-                            {cls.icon || '📚'}
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0 text-left">
-                          <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{cls.name}</p>
-                          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{count} studenti</p>
-                        </div>
-                        {/* Color dot */}
-                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: cls.color || '#4F46E5' }} />
-                        {selectedClassId === cls.id && <span className="text-emerald-500 font-bold text-xs">✓</span>}
-                      </button>
-                    );
-                  })}
-
-                  {classes.length === 0 && (
-                    <div className="text-center py-6">
-                      <p className="text-2xl mb-1">🏫</p>
-                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nessuna classe creata</p>
-                      <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Crea classi dalla Dashboard</p>
-                    </div>
-                  )}
-                </div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                Capitoli * ({selectedChapters.length}/25 selezionati)
+              </label>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={deselectAllChapters}
+                  className="text-[10px] font-semibold px-2.5 py-1 rounded-lg border transition-colors"
+                  style={{ color: 'var(--text-muted)', borderColor: 'var(--border)', background: 'var(--bg-card)' }}
+                >
+                  Nessuno
+                </button>
+                <button
+                  onClick={selectAllChapters}
+                  className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-200 transition-colors"
+                >
+                  Tutti
+                </button>
               </div>
+            </div>
+
+            {/* Selected chapters summary */}
+            {selectedChapters.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-2">
+                {selectedChapters.sort((a, b) => a - b).map((id) => {
+                  const ch = chapters.find(c => c.id === id);
+                  const color = CHAPTER_COLORS[id] || '#6B7280';
+                  return (
+                    <span
+                      key={id}
+                      onClick={() => toggleChapter(id)}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-white cursor-pointer transition-transform hover:scale-105"
+                      style={{ background: color }}
+                    >
+                      Cap. {id}
+                      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Chapter grid grouped by topic */}
+            <div className="space-y-3 max-h-[35vh] overflow-y-auto pr-1">
+              {topics.map((topic) => {
+                const topicChapters = getChaptersByTopic(chapters, topic);
+                const topicSelectedCount = topicChapters.filter(c => selectedChapters.includes(c.id)).length;
+
+                return (
+                  <div key={topic}>
+                    {/* Topic header */}
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                        {topic}
+                      </span>
+                      <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                        {topicSelectedCount}/{topicChapters.length}
+                      </span>
+                      {topicSelectedCount === topicChapters.length && topicChapters.length > 0 && (
+                        <svg className="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                      )}
+                    </div>
+
+                    {/* Chapter chips */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {topicChapters.map((ch) => {
+                        const isSelected = selectedChapters.includes(ch.id);
+                        const color = CHAPTER_COLORS[ch.id] || '#6B7280';
+                        return (
+                          <button
+                            key={ch.id}
+                            onClick={() => toggleChapter(ch.id)}
+                            className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-[11px] font-semibold transition-all border ${
+                              isSelected
+                                ? 'border-transparent shadow-sm'
+                                : 'hover:border-gray-300'
+                            }`}
+                            style={
+                              isSelected
+                                ? { background: color, color: 'white', borderColor: color }
+                                : { background: 'var(--bg-card)', color: 'var(--text-muted)', borderColor: 'var(--border)' }
+                            }
+                          >
+                            <ChapterIcon chapterId={ch.id} size={14} />
+                            <span>{ch.id}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ============ FIELD 3: NUMERO DOMANDE ============ */}
+          <div>
+            <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+              Numero domande
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {/* 30 option */}
+              <button
+                onClick={() => setQuestionMode('thirty')}
+                className={`flex flex-col items-center gap-1 px-3 py-3 rounded-xl text-sm font-bold border-2 transition-all ${
+                  questionMode === 'thirty'
+                    ? 'bg-indigo-50 text-indigo-600 border-indigo-300'
+                    : ''
+                }`}
+                style={questionMode !== 'thirty' ? { color: 'var(--text-muted)', borderColor: 'var(--border)', background: 'var(--bg-card)' } : undefined}
+              >
+                <span className="text-lg">📝</span>
+                <span>30</span>
+                <span className="text-[9px] font-normal opacity-70">Esame</span>
+              </button>
+
+              {/* All option */}
+              <button
+                onClick={() => setQuestionMode('all')}
+                className={`flex flex-col items-center gap-1 px-3 py-3 rounded-xl text-sm font-bold border-2 transition-all ${
+                  questionMode === 'all'
+                    ? 'bg-emerald-50 text-emerald-600 border-emerald-300'
+                    : ''
+                }`}
+                style={questionMode !== 'all' ? { color: 'var(--text-muted)', borderColor: 'var(--border)', background: 'var(--bg-card)' } : undefined}
+              >
+                <span className="text-lg">📚</span>
+                <span>Tutte</span>
+                <span className="text-[9px] font-normal opacity-70">{totalAvailableQuestions > 0 ? totalAvailableQuestions : '—'}</span>
+              </button>
+
+              {/* Custom option */}
+              <button
+                onClick={() => setQuestionMode('custom')}
+                className={`flex flex-col items-center gap-1 px-3 py-3 rounded-xl text-sm font-bold border-2 transition-all ${
+                  questionMode === 'custom'
+                    ? 'bg-amber-50 text-amber-600 border-amber-300'
+                    : ''
+                }`}
+                style={questionMode !== 'custom' ? { color: 'var(--text-muted)', borderColor: 'var(--border)', background: 'var(--bg-card)' } : undefined}
+              >
+                <span className="text-lg">🔢</span>
+                <span>Custom</span>
+                <span className="text-[9px] font-normal opacity-70">Scegli</span>
+              </button>
+            </div>
+
+            {/* Custom input */}
+            {questionMode === 'custom' && (
+              <div className="mt-2">
+                <input
+                  type="number"
+                  value={customQuestionCount}
+                  onChange={(e) => setCustomQuestionCount(Math.max(1, Math.min(totalAvailableQuestions || 999, parseInt(e.target.value) || 1)))}
+                  min={1}
+                  max={totalAvailableQuestions || 999}
+                  className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
+                  style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                  placeholder="Inserisci numero domande"
+                />
+              </div>
+            )}
+
+            {/* Info text */}
+            {selectedChapters.length > 0 && (
+              <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
+                {totalAvailableQuestions} domande disponibili nei capitoli selezionati
+              </p>
             )}
           </div>
 
-          {/* Modalità */}
+          {/* ============ FIELD 4: TEMPO ESAME ============ */}
           <div>
-            <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Modalità</label>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { key: 'exam' as const, label: 'Esame (30 domande)', icon: '📝' },
-                { key: 'chapters' as const, label: 'Per Capitoli', icon: '📚' },
-                { key: 'custom' as const, label: 'Personalizzato', icon: '🔢' },
-              ].map((m) => (
-                <button key={m.key} onClick={() => setMode(m.key)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border cursor-pointer transition-colors ${mode === m.key ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : ''}`}
-                  style={mode !== m.key ? { color: 'var(--text-muted)', borderColor: 'var(--border)' } : undefined}>
-                  <span>{m.icon}</span> {m.label}
-                </button>
-              ))}
-            </div>
+            <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+              Tempo esame (minuti)
+            </label>
+            <input
+              type="number"
+              value={timeLimit}
+              onChange={(e) => setTimeLimit(e.target.value)}
+              min={1}
+              placeholder="Opzionale (es: 20)"
+              className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
+              style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+            />
           </div>
 
-          {mode === 'chapters' && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Capitoli</label>
-                <div className="flex gap-1.5">
-                  <button onClick={() => setSelectedChapters([])} className="text-[10px] font-semibold px-2 py-1 rounded-md border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>Nessuno</button>
-                  <button onClick={() => setSelectedChapters(chapters.map((c) => c.id))} className="text-[10px] font-semibold px-2 py-1 rounded-md text-indigo-600 border border-indigo-200 bg-indigo-50">Tutti</button>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                {chapters.map((ch) => (
-                  <button key={ch.id} onClick={() => toggleChapter(ch.id)}
-                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${selectedChapters.includes(ch.id) ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' : ''}`}
-                    style={selectedChapters.includes(ch.id) ? undefined : { color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
-                    Cap. {ch.id}
-                  </button>
-                ))}
-              </div>
+          {/* ============ FIELD 5: STUDENTI ============ */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                Studenti * ({selectedStudents.size}/{students.length})
+              </label>
+              <button
+                onClick={selectAllStudents}
+                className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg border transition-colors ${
+                  selectedStudents.size === students.length
+                    ? 'bg-indigo-50 text-indigo-600 border-indigo-200'
+                    : ''
+                }`}
+                style={selectedStudents.size !== students.length ? { color: 'var(--text-muted)', borderColor: 'var(--border)', background: 'var(--bg-card)' } : undefined}
+              >
+                {selectedStudents.size === students.length ? '✓ Tutti' : 'Seleziona tutti'}
+              </button>
             </div>
-          )}
 
-          {mode === 'custom' && (
-            <div>
-              <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Numero domande</label>
-              <input type="number" value={customQuestionCount} onChange={(e) => setCustomQuestionCount(parseInt(e.target.value) || 1)} min={1} max={100} className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
-            </div>
-          )}
+            {students.length === 0 ? (
+              <div className="rounded-xl border p-6 text-center" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nessuno studente disponibile</p>
+              </div>
+            ) : (
+              <div className="space-y-1 max-h-[30vh] overflow-y-auto pr-1">
+                {students.map((s) => {
+                  const isSelected = selectedStudents.has(s.id);
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => toggleStudent(s.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all border text-left ${
+                        isSelected
+                          ? 'bg-indigo-50 border-indigo-200'
+                          : 'hover:bg-gray-50 border-transparent'
+                      }`}
+                    >
+                      {/* Checkbox */}
+                      <div
+                        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                          isSelected ? 'bg-indigo-500 border-indigo-500' : ''
+                        }`}
+                        style={!isSelected ? { borderColor: 'var(--border)' } : undefined}
+                      >
+                        {isSelected && (
+                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                        )}
+                      </div>
 
-          {/* Time and Attempts */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Limite tempo (min)</label>
-              <input type="number" value={timeLimit} onChange={(e) => setTimeLimit(e.target.value)} min={1} placeholder="Opzionale" className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Tentativi max</label>
-              <input type="number" value={maxAttempts} onChange={(e) => setMaxAttempts(parseInt(e.target.value) || 1)} min={1} max={99} className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
-            </div>
+                      {/* Avatar */}
+                      <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                        <span className="text-[11px] font-bold text-[#4F46E5]">{(s.full_name || s.username)[0].toUpperCase()}</span>
+                      </div>
+
+                      {/* Name */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                          {s.full_name || s.username}
+                        </p>
+                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>@{s.username}</p>
+                      </div>
+
+                      {/* Status icon */}
+                      {isSelected && (
+                        <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* Selected students summary */}
-          {selectedStudents.size > 0 && (
-            <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                  {selectedClassName ? (
-                    <span style={{ color: selectedClassName.color || '#4F46E5' }}>{selectedClassName.icon} {selectedClassName.name}</span>
-                  ) : 'Studenti'}
+        {/* Fixed bottom button */}
+        <div className="px-5 pb-5 pt-3 border-t flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
+          <button
+            onClick={handleCreate}
+            disabled={busy || !title.trim() || selectedChapters.length === 0 || selectedStudents.size === 0}
+            className="w-full py-3.5 text-white font-bold text-sm rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] transition-colors disabled:opacity-40"
+          >
+            {busy ? (
+              <span className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                Creazione...
+              </span>
+            ) : (
+              <span className="flex items-center justify-center gap-2">
+                Crea Compito
+                <span className="text-indigo-200 text-xs font-normal">
+                  ({selectedChapters.length} cap. · {getQuestionCount()} dom. · {selectedStudents.size} stud.)
                 </span>
-                <span className="text-[10px] font-bold" style={{ color: '#4F46E5' }}>{selectedStudents.size} selezionati</span>
-              </div>
-              <div className="space-y-1 max-h-28 overflow-y-auto">
-                {filteredStudents.map((s) => (
-                  <div key={s.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg" style={{ background: 'var(--bg-tertiary)' }}>
-                    <svg className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                    <span className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>{s.full_name || s.username}</span>
-                    <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>@{s.username}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Create button */}
-          <button onClick={handleCreate} disabled={busy || !title.trim() || selectedStudents.size === 0}
-            className="w-full py-3.5 text-white font-bold text-sm rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] transition-colors disabled:opacity-50">
-            {busy ? <span className="flex items-center justify-center gap-2"><div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />Creazione...</span> : 'Crea Compito'}
+              </span>
+            )}
           </button>
         </div>
       </div>
