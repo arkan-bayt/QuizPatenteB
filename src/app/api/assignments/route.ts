@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
       if (error) {
         console.error('GET assignments error:', error);
-        return NextResponse.json({ error: 'Errore nel caricamento compiti' }, { status: 500 });
+        return NextResponse.json({ error: 'Errore nel caricamento compiti', debug: { code: error.code, message: error.message, details: error.details, hint: error.hint } }, { status: 500 });
       }
 
       // For each assignment, get student count and completion stats
@@ -145,6 +145,7 @@ export async function POST(request: NextRequest) {
       case 'results': return handleGetResults(user, body);
       case 'update': return handleUpdateAssignment(user, body);
       case 'delete': return handleDeleteAssignment(user, body);
+      case 'debug': return handleDebug(user);
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
@@ -213,7 +214,7 @@ async function handleCreateAssignment(
 
   if (createError) {
     console.error('Create assignment error:', createError);
-    return NextResponse.json({ ok: false, msg: 'Errore nella creazione del compito' }, { status: 500 });
+    return NextResponse.json({ ok: false, msg: 'Errore nella creazione del compito', debug: { code: createError.code, message: createError.message, details: createError.details, hint: createError.hint } }, { status: 500 });
   }
 
   // Create assignment_students entries
@@ -230,7 +231,7 @@ async function handleCreateAssignment(
   if (studentsError) {
     console.error('Create assignment_students error:', studentsError);
     await supabase.from('assignments').delete().eq('id', assignment.id);
-    return NextResponse.json({ ok: false, msg: "Errore nell'assegnazione agli studenti" }, { status: 500 });
+    return NextResponse.json({ ok: false, msg: "Errore nell'assegnazione agli studenti", debug: { code: studentsError.code, message: studentsError.message, details: studentsError.details, hint: studentsError.hint } }, { status: 500 });
   }
 
   return NextResponse.json({
@@ -515,4 +516,53 @@ async function handleDeleteAssignment(
   }
 
   return NextResponse.json({ ok: true, msg: 'Compito eliminato' });
+}
+
+// ---- DEBUG ENDPOINT (temporary - remove after fixing) ----
+async function handleDebug(user: VerifiedUser) {
+  const results: Record<string, any> = { auth: { id: user.id, username: user.username, role: user.role } };
+
+  // Test 1: Check if assignments table exists
+  const { data: testData1, error: testError1 } = await supabase
+    .from('assignments')
+    .select('id')
+    .limit(1);
+  results.assignments_table = { data: testData1, error: testError1 ? { code: testError1.code, message: testError1.message, details: testError1.details } : null };
+
+  // Test 2: Check if assignment_students table exists
+  const { data: testData2, error: testError2 } = await supabase
+    .from('assignment_students')
+    .select('id')
+    .limit(1);
+  results.assignment_students_table = { data: testData2, error: testError2 ? { code: testError2.code, message: testError2.message, details: testError2.details } : null };
+
+  // Test 3: Check if assignment_results table exists
+  const { data: testData3, error: testError3 } = await supabase
+    .from('assignment_results')
+    .select('id')
+    .limit(1);
+  results.assignment_results_table = { data: testData3, error: testError3 ? { code: testError3.code, message: testError3.message, details: testError3.details } : null };
+
+  // Test 4: Try simple insert into assignments
+  const { data: testData4, error: testError4 } = await supabase
+    .from('assignments')
+    .insert({ teacher_id: user.id, title: '__debug_test__', config: { chapters: [1], number_of_questions: 1, time_limit_minutes: null, max_attempts: 1, mode: 'exam' }, is_active: false })
+    .select('id');
+  results.insert_test = { data: testData4, error: testError4 ? { code: testError4.code, message: testError4.message, details: testError4.details, hint: testError4.hint } : null };
+
+  // Cleanup: delete the debug assignment if it was created
+  if (testData4 && testData4.length > 0) {
+    await supabase.from('assignments').delete().eq('id', testData4[0].id);
+  }
+
+  // Test 5: Check app_users id type
+  const { data: testData5, error: testError5 } = await supabase
+    .from('app_users')
+    .select('id, username, role')
+    .eq('role', 'student')
+    .eq('is_active', true)
+    .limit(2);
+  results.students_sample = { data: testData5, error: testError5 ? { code: testError5.code, message: testError5.message } : null };
+
+  return NextResponse.json({ ok: true, debug: results });
 }
