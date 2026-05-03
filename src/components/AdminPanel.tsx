@@ -740,7 +740,6 @@ export default function AdminPanel() {
                   type="button"
                   onClick={() => {
                     setRoleDialogTarget(r);
-                    if (r !== 'student') setRoleDialogOwnerId('');
                   }}
                   className="px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 border cursor-pointer"
                   style={
