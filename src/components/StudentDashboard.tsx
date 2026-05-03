@@ -4,6 +4,7 @@ import { useStore } from '@/store/useStore';
 import { useOverallStats, useUserStats, useWrongAnswers } from './hooks';
 import { getStudentAssignments, startAssignment } from '@/logic/assignmentEngine';
 import { Assignment } from '@/data/supabaseClient';
+import { getQuestionsByChapters } from '@/data/quizData';
 
 export default function StudentDashboard() {
   const store = useStore();
@@ -38,9 +39,43 @@ export default function StudentDashboard() {
   const completedAssignments = assignments.filter((a) => a._student_status === 'completed' || (a._best_result && a._best_result.score !== undefined));
 
   const handleStart = async (assignment: Assignment) => {
+    // 1. Call API to mark assignment as in_progress
     const res = await startAssignment(assignment.id, studentId);
-    if (res.ok) showMsg('Quiz iniziato! Buona fortuna!', 'success');
-    else showMsg(res.msg, 'error');
+    if (!res.ok) {
+      showMsg(res.msg, 'error');
+      return;
+    }
+
+    // 2. Load questions based on assignment config
+    const config = assignment.config;
+    const chapters = config.chapters || [];
+    const numberOfQuestions = config.number_of_questions || 30;
+
+    // Filter questions by selected chapters
+    const { allQuestions } = store;
+    const chapterQuestions = chapters.length > 0
+      ? getQuestionsByChapters(allQuestions, chapters)
+      : allQuestions;
+
+    if (chapterQuestions.length === 0) {
+      showMsg('Nessuna domanda disponibile per i capitoli selezionati', 'error');
+      return;
+    }
+
+    // Select the right number of questions randomly
+    const shuffled = [...chapterQuestions].sort(() => Math.random() - 0.5);
+    const selectedQuestions = shuffled.slice(0, Math.min(numberOfQuestions, chapterQuestions.length));
+
+    // 3. Set assignment context in store
+    store.startAssignmentQuiz(assignment.id, {
+      chapters: config.chapters || [],
+      number_of_questions: numberOfQuestions,
+      time_limit_minutes: config.time_limit_minutes || null,
+      max_attempts: config.max_attempts || 1,
+    });
+
+    // 4. Start the quiz!
+    store.startQuiz(selectedQuestions, 'exam');
   };
 
   return (

@@ -41,6 +41,7 @@ interface State {
 
   // Assignment navigation
   activeAssignmentId: string | null;
+  activeAssignmentConfig: { chapters: number[]; number_of_questions: number; time_limit_minutes: number | null; max_attempts: number } | null;
 
   // Actions
   setScreen: (s: Screen) => void;
@@ -56,6 +57,7 @@ interface State {
   openStudentDashboard: () => void;
   openStudentsList: () => void;
   openAssignmentResults: (id: string) => void;
+  startAssignmentQuiz: (assignmentId: string, config: { chapters: number[]; number_of_questions: number; time_limit_minutes: number | null; max_attempts: number }) => void;
   openSubtopic: (chapterId: number, subtopic: string) => void;
   goHome: () => void;
   setActiveChapterId: (id: number) => void;
@@ -84,7 +86,7 @@ export const useStore = create<State>((set, get) => ({
   quizMode: 'chapter', quizQuestions: [], currentIdx: 0,
   correctCount: 0, wrongCount: 0, selectedAnswer: null,
   showFeedback: false, isComplete: false, autoAdvance: true,
-  showResumePopup: false, examPassed: false, authError: null, adminMsg: null, activeAssignmentId: null,
+  showResumePopup: false, examPassed: false, authError: null, adminMsg: null, activeAssignmentId: null, activeAssignmentConfig: null,
 
   setScreen: (s) => set({ screen: s }),
   setUser: (u) => set({ user: u }),
@@ -97,6 +99,7 @@ export const useStore = create<State>((set, get) => ({
   openStudentDashboard: () => set({ screen: 'studentDashboard' }),
   openStudentsList: () => set({ screen: 'studentsList' }),
   openAssignmentResults: (id) => set({ activeAssignmentId: id, screen: 'assignmentResults' }),
+  startAssignmentQuiz: (assignmentId, config) => set({ activeAssignmentId: assignmentId, activeAssignmentConfig: config }),
 
   openChapter: (id) => set({ activeChapterId: id, screen: 'chapter', activeSubtopic: null }),
   openSubtopic: (chapterId, subtopic) => set({ activeChapterId: chapterId, activeSubtopic: subtopic, screen: 'quiz' }),
