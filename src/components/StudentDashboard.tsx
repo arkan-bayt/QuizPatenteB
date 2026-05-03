@@ -4,7 +4,7 @@ import { useStore } from '@/store/useStore';
 import { useOverallStats, useUserStats, useWrongAnswers } from './hooks';
 import { getStudentAssignments, startAssignment } from '@/logic/assignmentEngine';
 import { Assignment } from '@/data/supabaseClient';
-import { getQuestionsByChapters } from '@/data/quizData';
+import { getQuestionsByChapters, loadQuizData } from '@/data/quizData';
 
 export default function StudentDashboard() {
   const store = useStore();
@@ -38,44 +38,78 @@ export default function StudentDashboard() {
   const activeAssignments = assignments.filter((a) => a.is_active && a._student_status && ['pending', 'in_progress'].includes(a._student_status));
   const completedAssignments = assignments.filter((a) => a._student_status === 'completed' || (a._best_result && a._best_result.score !== undefined));
 
+  const [startingQuiz, setStartingQuiz] = useState(false);
+
   const handleStart = async (assignment: Assignment) => {
-    // 1. Call API to mark assignment as in_progress
-    const res = await startAssignment(assignment.id, studentId);
-    if (!res.ok) {
-      showMsg(res.msg, 'error');
-      return;
+    if (startingQuiz) return;
+    setStartingQuiz(true);
+
+    try {
+      // 1. Call API to mark assignment as in_progress
+      const res = await startAssignment(assignment.id, studentId);
+      if (!res.ok) {
+        showMsg(res.msg || 'Errore avvio compito', 'error');
+        setStartingQuiz(false);
+        return;
+      }
+
+      // 2. Ensure quiz data is loaded
+      let questions = store.allQuestions;
+      if (!questions || questions.length === 0) {
+        console.log('[QUIZ] Store empty, reloading quiz data...');
+        const data = await loadQuizData();
+        store.setData(data.chapters, data.questions);
+        questions = data.questions;
+      }
+
+      // 3. Load questions based on assignment config
+      const config = assignment.config;
+      const chapters = config?.chapters || [];
+      const numberOfQuestions = config?.number_of_questions || 30;
+
+      console.log('[QUIZ] Starting assignment:', assignment.id, '| Chapters:', chapters, '| Questions:', numberOfQuestions, '| Available:', questions.length);
+
+      // Filter questions by selected chapters
+      const chapterQuestions = chapters.length > 0
+        ? getQuestionsByChapters(questions, chapters)
+        : questions;
+
+      console.log('[QUIZ] Filtered questions:', chapterQuestions.length);
+
+      if (chapterQuestions.length === 0) {
+        showMsg('Nessuna domanda disponibile per i capitoli selezionati', 'error');
+        setStartingQuiz(false);
+        return;
+      }
+
+      // Select the right number of questions randomly
+      const shuffled = [...chapterQuestions].sort(() => Math.random() - 0.5);
+      const selectedQuestions = shuffled.slice(0, Math.min(numberOfQuestions, chapterQuestions.length));
+
+      // 4. Set assignment context in store
+      store.startAssignmentQuiz(assignment.id, {
+        chapters: config?.chapters || [],
+        number_of_questions: numberOfQuestions,
+        time_limit_minutes: config?.time_limit_minutes || null,
+        max_attempts: config?.max_attempts || 1,
+      });
+
+      // Save assignment title for QuizScreen header
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('qp_active_assignment', JSON.stringify({
+          id: assignment.id,
+          title: assignment.title,
+        }));
+      }
+
+      // 5. Start the quiz!
+      console.log('[QUIZ] Starting quiz with', selectedQuestions.length, 'questions');
+      store.startQuiz(selectedQuestions, 'exam');
+    } catch (err: any) {
+      console.error('[QUIZ] Error starting quiz:', err);
+      showMsg('Errore: ' + (err?.message || 'imprevisto'), 'error');
+      setStartingQuiz(false);
     }
-
-    // 2. Load questions based on assignment config
-    const config = assignment.config;
-    const chapters = config.chapters || [];
-    const numberOfQuestions = config.number_of_questions || 30;
-
-    // Filter questions by selected chapters
-    const { allQuestions } = store;
-    const chapterQuestions = chapters.length > 0
-      ? getQuestionsByChapters(allQuestions, chapters)
-      : allQuestions;
-
-    if (chapterQuestions.length === 0) {
-      showMsg('Nessuna domanda disponibile per i capitoli selezionati', 'error');
-      return;
-    }
-
-    // Select the right number of questions randomly
-    const shuffled = [...chapterQuestions].sort(() => Math.random() - 0.5);
-    const selectedQuestions = shuffled.slice(0, Math.min(numberOfQuestions, chapterQuestions.length));
-
-    // 3. Set assignment context in store
-    store.startAssignmentQuiz(assignment.id, {
-      chapters: config.chapters || [],
-      number_of_questions: numberOfQuestions,
-      time_limit_minutes: config.time_limit_minutes || null,
-      max_attempts: config.max_attempts || 1,
-    });
-
-    // 4. Start the quiz!
-    store.startQuiz(selectedQuestions, 'exam');
   };
 
   return (
@@ -171,10 +205,10 @@ export default function StudentDashboard() {
                     </div>
                     <div className="mt-3">
                       {canStart && (
-                        <button onClick={() => handleStart(a)} className="w-full py-3 text-white font-bold text-[13px] rounded-xl bg-emerald-600 hover:bg-emerald-700 transition-colors">▶ Inizia</button>
+                        <button onClick={() => handleStart(a)} disabled={startingQuiz} className="w-full py-3 text-white font-bold text-[13px] rounded-xl bg-emerald-600 hover:bg-emerald-700 transition-colors disabled:opacity-50">{startingQuiz ? (<span className="flex items-center justify-center gap-2"><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>Caricamento...</span>) : '▶ Inizia'}</button>
                       )}
                       {canRetry && (
-                        <button onClick={() => handleStart(a)} className="w-full py-3 text-white font-bold text-[13px] rounded-xl bg-amber-600 hover:bg-amber-700 transition-colors">🔄 Riprova ({attemptsLeft} rimasti)</button>
+                        <button onClick={() => handleStart(a)} disabled={startingQuiz} className="w-full py-3 text-white font-bold text-[13px] rounded-xl bg-amber-600 hover:bg-amber-700 transition-colors disabled:opacity-50">{startingQuiz ? (<span className="flex items-center justify-center gap-2"><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>Caricamento...</span>) : `🔄 Riprova (${attemptsLeft} rimasti)`}</button>
                       )}
                       {status === 'completed' && attemptsLeft === 0 && (
                         <div className="text-center py-2"><span className="text-xs" style={{ color: 'var(--text-muted)' }}>Tentativi esauriti</span></div>
