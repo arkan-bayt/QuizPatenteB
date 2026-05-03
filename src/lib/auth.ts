@@ -40,7 +40,10 @@ export async function verifySession(authHeader: string | null): Promise<Verified
       .eq('is_active', true)
       .single();
 
-    if (error || !data) return null;
+    if (error || !data) {
+      console.error('[AUTH] DB lookup failed for', username, '- error:', error?.message || 'no data');
+      return null;
+    }
 
     if (username === 'arkan') {
       return { id: String(data.id), username: 'arkan', role: 'super_admin', owner_id: null, is_active: true };
@@ -53,7 +56,8 @@ export async function verifySession(authHeader: string | null): Promise<Verified
       owner_id: null,
       is_active: data.is_active,
     };
-  } catch {
+  } catch (e: any) {
+    console.error('[AUTH] verifySession error:', e.message || e);
     return null;
   }
 }
