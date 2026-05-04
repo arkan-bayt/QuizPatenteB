@@ -65,15 +65,13 @@ export default function WordTranslator({ word, position, onClose }: WordTranslat
 
   const handlePlayIt = useCallback(() => {
     setPlayingIt(true);
-    speakWord(word, 'it');
-    setTimeout(() => setPlayingIt(false), 1500);
+    speakWord(word, 'it').finally(() => setPlayingIt(false));
   }, [word]);
 
   const handlePlayAr = useCallback(() => {
     if (!translation) return;
     setPlayingAr(true);
-    speakWord(translation, 'ar');
-    setTimeout(() => setPlayingAr(false), 1500);
+    speakWord(translation, 'ar').finally(() => setPlayingAr(false));
   }, [translation]);
 
   const handleClose = useCallback(() => {
