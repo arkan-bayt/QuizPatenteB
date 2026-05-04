@@ -5,7 +5,7 @@ import { create } from 'zustand';
 import { QuizQuestion, Chapter } from '@/data/quizData';
 import { AppUser } from '@/data/supabaseClient';
 
-export type Screen = 'loading' | 'login' | 'home' | 'chapter' | 'quiz' | 'exam' | 'result' | 'wrong' | 'stats' | 'admin' | 'resume' | 'aiAnalysis' | 'aiChat' | 'studyPlan' | 'teacherDashboard' | 'studentDashboard' | 'studentsList' | 'assignmentResults' | 'createAssignment';
+export type Screen = 'loading' | 'login' | 'home' | 'chapter' | 'quiz' | 'exam' | 'result' | 'wrong' | 'stats' | 'admin' | 'resume' | 'aiAnalysis' | 'aiChat' | 'studyPlan' | 'theory' | 'teacherDashboard' | 'studentDashboard' | 'studentsList' | 'assignmentResults' | 'createAssignment';
 export type QuizMode = 'chapter' | 'subtopic' | 'exam' | 'wrong';
 
 interface State {

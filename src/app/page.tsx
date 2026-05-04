@@ -19,6 +19,7 @@ import TeacherDashboard from '@/components/TeacherDashboard';
 import StudentDashboard from '@/components/StudentDashboard';
 import StudentsList from '@/components/StudentsList';
 import AssignmentResults from '@/components/AssignmentResults';
+import TheoryScreen from '@/components/TheoryScreen';
 
 export default function Page() {
   const store = useStore();
@@ -130,6 +131,7 @@ export default function Page() {
     case 'studentDashboard': return <StudentDashboard />;
     case 'studentsList': return <StudentsList />;
     case 'assignmentResults': return <AssignmentResults />;
+    case 'theory': return <TheoryScreen />;
     case 'createAssignment': return <TeacherDashboard />;
     default: return <LoginScreen />;
   }

@@ -291,6 +291,20 @@ export default function HomeScreen() {
           </button>
         </div>
 
+        {/* Theory Section */}
+        <button onClick={() => store.setScreen('theory')} className="w-full card p-5 text-left hover:shadow-md transition-all anim-up">
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl" style={{ background: 'rgba(5, 150, 105, 0.1)' }}>📖</div>
+            <div className="flex-1">
+              <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>النظرية</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>شرح جميع الإشارات والمواضيع بالتفصيل</p>
+            </div>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: 'var(--text-muted)' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </div>
+        </button>
+
         {/* Wrong Answers Retry */}
         <button onClick={handleWrongRetry} className={`w-full card p-5 text-left hover:shadow-md transition-all anim-up ${wrong.total === 0 ? 'opacity-40 pointer-events-none' : ''}`}>
           <div className="flex items-center gap-4">
