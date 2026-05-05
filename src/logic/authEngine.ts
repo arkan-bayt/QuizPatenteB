@@ -1,12 +1,10 @@
 // ============================================================
-// LOGIC - Multi-user Auth via API
+// LOGIC - Multi-user Auth via API (SECURED)
+// No hardcoded credentials - all auth goes through server API
 // ============================================================
 import { AppUser } from '@/data/supabaseClient';
 
-// Hardcoded super admin (fallback when API unavailable)
-const SUPER_ADMIN: AppUser = { id: 'super-admin', username: 'arkan', password_hash: '', role: 'super_admin', is_active: true, created_at: '' };
-
-// Login via API
+// Login via API only — no fallback, no hardcoded credentials
 export async function login(username: string, password: string): Promise<{ ok: boolean; msg: string; user?: AppUser; session_token?: string }> {
   try {
     const res = await fetch('/api/auth', {
@@ -20,10 +18,6 @@ export async function login(username: string, password: string): Promise<{ ok: b
     }
     return { ok: false, msg: data.msg || 'Username o password non corretti' };
   } catch {
-    // Fallback: check super admin locally
-    if (username === 'arkan' && password === 'arkan1') {
-      return { ok: true, msg: 'OK', user: SUPER_ADMIN };
-    }
     return { ok: false, msg: 'Errore di connessione. Riprova.' };
   }
 }
@@ -43,7 +37,7 @@ export async function getAllUsers(): Promise<AppUser[]> {
     if (data.ok && data.users) return data.users as AppUser[];
     return [];
   } catch {
-    return [SUPER_ADMIN];
+    return [];
   }
 }
 
@@ -51,7 +45,7 @@ export async function getAllUsers(): Promise<AppUser[]> {
 export async function addUser(username: string, password: string, role: 'admin' | 'user' = 'user', adminUsername?: string): Promise<{ ok: boolean; msg: string }> {
   if (!username.trim() || !password.trim()) return { ok: false, msg: 'Compila tutti i campi' };
   if (username.length < 3) return { ok: false, msg: 'Username minimo 3 caratteri' };
-  if (password.length < 4) return { ok: false, msg: 'Password minimo 4 caratteri' };
+  if (password.length < 6) return { ok: false, msg: 'Password minimo 6 caratteri' };
   try {
     const token = getSessionToken();
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -104,6 +98,43 @@ export async function deleteUser(userId: string, adminUsername?: string): Promis
   }
 }
 
+// Change password via API
+export async function changePassword(currentPassword: string, newPassword: string): Promise<{ ok: boolean; msg: string }> {
+  try {
+    const token = getSessionToken();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ action: 'change_password', current_password: currentPassword, new_password: newPassword }),
+    });
+    const data = await res.json();
+    return { ok: data.ok, msg: data.msg || 'Errore' };
+  } catch {
+    return { ok: false, msg: 'Errore di connessione' };
+  }
+}
+
+// Check subscription status
+export async function checkSubscription(): Promise<{ ok: boolean; subscription_tier: string; is_premium: boolean; free_daily_limit: number }> {
+  try {
+    const token = getSessionToken();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ action: 'check_subscription' }),
+    });
+    const data = await res.json();
+    if (data.ok) return data;
+    return { ok: false, subscription_tier: 'free', is_premium: false, free_daily_limit: 50 };
+  } catch {
+    return { ok: false, subscription_tier: 'free', is_premium: false, free_daily_limit: 50 };
+  }
+}
+
 // Session management (local only)
 export function saveSession(user: AppUser, sessionToken?: string): void {
   if (typeof window === 'undefined') return;
@@ -133,19 +164,9 @@ export function clearSession(): void {
 }
 
 // Get session token for API Authorization header
-// Priority: real API session_token > generated from local session
 export function getSessionToken(): string | null {
   if (typeof window === 'undefined') return null;
-  // First try the real API session token
   const realToken = localStorage.getItem('qp_session_token');
   if (realToken) return realToken;
-  // Fallback: generate from local session
-  const raw = localStorage.getItem('qp_session');
-  if (!raw) return null;
-  try {
-    const session = JSON.parse(raw);
-    return Buffer.from(JSON.stringify({ username: session.username, ts: session.ts })).toString('base64');
-  } catch {
-    return null;
-  }
+  return null;
 }

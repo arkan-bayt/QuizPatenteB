@@ -1,32 +1,102 @@
 // ============================================================
-// LOGIC - Text-to-Speech (ONE Voice Engine)
-// Uses ONLY Google TTS via server proxy.
-// Works on ALL devices and browsers (Chrome, Safari, Firefox, iOS, Android)
-// NO Web Speech API — no dual voices, no overlap.
+// LOGIC - Text-to-Speech (HYBRID Engine)
+// Primary: Web Speech API (free, browser-native)
+// Fallback: Google TTS via server proxy (universal compatibility)
+// Automatically falls back if Web Speech API is not available
 // ============================================================
 
 let _speaking = false;
-let _audio: HTMLAudioElement | null = null;
+let _fallbackAudio: HTMLAudioElement | null = null;
+let _webSpeechAvailable: boolean | null = null;
 
 // ============================================================
-// STOP SPEECH
+// CHECK WEB SPEECH API AVAILABILITY
+// ============================================================
+function isWebSpeechAvailable(): boolean {
+  if (_webSpeechAvailable !== null) return _webSpeechAvailable;
+  if (typeof window === 'undefined') { _webSpeechAvailable = false; return false; }
+  _webSpeechAvailable = !!(window.speechSynthesis && typeof window.speechSynthesis.speak === 'function');
+  return _webSpeechAvailable;
+}
+
+// ============================================================
+// STOP SPEECH (both engines)
 // ============================================================
 export function stopSpeech(): void {
   _speaking = false;
-  if (_audio) {
+
+  // Stop Web Speech API
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+  }
+
+  // Stop fallback audio
+  if (_fallbackAudio) {
     try {
-      _audio.pause();
-      _audio.currentTime = 0;
-      _audio.src = '';
+      _fallbackAudio.pause();
+      _fallbackAudio.currentTime = 0;
+      _fallbackAudio.src = '';
     } catch (e) { /* ignore */ }
-    _audio = null;
+    _fallbackAudio = null;
   }
 }
 
 // ============================================================
-// SPEAK - using Google TTS via server proxy (universal)
+// SPEAK via Web Speech API (primary - free, no network needed)
 // ============================================================
-function playAudio(text: string, langCode: string): Promise<boolean> {
+function speakWebSpeech(text: string, langCode: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!isWebSpeechAvailable()) { resolve(false); return; }
+
+    stopSpeech();
+
+    const utterance = new SpeechSynthesisUtterance(text.trim().substring(0, 500));
+    utterance.rate = 0.85;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    // Map language codes
+    const langMap: Record<string, string> = {
+      'it': 'it-IT',
+      'ar': 'ar-SA',
+      'it-IT': 'it-IT',
+      'ar-SA': 'ar-SA',
+    };
+    utterance.lang = langMap[langCode] || langCode;
+
+    let resolved = false;
+    const finish = (success: boolean) => {
+      if (!resolved) {
+        resolved = true;
+        _speaking = false;
+        resolve(success);
+      }
+    };
+
+    utterance.onend = () => finish(true);
+    utterance.onerror = () => finish(false);
+
+    // Timeout: if speech doesn't start within 5 seconds
+    setTimeout(() => {
+      if (!resolved) {
+        try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+        finish(false);
+      }
+    }, 5000);
+
+    try {
+      window.speechSynthesis.speak(utterance);
+      _speaking = true;
+    } catch (e) {
+      finish(false);
+    }
+  });
+}
+
+// ============================================================
+// SPEAK via Google TTS fallback (server proxy)
+// ============================================================
+function speakGoogleTTS(text: string, langCode: string): Promise<boolean> {
   return new Promise((resolve) => {
     stopSpeech();
 
@@ -43,23 +113,18 @@ function playAudio(text: string, langCode: string): Promise<boolean> {
       if (!resolved) {
         resolved = true;
         _speaking = false;
-        _audio = null;
+        _fallbackAudio = null;
         resolve(success);
       }
     };
 
     audio.onended = () => finish(true);
-
-    audio.onerror = () => {
-      console.warn('[TTS] Audio error');
-      finish(false);
-    };
-
+    audio.onerror = () => finish(false);
     audio.oncanplaythrough = () => {
       audio.play().catch(() => finish(false));
     };
 
-    // Timeout: if audio doesn't start within 12 seconds
+    // Timeout: 12 seconds
     setTimeout(() => {
       if (!resolved) {
         try { audio.pause(); } catch (e) { /* ignore */ }
@@ -68,20 +133,29 @@ function playAudio(text: string, langCode: string): Promise<boolean> {
     }, 12000);
 
     audio.src = audioUrl;
-    _audio = audio;
+    _fallbackAudio = audio;
     _speaking = true;
   });
 }
 
 // ============================================================
 // PUBLIC API - speakText
+// Tries Web Speech API first, falls back to Google TTS
 // ============================================================
 export async function speakText(text: string, lang = 'it-IT'): Promise<void> {
   if (typeof window === 'undefined') return;
   if (!text || text.trim().length === 0) return;
 
   const langCode = lang.startsWith('ar') ? 'ar' : 'it';
-  await playAudio(text, langCode);
+
+  // Try Web Speech API first (free, offline)
+  if (isWebSpeechAvailable()) {
+    const success = await speakWebSpeech(text, langCode);
+    if (success) return;
+  }
+
+  // Fallback to Google TTS server proxy
+  await speakGoogleTTS(text, langCode);
 }
 
 // ============================================================
@@ -92,7 +166,15 @@ export async function speakWord(word: string, lang: 'it' | 'ar' = 'it'): Promise
   if (!word || word.trim().length === 0) return;
 
   const langCode = lang === 'ar' ? 'ar' : 'it';
-  await playAudio(word.trim(), langCode);
+
+  // Try Web Speech API first
+  if (isWebSpeechAvailable()) {
+    const success = await speakWebSpeech(word.trim(), langCode);
+    if (success) return;
+  }
+
+  // Fallback to Google TTS
+  await speakGoogleTTS(word.trim(), langCode);
 }
 
 // ============================================================
@@ -103,15 +185,36 @@ export function isSpeaking(): boolean {
 }
 
 // ============================================================
-// PUBLIC API - preloadVoices (no-op, kept for compatibility)
+// PUBLIC API - preloadVoices
+// Preloads Web Speech API voices for faster first use
 // ============================================================
 export function preloadVoices(): void {
-  // No-op — Google TTS doesn't need voice preloading
+  if (typeof window === 'undefined') return;
+  if (window.speechSynthesis) {
+    // Loading voices triggers async voice list population
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+  }
 }
 
 // ============================================================
-// PUBLIC API - hasVoiceForLang (always true — Google TTS supports all)
+// PUBLIC API - hasVoiceForLang
+// Checks if a voice is available for the given language
 // ============================================================
-export function hasVoiceForLang(_lang: 'it' | 'ar'): boolean {
+export function hasVoiceForLang(lang: 'it' | 'ar'): boolean {
+  if (typeof window === 'undefined') return false;
+
+  // If Web Speech API available, check for voices
+  if (isWebSpeechAvailable() && window.speechSynthesis) {
+    const voices = window.speechSynthesis.getVoices();
+    const langPrefix = lang === 'ar' ? 'ar' : 'it';
+    if (voices.some(v => v.lang.startsWith(langPrefix))) return true;
+  }
+
+  // Google TTS fallback supports all languages
   return true;
 }
+
+// Type declarations for Web Speech API are built-in

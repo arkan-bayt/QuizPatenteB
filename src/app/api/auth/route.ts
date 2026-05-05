@@ -1,87 +1,17 @@
 // ============================================================
 // API Route - Auth (login + user management via Supabase)
 // Multi-tenant B2B SaaS: supports super_admin, teacher, student roles
-// All users persisted in app_users table
-// SECURED: All actions require server-side session verification
+// SECURED: bcrypt password hashing, JWT session tokens, no debug endpoints
 // ============================================================
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifySession, requireSuperAdmin, requireTeacherOrAbove } from '@/lib/auth';
+import bcrypt from 'bcryptjs';
+import { verifySession, createSessionToken, requireSuperAdmin, requireTeacherOrAbove } from '@/lib/auth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// Self-test: login returns the token, then immediately verifies it
-async function handleSelfTest(request: NextRequest) {
-  const { username, password } = await request.json();
-  const { data, error } = await supabase
-    .from('app_users')
-    .select('*')
-    .eq('username', username?.toLowerCase())
-    .eq('is_active', true)
-    .single();
-  
-  if (error) return NextResponse.json({ step: 'db_lookup', error: error.message, code: error.code });
-  if (!data) return NextResponse.json({ step: 'db_lookup', error: 'User not found' });
-  
-  // Create session token
-  const token = Buffer.from(JSON.stringify({ username: data.username, ts: Date.now() })).toString('base64');
-  
-  // Now verify the session
-  const verified = await verifySession('Bearer ' + token);
-  
-  return NextResponse.json({
-    step: 'self_test',
-    db_columns: Object.keys(data),
-    db_data: { id: data.id, username: data.username, role: data.role, is_active: data.is_active },
-    token,
-    verified_user: verified,
-  });
-}
-
-// Debug endpoint to diagnose auth issues
-async function handleDebugVerify(request: NextRequest) {
-  const authHeader = request.headers.get('Authorization');
-  const token = authHeader?.slice(7) || '';
-  
-  let decoded: any = null;
-  try {
-    decoded = JSON.parse(Buffer.from(token, 'base64').toString('utf-8'));
-  } catch(e: any) {
-    return NextResponse.json({ step: 'decode', error: e.message, token });
-  }
-
-  // Try direct Supabase query
-  const { data, error } = await supabase
-    .from('app_users')
-    .select('id, username, role, is_active')
-    .eq('username', decoded.username?.toLowerCase())
-    .eq('is_active', true)
-    .single();
-
-  // Try verifySession
-  const user = await verifySession(authHeader);
-
-  return NextResponse.json({
-    step: 'debug',
-    env_url: SUPABASE_URL ? SUPABASE_URL.substring(0, 30) + '...' : 'MISSING',
-    env_key: SUPABASE_KEY ? 'present' : 'MISSING',
-    auth_header: authHeader?.substring(0, 30) + '...',
-    decoded,
-    db_data: data,
-    db_error: error?.message || null,
-    verified_user: user,
-  });
-}
-
-// Simple hash function (same as client-side)
-function hash(str: string): string {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) { h = ((h << 5) - h) + str.charCodeAt(i); h = h & h; }
-  return Math.abs(h).toString(36);
-}
 
 interface AppUser {
   id: string;
@@ -92,20 +22,12 @@ interface AppUser {
   created_at: string;
   owner_id?: string | null;
   full_name?: string | null;
+  subscription_tier?: string;
 }
 
 // ============================================================
 // MAIN ROUTER
 // ============================================================
-// POST /api/auth?action=login
-// POST /api/auth?action=list_users
-// POST /api/auth?action=add_user
-// POST /api/auth?action=delete_user
-// POST /api/auth?action=toggle_role
-// POST /api/auth?action=register_teacher    (super_admin creates a teacher)
-// POST /api/auth?action=register_student    (teacher/super_admin creates a student)
-// POST /api/auth?action=get_my_students     (teacher/super_admin gets students)
-// POST /api/auth?action=get_teachers        (super_admin gets all teachers)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -122,8 +44,8 @@ export async function POST(request: NextRequest) {
       case 'register_student': return handleRegisterStudent(request, body);
       case 'get_my_students': return handleGetMyStudents(request, body);
       case 'get_teachers': return handleGetTeachers(request);
-      case 'debug_verify': return handleDebugVerify(request);
-      case 'self_test': return handleSelfTest(request);
+      case 'change_password': return handleChangePassword(request, body);
+      case 'check_subscription': return handleCheckSubscription(request);
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
@@ -134,7 +56,8 @@ export async function POST(request: NextRequest) {
 
 // ============================================================
 // LOGIN — No auth required (user doesn't have a token yet)
-// Returns session_token so the client can store it.
+// Returns JWT session_token so the client can store it.
+// Supports legacy base64 tokens during migration.
 // ============================================================
 async function handleLogin(body: { username: string; password: string }) {
   const { username, password } = body;
@@ -142,7 +65,6 @@ async function handleLogin(body: { username: string; password: string }) {
     return NextResponse.json({ ok: false, msg: 'Missing credentials' });
   }
 
-  // Check Supabase app_users table
   const { data, error } = await supabase
     .from('app_users')
     .select('*')
@@ -154,12 +76,38 @@ async function handleLogin(body: { username: string; password: string }) {
     return NextResponse.json({ ok: false, msg: 'Username o password non corretti' });
   }
 
-  // Verify password hash
-  if (data.password_hash !== hash(password)) {
+  // Support both bcrypt hashes and legacy simple hashes during migration
+  let passwordValid = false;
+  const storedHash = data.password_hash;
+
+  if (storedHash.startsWith('$2')) {
+    // bcrypt hash — use bcrypt comparison
+    passwordValid = await bcrypt.compare(password, storedHash);
+  } else {
+    // Legacy simple hash — verify and upgrade to bcrypt
+    const legacyHash = legacyHashFn(password);
+    passwordValid = storedHash === legacyHash;
+
+    if (passwordValid) {
+      // Auto-upgrade: re-hash with bcrypt and save
+      const newHash = await bcrypt.hash(password, 12);
+      await supabase
+        .from('app_users')
+        .update({ password_hash: newHash })
+        .eq('username', data.username);
+    }
+  }
+
+  if (!passwordValid) {
     return NextResponse.json({ ok: false, msg: 'Username o password non corretti' });
   }
 
-  const sessionToken = Buffer.from(JSON.stringify({ username: data.username, ts: Date.now() })).toString('base64');
+  // Create JWT session token
+  const sessionToken = createSessionToken({
+    username: data.username,
+    role: data.role,
+    subscription_tier: data.subscription_tier || 'free',
+  });
 
   // Strip password_hash before returning user data
   const { password_hash: _pw, ...userData } = data as AppUser;
@@ -171,11 +119,86 @@ async function handleLogin(body: { username: string; password: string }) {
   });
 }
 
+// Legacy hash function (for backward compatibility during migration)
+function legacyHashFn(str: string): string {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) { h = ((h << 5) - h) + str.charCodeAt(i); h = h & h; }
+  return Math.abs(h).toString(36);
+}
+
+// ============================================================
+// CHANGE PASSWORD — Auth required
+// ============================================================
+async function handleChangePassword(request: NextRequest, body: { current_password: string; new_password: string }) {
+  const user = await verifySession(request.headers.get('Authorization'));
+  if (!user) {
+    return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
+  }
+
+  const { current_password, new_password } = body;
+  if (!current_password || !new_password) {
+    return NextResponse.json({ ok: false, msg: 'Compila tutti i campi' });
+  }
+  if (new_password.length < 6) {
+    return NextResponse.json({ ok: false, msg: 'Password minimo 6 caratteri' });
+  }
+
+  // Verify current password
+  const { data } = await supabase
+    .from('app_users')
+    .select('password_hash')
+    .eq('username', user.username)
+    .single();
+
+  if (!data) {
+    return NextResponse.json({ ok: false, msg: 'Errore' }, { status: 500 });
+  }
+
+  let currentValid = false;
+  if (data.password_hash.startsWith('$2')) {
+    currentValid = await bcrypt.compare(current_password, data.password_hash);
+  } else {
+    currentValid = data.password_hash === legacyHashFn(current_password);
+  }
+
+  if (!currentValid) {
+    return NextResponse.json({ ok: false, msg: 'Password attuale non corretta' });
+  }
+
+  // Update to bcrypt hash
+  const newHash = await bcrypt.hash(new_password, 12);
+  const { error } = await supabase
+    .from('app_users')
+    .update({ password_hash: newHash })
+    .eq('username', user.username);
+
+  if (error) {
+    return NextResponse.json({ ok: false, msg: 'Errore aggiornamento password' }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, msg: 'Password aggiornata con successo' });
+}
+
+// ============================================================
+// CHECK SUBSCRIPTION — Auth required
+// Returns subscription status
+// ============================================================
+async function handleCheckSubscription(request: NextRequest) {
+  const user = await verifySession(request.headers.get('Authorization'));
+  if (!user) {
+    return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    subscription_tier: user.subscription_tier,
+    is_premium: user.subscription_tier === 'premium' || user.role === 'super_admin',
+    free_daily_limit: parseInt(process.env.NEXT_PUBLIC_FREE_DAILY_QUESTIONS || '50'),
+  });
+}
+
 // ============================================================
 // LIST USERS — Auth required
-//   super_admin → all active users (exclude password_hash)
-//   teacher     → only students where owner_id = teacher.id
-//   student     → ERROR 403 "Accesso negato"
 // ============================================================
 async function handleListUsers(request: NextRequest) {
   const user = await verifySession(request.headers.get('Authorization'));
@@ -183,7 +206,6 @@ async function handleListUsers(request: NextRequest) {
     return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
   }
 
-  // Students are not allowed to list users
   if (user.role === 'student') {
     return NextResponse.json({ error: 'Accesso negato' }, { status: 403 });
   }
@@ -192,8 +214,6 @@ async function handleListUsers(request: NextRequest) {
     .from('app_users')
     .select('*')
     .eq('is_active', true);
-
-  // All teachers/super_admins see all users (owner_id column not yet in DB)
 
   const { data, error } = await query.order('created_at', { ascending: true });
 
@@ -208,7 +228,7 @@ async function handleListUsers(request: NextRequest) {
     role: u.role,
     is_active: u.is_active,
     created_at: u.created_at,
-    // password_hash is intentionally excluded
+    subscription_tier: u.subscription_tier || 'free',
   }));
 
   return NextResponse.json({ ok: true, users });
@@ -216,14 +236,6 @@ async function handleListUsers(request: NextRequest) {
 
 // ============================================================
 // ADD USER — Auth required, teacher or super_admin
-//   SECURITY: Backend FORCES role — never trusts client input
-//
-//   super_admin → can create 'teacher' or 'student'
-//   teacher     → can ONLY create 'student' (owner_id = teacher.id)
-//   student     → DENIED (cannot create any user)
-//
-//   ⛔ NO ONE can create 'super_admin' — ALWAYS blocked
-//   ⛔ owner_id is ALWAYS set by server — NEVER from client
 // ============================================================
 async function handleAddUser(request: NextRequest, body: {
   username: string;
@@ -236,7 +248,6 @@ async function handleAddUser(request: NextRequest, body: {
     return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
   }
 
-  // ⛔ Students CANNOT create any user
   if (user.role === 'student') {
     return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
   }
@@ -244,40 +255,30 @@ async function handleAddUser(request: NextRequest, body: {
   const { username, password, full_name } = body;
   const clientRole = body.role;
 
-  // Validate basic fields
   if (!username || !password) {
     return NextResponse.json({ ok: false, msg: 'Compila tutti i campi obbligatori' });
   }
   if (username.length < 3) {
     return NextResponse.json({ ok: false, msg: 'Username minimo 3 caratteri' });
   }
-  if (password.length < 4) {
-    return NextResponse.json({ ok: false, msg: 'Password minimo 4 caratteri' });
+  if (password.length < 6) {
+    return NextResponse.json({ ok: false, msg: 'Password minimo 6 caratteri' });
   }
 
-  // ⛔ BLOCK: No one can create super_admin — EVER
   if (clientRole === 'super_admin') {
     console.warn(`[SECURITY] Blocked super_admin creation attempt by user=${user.username} (${user.role})`);
     return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
   }
 
-  // Determine effective role based on caller's role (NOT client input)
   let effectiveRole: string;
-
   if (user.role === 'super_admin') {
-    if (clientRole === 'teacher') {
-      effectiveRole = 'teacher';
-    } else {
-      effectiveRole = 'student';
-    }
+    effectiveRole = clientRole === 'teacher' ? 'teacher' : 'student';
   } else if (user.role === 'teacher') {
-    // ⛔ Teacher can ONLY create students — force role
     effectiveRole = 'student';
   } else {
     return NextResponse.json({ ok: false, msg: 'Non autorizzato' }, { status: 403 });
   }
 
-  // Check if username already exists
   const { data: existing } = await supabase
     .from('app_users')
     .select('id, username')
@@ -288,12 +289,15 @@ async function handleAddUser(request: NextRequest, body: {
     return NextResponse.json({ ok: false, msg: 'Username gia esistente' });
   }
 
-  // Build insert payload with ONLY existing DB columns
+  // Use bcrypt for new passwords
+  const hashedPassword = await bcrypt.hash(password, 12);
+
   const insertPayload: Record<string, unknown> = {
     username: username.toLowerCase(),
-    password_hash: hash(password),
+    password_hash: hashedPassword,
     role: effectiveRole,
     is_active: true,
+    subscription_tier: 'free',
   };
 
   const { error } = await supabase
@@ -313,7 +317,6 @@ async function handleAddUser(request: NextRequest, body: {
 
 // ============================================================
 // DELETE USER — Auth required, super_admin only
-//   Soft delete (set is_active = false)
 // ============================================================
 async function handleDeleteUser(request: NextRequest, body: { user_id?: string; userId?: string }) {
   const user = await verifySession(request.headers.get('Authorization'));
@@ -329,10 +332,8 @@ async function handleDeleteUser(request: NextRequest, body: { user_id?: string; 
     return NextResponse.json({ ok: false, msg: 'ID utente mancante' });
   }
 
-  // Determine lookup field: if it's a plain username use username, otherwise use id
   const lookupField = (String(userId) === String(userId).toLowerCase() && !String(userId).match(/^\d+$/)) ? 'username' : 'id';
 
-  // Find the user record
   const { data: userRecord, error: findError } = await supabase
     .from('app_users')
     .select('*')
@@ -344,7 +345,6 @@ async function handleDeleteUser(request: NextRequest, body: { user_id?: string; 
     return NextResponse.json({ ok: false, msg: 'Utente non trovato' });
   }
 
-  // Soft delete
   const { error: deleteError } = await supabase
     .from('app_users')
     .update({ is_active: false })
@@ -360,7 +360,6 @@ async function handleDeleteUser(request: NextRequest, body: { user_id?: string; 
 
 // ============================================================
 // TOGGLE ACTIVE — Auth required, super_admin only
-//   Toggle is_active true/false for a user
 // ============================================================
 async function handleToggleActive(request: NextRequest, body: { user_id?: string; userId?: string }) {
   const user = await verifySession(request.headers.get('Authorization'));
@@ -376,10 +375,8 @@ async function handleToggleActive(request: NextRequest, body: { user_id?: string
     return NextResponse.json({ ok: false, msg: 'ID utente mancante' });
   }
 
-  // Determine lookup field: if it's a plain username use username, otherwise use id
   const lookupField = (String(targetId) === String(targetId).toLowerCase() && !String(targetId).match(/^\d+$/)) ? 'username' : 'id';
 
-  // Find current user state
   const { data: targetUser, error: findError } = await supabase
     .from('app_users')
     .select('id, username, is_active')
@@ -410,8 +407,6 @@ async function handleToggleActive(request: NextRequest, body: { user_id?: string
 
 // ============================================================
 // TOGGLE ROLE — Auth required, super_admin only
-//   ⛔ CANNOT set role to 'super_admin' — privilege escalation blocked
-//   Allowed: teacher ↔ student only
 // ============================================================
 async function handleToggleRole(request: NextRequest, body: { user_id?: string; userId?: string; new_role?: string; newRole?: string }) {
   const user = await verifySession(request.headers.get('Authorization'));
@@ -425,13 +420,11 @@ async function handleToggleRole(request: NextRequest, body: { user_id?: string; 
   const userId = body.user_id || body.userId;
   const newRole = body.new_role || body.newRole;
 
-  // ⛔ BLOCK: Cannot set anyone to super_admin
   if (newRole === 'super_admin') {
     console.warn(`[SECURITY] Blocked super_admin role assignment attempt by user=${user.username} on target=${userId}`);
     return NextResponse.json({ ok: false, msg: 'Non autorizzato: impossibile assegnare il ruolo super_admin' }, { status: 403 });
   }
 
-  // Validate new role
   const validRoles = ['teacher', 'student'];
   if (!newRole || !validRoles.includes(newRole)) {
     return NextResponse.json({ ok: false, msg: 'Ruolo non valido' });
@@ -457,7 +450,6 @@ async function handleToggleRole(request: NextRequest, body: { user_id?: string; 
 
 // ============================================================
 // REGISTER TEACHER — Auth required, super_admin only
-//   Creates user with role='teacher', owner_id=null
 // ============================================================
 async function handleRegisterTeacher(request: NextRequest, body: {
   username: string;
@@ -479,11 +471,10 @@ async function handleRegisterTeacher(request: NextRequest, body: {
   if (username.length < 3) {
     return NextResponse.json({ ok: false, msg: 'Username minimo 3 caratteri' });
   }
-  if (password.length < 4) {
-    return NextResponse.json({ ok: false, msg: 'Password minimo 4 caratteri' });
+  if (password.length < 6) {
+    return NextResponse.json({ ok: false, msg: 'Password minimo 6 caratteri' });
   }
 
-  // Check if username already exists
   const { data: existing } = await supabase
     .from('app_users')
     .select('id, username')
@@ -494,14 +485,16 @@ async function handleRegisterTeacher(request: NextRequest, body: {
     return NextResponse.json({ ok: false, msg: 'Username gia esistente' });
   }
 
-  // Insert teacher — ONLY existing DB columns
+  const hashedPassword = await bcrypt.hash(password, 12);
+
   const { data: newTeacher, error } = await supabase
     .from('app_users')
     .insert({
       username: username.toLowerCase(),
-      password_hash: hash(password),
+      password_hash: hashedPassword,
       role: 'teacher',
       is_active: true,
+      subscription_tier: 'premium',
     })
     .select('id, username, role, created_at')
     .single();
@@ -523,8 +516,6 @@ async function handleRegisterTeacher(request: NextRequest, body: {
 
 // ============================================================
 // REGISTER STUDENT — Auth required, teacher or super_admin
-//   teacher     → owner_id = caller.id
-//   super_admin → use provided owner_id (must be a valid teacher)
 // ============================================================
 async function handleRegisterStudent(request: NextRequest, body: {
   username: string;
@@ -547,11 +538,10 @@ async function handleRegisterStudent(request: NextRequest, body: {
   if (username.length < 3) {
     return NextResponse.json({ ok: false, msg: 'Username minimo 3 caratteri' });
   }
-  if (password.length < 4) {
-    return NextResponse.json({ ok: false, msg: 'Password minimo 4 caratteri' });
+  if (password.length < 6) {
+    return NextResponse.json({ ok: false, msg: 'Password minimo 6 caratteri' });
   }
 
-  // Check if username already exists
   const { data: existing } = await supabase
     .from('app_users')
     .select('id, username')
@@ -562,14 +552,16 @@ async function handleRegisterStudent(request: NextRequest, body: {
     return NextResponse.json({ ok: false, msg: 'Username gia esistente' });
   }
 
-  // Insert student — ONLY existing DB columns
+  const hashedPassword = await bcrypt.hash(password, 12);
+
   const { data: newStudent, error } = await supabase
     .from('app_users')
     .insert({
       username: username.toLowerCase(),
-      password_hash: hash(password),
+      password_hash: hashedPassword,
       role: 'student',
       is_active: true,
+      subscription_tier: 'free',
     })
     .select('id, username, role, created_at')
     .single();
@@ -591,8 +583,6 @@ async function handleRegisterStudent(request: NextRequest, body: {
 
 // ============================================================
 // GET MY STUDENTS — Auth required, teacher or super_admin
-//   teacher     → students where owner_id = teacher.id
-//   super_admin → all students (optionally filtered by teacherId)
 // ============================================================
 async function handleGetMyStudents(request: NextRequest, body: { teacherId?: string }) {
   const user = await verifySession(request.headers.get('Authorization'));
@@ -605,13 +595,9 @@ async function handleGetMyStudents(request: NextRequest, body: { teacherId?: str
 
   let query = supabase
     .from('app_users')
-    .select('id, username, role, is_active, created_at, class_id')
+    .select('id, username, role, is_active, created_at, class_id, subscription_tier')
     .eq('role', 'student')
     .eq('is_active', true);
-
-  // Teacher sees all students (owner_id not yet available in DB schema)
-  // Super admin sees all students
-  // Students are grouped by class_id
 
   const { data, error } = await query.order('created_at', { ascending: true });
 
@@ -624,6 +610,7 @@ async function handleGetMyStudents(request: NextRequest, body: { teacherId?: str
     ...u,
     password_hash: '',
     class_id: u.class_id || null,
+    subscription_tier: u.subscription_tier || 'free',
   }));
 
   return NextResponse.json({ ok: true, students });
@@ -631,8 +618,6 @@ async function handleGetMyStudents(request: NextRequest, body: { teacherId?: str
 
 // ============================================================
 // GET TEACHERS — Auth required, super_admin ONLY
-//   Teachers MUST NOT access this endpoint.
-//   Returns all teachers with student counts.
 // ============================================================
 async function handleGetTeachers(request: NextRequest) {
   const user = await verifySession(request.headers.get('Authorization'));
@@ -655,7 +640,6 @@ async function handleGetTeachers(request: NextRequest) {
     return NextResponse.json({ ok: false, msg: 'Errore nel caricamento docenti' }, { status: 500 });
   }
 
-  // Count students per teacher
   const teachersWithCounts = await Promise.all((data || []).map(async (teacher: any) => {
     const { count } = await supabase
       .from('app_users')

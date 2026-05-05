@@ -33,6 +33,14 @@ export async function POST(request: NextRequest) {
     const { error: e3 } = await supabase.from('assignment_results').select('id').limit(1);
     results.assignment_results = { ok: !e3, error: e3?.message };
 
+    // Check subscription_tier column exists on app_users
+    try {
+      const { error: e4 } = await supabase.from('app_users').select('subscription_tier').limit(1);
+      results.subscription_tier_column = { ok: !e4 || !e4.message.includes('does not exist'), error: e4?.message };
+    } catch {
+      results.subscription_tier_column = { ok: false, error: 'Column may not exist' };
+    }
+
     const allReady = results.assignments.ok && results.assignment_students.ok && results.assignment_results.ok;
 
     return NextResponse.json({
@@ -109,6 +117,28 @@ ALTER TABLE public.assignment_results ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all operations on assignments" ON public.assignments FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all operations on assignment_students" ON public.assignment_students FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all operations on assignment_results" ON public.assignment_results FOR ALL USING (true) WITH CHECK (true);
+
+-- ============================================================
+-- ADD subscription_tier column to app_users (if not exists)
+-- ============================================================
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'app_users' AND column_name = 'subscription_tier'
+  ) THEN
+    ALTER TABLE public.app_users ADD COLUMN subscription_tier TEXT NOT NULL DEFAULT 'free' CHECK (subscription_tier IN ('free', 'premium'));
+    -- Upgrade existing super_admin and teacher accounts to premium
+    UPDATE public.app_users SET subscription_tier = 'premium' WHERE role IN ('super_admin', 'teacher');
+  END IF;
+END $$;
+
+-- ============================================================
+-- UPGRADE existing password hashes to bcrypt (one-time migration)
+-- ============================================================
+-- NOTE: This migration runs automatically on login (auto-upgrade)
+-- Existing simple hashes are verified and upgraded to bcrypt
+-- when users log in for the first time after this update.
 
 -- Done!`;
 
