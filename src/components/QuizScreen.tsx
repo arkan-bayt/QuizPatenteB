@@ -234,9 +234,10 @@ export default function QuizScreen() {
 
   useEffect(() => { setImgErr(false); setAnswerAnim(false); }, [currentIdx]);
 
-  // Reset AI explanation on new question
+  // Reset AI explanation on new question + stop any playing speech
   useEffect(() => {
     if (currentIdx !== prevIdxRef.current) {
+      stopSpeech();
       setAiExplanation(null);
       setAiLoading(false);
       setAiExplained(false);

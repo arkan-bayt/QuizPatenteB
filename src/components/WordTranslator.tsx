@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { translateWord } from '@/logic/translationCache';
-import { speakWord } from '@/logic/ttsEngine';
+import { speakWord, stopSpeech } from '@/logic/ttsEngine';
 
 interface WordTranslatorProps {
   word: string;
@@ -64,17 +64,24 @@ export default function WordTranslator({ word, position, onClose }: WordTranslat
   });
 
   const handlePlayIt = useCallback(() => {
+    stopSpeech();
+    setPlayingAr(false);
     setPlayingIt(true);
     speakWord(word, 'it').finally(() => setPlayingIt(false));
   }, [word]);
 
   const handlePlayAr = useCallback(() => {
     if (!translation) return;
+    stopSpeech();
+    setPlayingIt(false);
     setPlayingAr(true);
     speakWord(translation, 'ar').finally(() => setPlayingAr(false));
   }, [translation]);
 
   const handleClose = useCallback(() => {
+    stopSpeech();
+    setPlayingIt(false);
+    setPlayingAr(false);
     onClose(translation || '');
   }, [translation, onClose]);
 
