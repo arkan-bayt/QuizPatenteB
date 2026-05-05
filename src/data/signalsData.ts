@@ -365,6 +365,138 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
         whatHappensIfIgnored:
           'Non applicabile — è un segnale puramente informativo.',
       },
+      {
+        id: 'curva-gomito-sinistra',
+        name: 'Curva a gomito a sinistra',
+        shape: 'Triangolo con freccia che forma un angolo retto a sinistra',
+        description:
+          'Indica la presenza di una curva molto stretta a gomito verso sinistra, con un cambio di direzione brusco di circa 90 gradi. Il conducente deve ridurre notevolmente la velocità prima della curva e tenersi il più possibile a destra nella propria corsia.',
+        whenToObeyIt:
+          'Appena il segnale diventa visibile, rallentare in anticipo prima di raggiungere la curva.',
+        whatHappensIfIgnored:
+          'Rischio di uscire di strada, invadere la corsia opposta o perdere il controllo del veicolo con possibili collisioni gravi.',
+      },
+      {
+        id: 'curva-gomito-destra',
+        name: 'Curva a gomito a destra',
+        shape: 'Triangolo con freccia che forma un angolo retto a destra',
+        description:
+          'Indica la presenza di una curva molto stretta a gomito verso destra, con un cambio di direzione brusco di circa 90 gradi. Il conducente deve ridurre notevolmente la velocità prima della curva e mantenere la posizione corretta sulla carreggiata.',
+        whenToObeyIt:
+          'Appena il segnale diventa visibile, rallentare prima della curva per mantenere il controllo del veicolo.',
+        whatHappensIfIgnored:
+          'Rischio di sbandare, urtare il guardrail o uscire di strada con il rischio di collisione frontale o laterale.',
+      },
+      {
+        id: 'curve-ad-s',
+        name: 'Curve a S',
+        shape: 'Triangolo con due frecce curve che formano una S',
+        description:
+          'Indica la presenza di una successione di curve alternate (destra-sinistra o sinistra-destra) ravvicinate, simili alla forma della lettera S. Richiede grande prudenza, velocità ridotta e mantenimento costante della propria corsia senza tagliare le curve.',
+        whenToObeyIt:
+          'Appena il segnale diventa visibile, prima di imboccare la prima curva della successione.',
+        whatHappensIfIgnored:
+          'Rischio di perdere il controllo del veicolo sulle curve alternate, specialmente in condizioni di manto stradale bagnato o con visibilità ridotta.',
+      },
+      {
+        id: 'incrocio-prioritaria',
+        name: 'Incrocio con strada prioritaria',
+        shape: 'Triangolo con croce e linea spessa su un braccio',
+        description:
+          'Indica un incrocio in cui la strada trasversale ha la precedenza. Il conducente deve rallentare e dare la precedenza ai veicoli provenienti dalla strada principale. Non fermarsi se la visibilità è sufficiente e non ci sono veicoli in arrivo.',
+        whenToObeyIt:
+          'Avvicinandosi all\'incrocio, ridurre la velocità e valutare il traffico sulla strada prioritaria.',
+        whatHappensIfIgnored:
+          'Rischio di collisione laterale con veicoli che hanno la precedenza. In caso di incidente, la responsabilità è totale per chi non ha dato la precedenza.',
+      },
+      {
+        id: 'semincrocio',
+        name: 'Semincrocio',
+        shape: 'Triangolo con una freccia e un ramo secondario',
+        description:
+          'Indica la presenza di un semincrocio, ovvero un incrocio in cui solo una delle strade è prioritaria. Il conducente proveniente dalla strada secondaria deve dare la precedenza ai veicoli sulla strada principale, mentre chi percorre la strada prioritaria può proseguire senza fermarsi.',
+        whenToObeyIt:
+          'Avvicinandosi al semincrocio, controllare i veicoli sulla strada principale e cedere il passo se necessario.',
+        whatHappensIfIgnored:
+          'Rischio di collisione con veicoli che transitano sulla strada prioritaria, con conseguenze gravi e responsabilità totale in caso di incidente.',
+      },
+      {
+        id: 'incrocio-tram',
+        name: 'Incrocio con tram',
+        shape: 'Triangolo con simbolo di tram e frecce di incrocio',
+        description:
+          'Indica un incrocio dove i binari del tram attraversano la carreggiata. Il conducente deve prestare massima attenzione ai tram in transito, dare loro la precedenza quando necessario e non fermarsi sui binari in nessun caso.',
+        whenToObeyIt:
+          'Avvicinandosi all\'incrocio, verificare in tutte le direzioni la presenza di tram.',
+        whatHappensIfIgnored:
+          'Rischio di collisione con il tram che, data la sua massa, può causare danni enormi al veicolo e pericolo grave per gli occupanti.',
+      },
+      {
+        id: 'passaggio-livello-barriere',
+        name: 'Passaggio a livello con barriere',
+        shape: 'Triangolo con simbolo di treno e barriere semichiuse',
+        description:
+          'Indica un attraversamento di binari ferroviari protetto da barriere o semibarriere. Quando le barriere si abbassano, è obbligatorio fermarsi. Non attraversare mai con le barriere in movimento o abbassate, anche se il treno non è visibile.',
+        whenToObeyIt:
+          'Sempre quando ci si avvicina al passaggio a livello. Fermarsi quando le barriere sono chiuse o in movimento.',
+        whatHappensIfIgnored:
+          'Rischio di essere investiti dal treno con conseguenze quasi sempre letali. È una delle infrazioni più pericolose del Codice della Strada.',
+      },
+      {
+        id: 'deposito-materiale',
+        name: 'Deposito di materiale',
+        shape: 'Triangolo con simbolo di pietre o materiale accatastato',
+        description:
+          'Indica la possibile presenza di materiale depositato ai bordi della carreggiata o sulla strada. Il conducente deve ridurre la velocità e prestare attenzione al possibile restringimento della carreggiata o alla presenza di detriti sparsi sulla via.',
+        whenToObeyIt:
+          'Su tutto il tratto segnalato, mantenendo la velocità ridotta e la massima attenzione.',
+        whatHappensIfIgnored:
+          'Rischio di collisione con il materiale depositato, danni al veicolo, perdita di controllo o blocco della circolazione.',
+      },
+      {
+        id: 'muro-costone',
+        name: 'Muro o costone laterale',
+        shape: 'Triangolo con profilo di muro o parete verticale',
+        description:
+          'Indica la presenza di un muro, di un costone roccioso o di una parete verticale a ridosso della carreggiata. Il conducente deve mantenere la distanza di sicurezza dal bordo e non uscire dalla carreggiata. Particolare attenzione per i veicoli alti o con carico sporgente.',
+        whenToObeyIt:
+          'Su tutto il tratto segnalato, mantenendo la corsia e la distanza di sicurezza laterale.',
+        whatHappensIfIgnored:
+          'Rischio di urto contro il muro o il costone, con danni al veicolo, possibili lesioni per gli occupanti e blocco della strada.',
+      },
+      {
+        id: 'slittamento',
+        name: 'Slittamento',
+        shape: 'Triangolo con simbolo di veicolo che slitta lateralmente',
+        description:
+          'Indica un tratto di strada particolarmente soggetto a slittamento dei veicoli, spesso a causa di asfalto liscio, fango, foglie umide o sudiciume sulla carreggiata. Il conducente deve procedere a velocità molto ridotta, evitando brusche frenate, accelerate o sterzate.',
+        whenToObeyIt:
+          'Su tutto il tratto segnalato, con attenzione particolarmente elevata in caso di pioggia o umidità.',
+        whatHappensIfIgnored:
+          'Perdita di aderenza del veicolo con sbandata laterale, uscita di strada, testacoda o capottamento.',
+      },
+      {
+        id: 'traffico-convergente',
+        name: 'Traffico convergente',
+        shape: 'Triangolo con frecce che convergono verso il centro',
+        description:
+          'Indica che due o più corsie si uniscono in un\'unica carreggiata, costringendo i veicoli a fondersi. Il conducente deve adattare la velocità e alternarsi con cortesia con gli altri veicoli, rispettando la regola della cremagliera.',
+        whenToObeyIt:
+          'Avvicinandosi al punto di convergenza, riducendo la velocità e inserendosi nel traffico con prudenza.',
+        whatHappensIfIgnored:
+          'Rischio di collisione laterale con i veicoli che confluiscono, code pericolose e situazioni di blocco del traffico.',
+      },
+      {
+        id: 'ponte-stretto',
+        name: 'Ponte stretto',
+        shape: 'Triangolo con simbolo di ponte con restringimento laterale',
+        description:
+          'Indica la presenza di un ponte con carreggiata più stretta rispetto alla strada ordinaria. Il conducente deve ridurre la velocità prima di immettersi sul ponte. Se il ponte non consente il passaggio simultaneo di due veicoli, si applica la precedenza dal diritto diresso.',
+        whenToObeyIt:
+          'Prima di immettersi sul ponte, verificando le dimensioni del proprio veicolo e la larghezza del ponte.',
+        whatHappensIfIgnored:
+          'Rischio di collisione con veicoli provenienti dalla direzione opposta, danni al veicolo contro le balaustre del ponte o caduta nel vuoto.',
+      },
     ],
   },
 
@@ -562,6 +694,171 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
         whatHappensIfIgnored:
           'Non applicabile — è un segnale che ripristina un diritto, non un obbligo.',
       },
+      {
+        id: 'divieto-inversione',
+        name: 'Divieto di inversione del senso di marcia',
+        shape: 'Cerchio rosso con freccia a U rossa su sfondo bianco',
+        description:
+          'Vietato effettuare l\'inversione del senso di marcia (girarsi) nel punto in cui è installato il segnale. Il divieto mira a evitare manovre pericolose su strade trafficate, curve, dossi o in prossimità di incroci.',
+        whenToObeyIt:
+          'In corrispondenza del segnale e nel tratto immediatamente successivo, dove la manovra risulterebbe pericolosa.',
+        whatHappensIfIgnored:
+          'Multa e decurtazione punti. Se l\'inversione causa un incidente, si applica la responsabilità penale.',
+      },
+      {
+        id: 'divieto-retromarcia',
+        name: 'Divieto di retromarcia',
+        shape: 'Cerchio rosso con freccia retromarcia rossa su sfondo bianco',
+        description:
+          'Vietato effettuare la manovra di retromarcia nel tratto indicato. Il divieto è posto in situazioni dove la retromarcia rappresenta un pericolo per gli altri utenti della strada, come in gallerie, ponti o strade strette.',
+        whenToObeyIt:
+          'In corrispondenza del segnale e per l\'intero tratto in cui è valida la prescrizione.',
+        whatHappensIfIgnored:
+          'Multa e decurtazione punti sulla patente. In caso di incidente durante la manovra, la responsabilità è interamente del conducente.',
+      },
+      {
+        id: 'accesso-pedoni',
+        name: 'Accesso vietato ai veicoli a motore (pedoni ammessi)',
+        shape: 'Cerchio rosso pieno con simbolo di auto nera barrata',
+        description:
+          'Vietato l\'accesso a tutti i veicoli a motore. Il segnale èposto nelle zone pedonali, aree verdi o piazze riservate. I pedoni possono transitare liberamente, mentre i veicoli a motore non possono accedere in nessun caso.',
+        whenToObeyIt:
+          'All\'ingresso della zona pedonale o dell\'area riservata ai pedoni.',
+        whatHappensIfIgnored:
+          'Multa elevata e decurtazione punti. In caso di investimento di un pedone, si applicano sanzioni penali gravissime.',
+      },
+      {
+        id: 'divieto-rimorchio',
+        name: 'Divieto di transito per veicoli con rimorchio',
+        shape: 'Cerchio rosso con simbolo di auto con rimorchio nero barrato',
+        description:
+          'Vietato il transito ai veicoli che trainano un rimorchio, una carrozzetta o un altro veicolo. Il divieto è comunemente esposto su strade strette, curve pericolose o zone residenziali dove la manovra con rimorchio risulta difficoltosa.',
+        whenToObeyIt:
+          'All\'ingresso della strada con il divieto, per tutti i veicoli con rimorchio agganciato.',
+        whatHappensIfIgnored:
+          'Multa per il conducente. Se il transito causa difficoltà o incidenti, la responsabilità è totale del conducente del veicolo con rimorchio.',
+      },
+      {
+        id: 'divieto-carri-funebri',
+        name: 'Divieto di transito per carri funebri',
+        shape: 'Cerchio rosso con simbolo di carro funebre nero barrato',
+        description:
+          'Vietato il transito ai carri funebri sulla strada indicata. Questo segnale è posto su strade dove il passaggio dei carri funebri potrebbe creare problemi alla circolazione o non è consentito per motivi di decoro urbano.',
+        whenToObeyIt:
+          'All\'ingresso della strada con il divieto, per tutti i veicoli adibiti al trasporto di salme.',
+        whatHappensIfIgnored:
+          'Multa e possibile ritiro del permesso di circolazione. Sanzioni accessorie per l\'impresa di onoranze funebri.',
+      },
+      {
+        id: 'divieto-merci-pericolose',
+        name: 'Divieto di transito per merci pericolose (ADR)',
+        shape: 'Cerchio rosso con simbolo ADR (rombo arancione) barrato',
+        description:
+          'Vietato il transito ai veicoli che trasportano merci pericolose secondo la normativa ADR (esplosivi, infiammabili, tossici, corrosivi, ecc.). Il divieto protegge aree sensibili come gallerie, ponti, centri abitati e zone ambientali.',
+        whenToObeyIt:
+          'All\'ingresso della strada o dell\'area con il divieto, per tutti i veicoli con cartellonatura ADR.',
+        whatHappensIfIgnored:
+          'Sanzioni gravissime, possibile sequestro del veicolo e della merce, responsabilità penale in caso di incidente.',
+      },
+      {
+        id: 'divieto-veicoli-agricoli',
+        name: 'Divieto di transito per veicoli agricoli',
+        shape: 'Cerchio rosso con simbolo di trattore nero barrato',
+        description:
+          'Vietato il transito ai veicoli agricoli (trattori, mietitrebbiatrici, macchine operatrici) sulla strada indicata. Il divieto è posto su strade dove la lentezza dei mezzi agricoli creerebbe pericolo o intralcio alla circolazione.',
+        whenToObeyIt:
+          'All\'ingresso della strada con il divieto, per tutti i veicoli con targa agricola o macchine operatrici.',
+        whatHappensIfIgnored:
+          'Multa per il conducente del veicolo agricolo e possibile ritiro dell\'autorizzazione alla circolazione su strada.',
+      },
+      {
+        id: 'divieto-autocarri',
+        name: 'Divieto di transito per autocarri',
+        shape: 'Cerchio rosso con simbolo di autocarro nero barrato',
+        description:
+          'Vietato il transito agli autocarri (veicoli per il trasporto di merci con massa complessiva superiore a 3,5 tonnellate). Il divieto è tipicamente esposto in centri storici, zone residenziali o strade con limitazioni di carico.',
+        whenToObeyIt:
+          'All\'ingresso della strada con il divieto, per tutti gli autocarri con massa superiore al limite indicato.',
+        whatHappensIfIgnored:
+          'Multa elevata per il conducente e per l\'impresa di trasporto. Possibile ritiro della carta di circolazione.',
+      },
+      {
+        id: 'divieto-massa',
+        name: 'Divieto di transito per massa superiore a X tonnellate',
+        shape: 'Cerchio rosso con numero di tonnellate barrato',
+        description:
+          'Vietato il transito ai veicoli la cui massa complessiva a pieno carico supera il limite indicato sul segnale (es. 7,5 t, 10 t, ecc.). Il divieto è posto su ponti, strade deboli o centri abitati per proteggere le infrastrutture.',
+        whenToObeyIt:
+          'All\'ingresso della strada, verificando che la massa complessiva del proprio veicolo sia inferiore al limite indicato.',
+        whatHappensIfIgnored:
+          'Multa molto elevata, possibile sequestro del veicolo e responsabilità per eventuali danni all\'infrastruttura stradale.',
+      },
+      {
+        id: 'divieto-carico-asse',
+        name: 'Divieto di transito per carico per asse superiore',
+        shape: 'Cerchio rosso con simbolo di asse e tonnellate barrato',
+        description:
+          'Vietato il transito ai veicoli il cui carico per asse supera il limite indicato sul segnale (es. 6 t per asse). Serve a proteggere i ponti e le strutture stradali dal sovraccarico che potrebbe causare cedimenti strutturali.',
+        whenToObeyIt:
+          'All\'ingresso della strada, verificando che il carico per ogni asse del veicolo rispetti il limite indicato.',
+        whatHappensIfIgnored:
+          'Multa gravissima, sequestro del veicolo e risarcimento dei danni all\'infrastruttura. In caso di cedimento del ponte, responsabilità penale.',
+      },
+      {
+        id: 'divieto-clacson',
+        name: 'Divieto di suono del clacson',
+        shape: 'Cerchio rosso con simbolo di corno o clacson barrato',
+        description:
+          'Vietato l\'uso del clacson o di qualsiasi segnale acustico nel tratto indicato. Il divieto è tipicamente esposto vicino ad ospedali, scuole, zone residenziali o luoghi di culto, dove il rumore è causa di disturbo.',
+        whenToObeyIt:
+          'Su tutto il tratto segnalato. In caso di emergenza, il clacson può essere usato solo per evitare un incidente imminente.',
+        whatHappensIfIgnored:
+          'Multa per disturbo acustico. Ripetute violazioni possono comportare sanzioni più elevate.',
+      },
+      {
+        id: 'divieto-fumare',
+        name: 'Vietato fumare (gallerie/serbatoi)',
+        shape: 'Cerchio rosso con sigaretta barrata',
+        description:
+          'Vietato fumare nell\'area indicata, tipicamente gallerie, aree di servizio con serbatoi di carburante o zone a rischio esplosione o incendio. Il divieto esteso riguarda anche l\'accensione di fiamme libere o l\'uso di accendini.',
+        whenToObeyIt:
+          'In tutta l\'area segnalata, spegnere sigarette e sigari prima di entrare nella zona a rischio.',
+        whatHappensIfIgnored:
+          'Multa elevata. In caso di incendio provocato, si applicano responsabilità penali gravissime fino al carcere.',
+      },
+      {
+        id: 'zona-30',
+        name: 'Zona 30 (limite 30 km/h)',
+        shape: 'Rettangolo bianco con bordo rosso e scritta "ZONA 30"',
+        description:
+          'Indica l\'inizio di una zona a traffico limitato dove la velocità massima consentita è di 30 km/h per tutti i veicoli. Tipicamente istituita in centri storici, zone scolastiche o aree residenziali per proteggere pedoni e ciclisti.',
+        whenToObeyIt:
+          'Da quando si entra nella zona 30 fino al segnale di fine zona 30. Il limite si applica a tutta la zona, non solo alla strada dove è esposto il segnale.',
+        whatHappensIfIgnored:
+          'Multa proporzionale all\'eccesso di velocità. In zona 30, anche piccoli eccessi sono pericolosi per pedoni e ciclisti.',
+      },
+      {
+        id: 'fine-zona-30',
+        name: 'Fine zona 30',
+        shape: 'Rettangolo bianco con bordo grigio e scritta "FINE ZONA 30" barrata',
+        description:
+          'Indica la fine della zona a traffico limitato a 30 km/h. Da questo punto in poi si applicano i limiti di velocità generali previsti dal Codice della Strada per il tipo di strada che si sta percorrendo.',
+        whenToObeyIt:
+          'Appena superato il segnale, riprendere la velocità consentita per il tipo di strada (es. 50 km/h in centro abitato).',
+        whatHappensIfIgnored:
+          'Non applicabile — è un segnale che conclude una prescrizione e ripristina i limiti generali.',
+      },
+      {
+        id: 'disco-orario',
+        name: 'Disco orario (sosta a tempo)',
+        shape: 'Cerchio blu con freccia e simbolo di orologio',
+        description:
+          'Indica una zona di sosta regolamentata con limite di tempo. Il conducente deve esporre il disco orario sul cruscotto, indicando l\'ora di arrivo. La durata massima della sosta è indicata dal pannello integrativo (es. 1 ora, 2 ore).',
+        whenToObeyIt:
+          'All\'atto della sosta, posizionando il disco orario in modo visibile dal esterno del veicolo.',
+        whatHappensIfIgnored:
+          'Multa per sosta irregolare se il disco non è esposto o se si supera il tempo consentito. Rimozione del veicolo in caso di violazione ripetuta.',
+      },
     ],
   },
 
@@ -680,6 +977,83 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
         whatHappensIfIgnored:
           'Multa per il ciclista se utilizza la carreggiata invece del percorso dedicato.',
       },
+      {
+        id: 'direzione-retta-destra',
+        name: 'Obbligo di proseguire dritto o a destra',
+        shape: 'Cerchio con bordo blu e frecce bianche (dritto e destra)',
+        description:
+          'Obbliga il conducente a proseguire dritto o svoltare a destra all\'intersezione successiva. Vietata la svolta a sinistra e l\'inversione di marcia. Questo segnale viene utilizzato negli incroci dove la svolta a sinistra creerebbe pericolo o conflitti con il traffico opposto.',
+        whenToObeyIt:
+          'All\'intersezione dove è installato il segnale, prima di svoltare.',
+        whatHappensIfIgnored:
+          'Multa per infrazione al Codice della Strada e rischio di collisione con veicoli provenienti dalla direzione opposta.',
+      },
+      {
+        id: 'direzione-retta-sinistra',
+        name: 'Obbligo di proseguire dritto o a sinistra',
+        shape: 'Cerchio con bordo blu e frecce bianche (dritto e sinistra)',
+        description:
+          'Obbliga il conducente a proseguire dritto o svoltare a sinistra all\'intersezione successiva. Vietata la svolta a destra. Questo segnale è comune negli incroci dove la svolta a destra porterebbe su una strada a senso unico opposto o in area riservata.',
+        whenToObeyIt:
+          'All\'intersezione dove è installato il segnale, prima di svoltare.',
+        whatHappensIfIgnored:
+          'Multa per violazione dell\'obbligo e possibile ingresso in una strada contromano con rischio di incidente frontale.',
+      },
+      {
+        id: 'passaggio-destra',
+        name: 'Obbligo di passaggio a destra',
+        shape: 'Cerchio con bordo blu e frecce bianche verso destra',
+        description:
+          'Obbliga il conducente a passare sul lato destro di un ostacolo o di un\'isola spartitraffico. Questo segnale viene posizionato in corrispondenza di restringimenti, opere stradali o dossi spartitraffico. Il passaggio a sinistra è severamente vietato.',
+        whenToObeyIt:
+          'Appena il segnale è visibile, prima di raggiungere l\'ostacolo o il restringimento.',
+        whatHappensIfIgnored:
+          'Multa e rischio grave di collisione frontale con veicoli che procedono regolarmente nel verso opposto.',
+      },
+      {
+        id: 'passaggio-sinistra',
+        name: 'Obbligo di passaggio a sinistra',
+        shape: 'Cerchio con bordo blu e frecce bianche verso sinistra',
+        description:
+          'Obbliga il conducente a passare sul lato sinistro di un ostacolo o di un\'isola spartitraffico. Utilizzato quando l\'ostacolo si trova sul lato destro della carreggiata o in situazioni particolari di cantiere stradale. Il passaggio a destra è vietato.',
+        whenToObeyIt:
+          'Appena il segnale è visibile, prima di raggiungere l\'ostacolo o l\'isola.',
+        whatHappensIfIgnored:
+          'Multa e rischio di incidente con possibile impatto contro l\'ostacolo o il guardrail.',
+      },
+      {
+        id: 'pneumatici-invernali',
+        name: 'Obbligo di pneumatici invernali',
+        shape: 'Cerchio con bordo blu e simbolo di pneumatico con fiocco di neve (M+S)',
+        description:
+          'Obbliga a circolare con pneumatici invernali omologati (marcatura M+S o 3PMSF) montati su tutte le ruote del veicolo. Il segnale è valido nel periodo indicato dal pannello integrativo associato, generalmente dal 15 novembre al 15 aprile. I pneumatici quattro stagioni con marcatura M+S sono ammessi.',
+        whenToObeyIt:
+          'Su tutto il tratto stradale segnalato, durante il periodo di validità indicato.',
+        whatHappensIfIgnored:
+          'Multa da 41 a 168 euro, decurtazione di 3 punti dalla patente e obbligo di montare le catene o i pneumatici prima di proseguire.',
+      },
+      {
+        id: 'rotonda-destra',
+        name: 'Rotatoria senso orario',
+        shape: 'Cerchio con bordo blu e frecce circolari bianche in senso orario',
+        description:
+          'Obbliga a circolare in senso orario all\'interno della rotatoria. Questo tipo di rotatoria è raro in Italia ed è tipico di paesi come il Regno Unito, ma può essere presente in alcune intersezioni specifiche. Il conducente deve entrare e percorrere la rotatoria seguendo il senso indicato dalle frecce.',
+        whenToObeyIt:
+          'All\'ingresso della rotatoria, seguendo il senso di circolazione indicato.',
+        whatHappensIfIgnored:
+          'Multa severa e rischio gravissimo di incidente frontale con veicoli che circolano nel verso corretto.',
+      },
+      {
+        id: 'strada-pericolosa',
+        name: 'Strada pericolosa (obbligo di percorrerla)',
+        shape: 'Cerchio con bordo blu e simbolo di strada con rischio',
+        description:
+          'Obbliga a percorrere la strada indicata, che è classificata come pericolosa. Questo segnale è tipicamente utilizzato in zone montane o in presenza di tratti stradali con rischi specifici come frane, smottamenti o strade strette. Il conducente deve mantenere la massima attenzione e rispettare i limiti di velocità.',
+        whenToObeyIt:
+          'All\'ingresso del tratto stradale pericoloso, mantenendo la massima prudenza.',
+        whatHappensIfIgnored:
+          'Multa per aver ignorato l\'obbligo di percorso e rischio di incidenti dovuti alle condizioni pericolose della strada.',
+      },
     ],
   },
 
@@ -796,6 +1170,39 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
           'Appena visibile il preavviso, prima di raggiungere il segnale di stop.',
         whatHappensIfIgnored:
           'Non prepararsi in tempo alla fermata, con rischio di attraversare l\'incrocio senza fermarsi.',
+      },
+      {
+        id: 'precedenza-opposti-discesa',
+        name: 'Precedenza ai veicoli opposti in discesa',
+        shape: 'Rettangolo con due frecce: una grande (discesa) e una piccola (salita)',
+        description:
+          'Indica che i veicoli che procedono in discesa hanno la precedenza rispetto ai veicoli che risalgono la stessa strada. Questo segnale viene posizionato nelle strade di montagna strette e ripide dove il passaggio contemporaneo non è possibile. Il conducente in salita deve fermarsi e attendere il passaggio del veicolo in discesa.',
+        whenToObeyIt:
+          'Su tutto il tratto stradale segnalato, quando si incontra un veicolo proveniente dalla direzione opposta.',
+        whatHappensIfIgnored:
+          'Multa e rischio di collisione o di blocco del traffico in una strada stretta con veicoli impossibilitati a retrocedere.',
+      },
+      {
+        id: 'precedenza-strada-stretta',
+        name: 'Precedenza nel tratto stretto (veicolo opposto)',
+        shape: 'Rettangolo con frecce che indicano la direzione del veicolo prioritario',
+        description:
+          'Stabilisce quale direzione ha la precedenza in un tratto di strada troppo stretto per consentire il passaggio contemporaneo di veicoli provenienti da entrambe le direzioni. Il segnale indica con una freccia più grande la direzione che deve passare per prima. Il conducente dalla direzione non prioritaria deve fermarsi e attendere.',
+        whenToObeyIt:
+          'Avvicinandosi al tratto stretto, se la freccia grande indica la direzione opposta.',
+        whatHappensIfIgnored:
+          'Multa e rischio di incastro con veicoli provenienti dalla direzione opposta, con possibile necessità di manovre di retromarcia pericolose.',
+      },
+      {
+        id: 'fermata-obbligatoria',
+        name: 'Fermata obbligatoria davanti al passaggio a livello',
+        shape: 'Rettangolo con bordo rosso e scritta FERMATA OBBLIGATORIA',
+        description:
+          'Obbliga il conducente a fermarsi completamente davanti al passaggio a livello, anche in assenza di barriere chiuse o segnale di stop. Il conducente deve verificare visivamente e uditivamente l\'assenza di treni prima di attraversare i binari. Non sostare mai sui binari.',
+        whenToObeyIt:
+          'Sempre quando ci si avvicina al passaggio a livello, fermarsi completamente prima dei binari.',
+        whatHappensIfIgnored:
+          'Multa molto severa e rischio gravissimo di collisione con un treno, con conseguenze quasi sempre letali.',
       },
     ],
   },
@@ -974,6 +1381,193 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
         whenToObeyIt: 'Informativo, per orientarsi.',
         whatHappensIfIgnored: 'Non applicabile — è informativo.',
       },
+      {
+        id: 'itinerario-turistico',
+        name: 'Itinerario turistico',
+        shape: 'Rettangolo marrone con simbolo o nome dell\'itinerario',
+        description:
+          'Segnale di indicazione turistica che contrassegna un itinerario di interesse paesaggistico, storico o culturale. Il colore marrone distingue i segnali turistici da quelli di normale indicazione. Guida il conducente lungo un percorso che tocca luoghi di particolare interesse.',
+        whenToObeyIt: 'Informativo, seguire le indicazioni per rimanere sull\'itinerario turistico.',
+        whatHappensIfIgnored: 'Non applicabile — è puramente informativo e di orientamento.',
+      },
+      {
+        id: 'parcheggio-scambiatore',
+        name: 'Parcheggio scambiatore',
+        shape: 'Rettangolo blu con simbolo P e icona di mezzi pubblici',
+        description:
+          'Indica un parcheggio collegato a una rete di trasporto pubblico (metropolitana, treno, autobus). Il conducente può lasciare il veicolo e continuare il viaggio con i mezzi pubblici. Spesso situati alle periferie delle grandi città per ridurre il traffico nel centro urbano.',
+        whenToObeyIt: 'Informativo, utile per chi cerca parcheggio con collegamento ai mezzi pubblici.',
+        whatHappensIfIgnored: 'Non applicabile — è informativo. Parcheggiare altrove può comportare costi maggiori.',
+      },
+      {
+        id: 'area-sosta-camper',
+        name: 'Area di sosta per camper',
+        shape: 'Rettangolo blu con simbolo di camper',
+        description:
+          'Indica un\'area attrezzata per la sosta di camper e veicoli ricreazionali. Può essere dotata di servizi come carico/scarico acqua, punti di scarico delle acque reflue e collegamento elettrico. Riservata esclusivamente ai camper.',
+        whenToObeyIt: 'Solo per i conducenti di camper, come area di sosta autorizzata.',
+        whatHappensIfIgnored: 'Non applicabile — è informativo. Sostare con camper fuori dalle aree designate può comportare multe.',
+      },
+      {
+        id: 'parcheggio-coperto',
+        name: 'Parcheggio coperto',
+        shape: 'Rettangolo blu con simbolo P e icona di tetto/struttura coperta',
+        description:
+          'Indica la presenza di un parcheggio multipiano o sotterraneo nelle vicinanze. Il parcheggio coperto offre protezione dalle intemperie ed è generalmente a pagamento. Spesso indicato con pannelli che mostrano i posti disponibili in tempo reale.',
+        whenToObeyIt: 'Informativo, per trovare un parcheggio al coperto nelle vicinanze.',
+        whatHappensIfIgnored: 'Non applicabile — è informativo. Parcheggiare in divieto di sosta comporta multe.',
+      },
+      {
+        id: 'parcheggio-disabili',
+        name: 'Parcheggio per disabili',
+        shape: 'Rettangolo blu con simbolo P e simbolo di disabile',
+        description:
+          'Indica stalli di parcheggio riservati esclusivamente ai veicoli con contrassegno disabili. L\'occupazione abusiva di questi posti è punita con sanzioni molto severe. Il contrassegno deve essere esposto in modo ben visibile sul parabrezza.',
+        whenToObeyIt: 'Solo i veicoli con regolare contrassegno disabili possono utilizzare questi stalli.',
+        whatHappensIfIgnored:
+          'Multa da 80 a 328 euro e decurtazione di 2 punti dalla patente. Possibile rimozione del veicolo.',
+      },
+      {
+        id: 'area-sosta',
+        name: 'Area di sosta',
+        shape: 'Rettangolo blu con simbolo di parcheggio e lettera S o simbolo specifico',
+        description:
+          'Indica un\'area attrezzata per la sosta temporanea dei veicoli. L\'area può essere gratuita o a pagamento, con limiti di tempo o senza. Le condizioni specifiche sono indicate dai pannelli integrativi associati al segnale.',
+        whenToObeyIt: 'Informativo, per trovare un\'area di sosta autorizzata.',
+        whatHappensIfIgnored: 'Non applicabile — è informativo. Sostare fuori dalle aree indicate può comportare multe.',
+      },
+      {
+        id: 'uscita-autostrada',
+        name: 'Uscita autostrada',
+        shape: 'Rettangolo verde con freccia bianca verso il basso e numero uscita',
+        description:
+          'Segnale di preavviso che indica la prossima uscita autostradale. Il numero dell\'uscita è riportato sul segnale per facilitarne l\'identificazione. Il conducente deve posizionarsi in anticipo nella corsia di destra per effettuare l\'uscita in sicurezza.',
+        whenToObeyIt:
+          'Appena il segnale è visibile, iniziare a posizionarsi nella corsia di destra.',
+        whatHappensIfIgnored:
+          'Rischio di perdere l\'uscita, manovre pericolose di ultima istante e possibile collisione.',
+      },
+      {
+        id: 'scambio-autostrada',
+        name: 'Biforcazione/scambio autostradale',
+        shape: 'Rettangolo verde con frecce direzionali multiple e nomi delle destinazioni',
+        description:
+          'Indica un bivio o uno svincolo autostradale dove il conducente deve scegliere la direzione corretta. Ogni freccia indica una destinazione diversa con il relativo nome. Il conducente deve scegliere in anticipo la corsia corrispondente alla propria destinazione.',
+        whenToObeyIt:
+          'Appena il segnale è visibile, posizionarsi nella corsia della destinazione desiderata.',
+        whatHappensIfIgnored:
+          'Rischio di prendere la direzione sbagliata con conseguente perdita di tempo e percorrenza di chilometri extra.',
+      },
+      {
+        id: 'stazione-fs',
+        name: 'Stazione ferroviaria',
+        shape: 'Rettangolo blu con simbolo di treno',
+        description:
+          'Indica la presenza di una stazione ferroviaria nelle vicinanze. Utile per chi cerca collegamenti con il trasporto su rotaia. Il segnale può essere associato a pannelli che indicano la distanza in chilometri.',
+        whenToObeyIt: 'Informativo, per orientarsi verso la stazione ferroviaria.',
+        whatHappensIfIgnored: 'Non applicabile — è un segnale puramente informativo.',
+      },
+      {
+        id: 'aeroporto-indicazione',
+        name: 'Aeroporto',
+        shape: 'Rettangolo blu con simbolo di aeroplano',
+        description:
+          'Indica la direzione per raggiungere l\'aeroporto più vicino. Il segnale può essere accompagnato dal nome dell\'aeroporto e dalla distanza. Generalmente posizionato sulle strade di collegamento principali.',
+        whenToObeyIt: 'Informativo, seguire le indicazioni per raggiungere l\'aeroporto.',
+        whatHappensIfIgnored: 'Non applicabile — è un segnale puramente informativo.',
+      },
+      {
+        id: 'distributore',
+        name: 'Distributore di carburante',
+        shape: 'Rettangolo blu con simbolo di benzinaio o erogatore',
+        description:
+          'Indica la presenza di un distributore di carburante nelle vicinanze. Utile per pianificare il rifornimento durante lunghi tragitti. Il distributore può servire benzina, diesel, GPL o metano.',
+        whenToObeyIt: 'Informativo, utile per pianificare il rifornimento di carburante.',
+        whatHappensIfIgnored: 'Non applicabile — è un segnale puramente informativo.',
+      },
+      {
+        id: 'ristorante-indicazione',
+        name: 'Ristorante/area di ristoro',
+        shape: 'Rettangolo blu con simbolo di forchetta e coltello o piatto',
+        description:
+          'Indica la presenza di un\'area di ristoro, ristorante o autogrill nelle vicinanze. Comune sulle autostrade e sulle strade extraurbane principali. Possono essere indicate le distanze e i servizi disponibili.',
+        whenToObeyIt: 'Informativo, per trovare un punto di ristoro durante il viaggio.',
+        whatHappensIfIgnored: 'Non applicabile — è un segnale puramente informativo.',
+      },
+      {
+        id: 'albergo',
+        name: 'Albergo/dormitorio',
+        shape: 'Rettangolo blu con simbolo di letto o edificio',
+        description:
+          'Indica la presenza di un albergo, hotel o struttura ricettiva nelle vicinanze. Utilizzato come segnale di servizio per i conducenti in viaggio che cercano alloggio. Il segnale può indicare la distanza alla struttura.',
+        whenToObeyIt: 'Informativo, per trovare alloggio nella zona.',
+        whatHappensIfIgnored: 'Non applicabile — è un segnale puramente informativo.',
+      },
+      {
+        id: 'taxi-stand',
+        name: 'Posteggio taxi',
+        shape: 'Rettangolo blu con simbolo di taxi (TAXI)',
+        description:
+          'Indica l\'area di sosta riservata ai taxi in attesa di clienti. I taxi possono fermarsi in questa area per attendere chiamate o passeggeri. Vietata la sosta ad altri veicoli nello spazio riservato ai taxi.',
+        whenToObeyIt: 'Riservato ai taxi. Gli altri veicoli non devono sostare in quest\'area.',
+        whatHappensIfIgnored:
+          'Multa per sosta non autorizzata in area riservata ai taxi e possibile rimozione del veicolo.',
+      },
+      {
+        id: 'fermata-tram',
+        name: 'Fermata del tram',
+        shape: 'Rettangolo blu con simbolo di tram',
+        description:
+          'Indica la posizione di una fermata del tram. I pedoni possono salire e scendere dal tram in questo punto. I conducenti devono prestare attenzione ai pedoni che attraversano per raggiungere la fermata e non sostare negli spazi riservati.',
+        whenToObeyIt: 'Informativo per i pedoni. I conducenti devono prestare attenzione.',
+        whatHappensIfIgnored: 'Non applicabile — è un segnale informativo. Attenzione alla fermata.',
+      },
+      {
+        id: 'soccorso-stradale',
+        name: 'Soccorso stradale',
+        shape: 'Rettangolo blu con simbolo di croce o chiave inglese',
+        description:
+          'Indica la presenza di un servizio di soccorso stradale o di un\'officina meccanica nelle vicinanze. Utile in caso di guasto o incidente. Il servizio può fornire assistenza, traino o riparazioni sul posto.',
+        whenToObeyIt: 'Informativo, utile in caso di guasto o emergenza stradale.',
+        whatHappensIfIgnored: 'Non applicabile — è un segnale puramente informativo.',
+      },
+      {
+        id: 'telefono-emergenza',
+        name: 'Telefono di emergenza (SOS)',
+        shape: 'Rettangolo blu con simbolo di telefono e scritta SOS',
+        description:
+          'Indica la presenza di un colonnina di emergenza SOS o di un telefono per chiamare i soccorsi. Disponibile sulle autostrade e su alcune strade extraurbane. Permette di contattare direttamente la polizia stradale, i vigili del fuoco o il pronto soccorso.',
+        whenToObeyIt: 'Informativo, da utilizzare in caso di emergenza, guasto o incidente.',
+        whatHappensIfIgnored: 'Non applicabile — è un segnale informativo salvavita.',
+      },
+      {
+        id: 'passaggio-sotto-livello',
+        name: 'Passaggio a livello sottostrada',
+        shape: 'Rettangolo blu con simbolo di strada che passa sotto i binari',
+        description:
+          'Indica la presenza di un passaggio a livello sottostrada, ovvero una strada che attraversa i binari ferroviari passando sotto di essi tramite un sottopasso. Non è necessario fermarsi in quanto non c\'è intersezione con i binari alla stessa quota.',
+        whenToObeyIt: 'Informativo, il conducente può procedere senza fermarsi.',
+        whatHappensIfIgnored: 'Non applicabile — è un segnale informativo che indica la tipologia dell\'infrastruttura.',
+      },
+      {
+        id: 'strada-riservata',
+        name: 'Strada riservata (solo bus/taxi)',
+        shape: 'Rettangolo blu con simbolo di bus o taxi',
+        description:
+          'Indica una strada o una corsia riservata esclusivamente ai mezzi di trasporto pubblico (bus, tram, taxi). I veicoli privati non possono transitare su questa strada. Il divieto è segnalato anche da appositi segnali di divieto. L\'accesso è consentito solo ai veicoli autorizzati.',
+        whenToObeyIt: 'I veicoli non autorizzati non devono accedere alla strada riservata.',
+        whatHappensIfIgnored:
+          'Multa da 80 a 328 euro e decurtazione di 2 punti dalla patente. Telecamere spesso posizionate per il controllo.',
+      },
+      {
+        id: 'pista-ciclabile-indicazione',
+        name: 'Pista ciclabile di indicazione',
+        shape: 'Rettangolo blu con simbolo di bicicletta',
+        description:
+          'Indica la presenza di una pista ciclabile nelle vicinanze. A differenza del segnale di obbligo (cerchio blu), questo segnale di indicazione informa i ciclisti dell\'esistenza di un percorso ciclabile consigliato. I ciclisti non sono obbligati a utilizzarlo.',
+        whenToObeyIt: 'Informativo per i ciclisti, indica un percorso ciclabile disponibile.',
+        whatHappensIfIgnored: 'Non applicabile — è un segnale informativo, non prescrittivo.',
+      },
     ],
   },
 
@@ -1070,6 +1664,104 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
           'Insieme al segnale di neve o ghiaccio o come indicazione autonoma.',
         whatHappensIfIgnored:
           'Perdita totale di aderenza, sbandata, incidente grave.',
+      },
+      {
+        id: 'pannello-km',
+        name: 'Distanza in chilometri',
+        shape: 'Rettangolo bianco con numero e scritta km',
+        description:
+          'Pannello integrativo che indica la distanza in chilometri dal punto dove è posizionato il segnale principale. Utilizzato insieme ai segnali di precedenza, pericolo o indicazione per fornire la distanza precisa dell\'ostacolo o della destinazione. Aiuta il conducente a calcolare il tempo e lo spazio necessario per reagire.',
+        whenToObeyIt: 'Insieme al segnale principale, per valutare la distanza e prepararsi.',
+        whatHappensIfIgnored:
+          'Non valutare correttamente la distanza può portare a reazioni tardive o inadeguate.',
+      },
+      {
+        id: 'pannello-nome-localita',
+        name: 'Nome della località',
+        shape: 'Rettangolo bianco con nome della località in nero',
+        description:
+          'Pannello integrativo che indica il nome di una località, comune o frazione. Viene posizionato all\'ingresso del centro abitato o lungo la strada per confermare la località in cui ci si trova. Aiuta il conducente a orientarsi e a verificare di essere sulla strada corretta.',
+        whenToObeyIt: 'Informativo, per confermare la propria posizione e l\'itinerario seguito.',
+        whatHappensIfIgnored: 'Non applicabile — è puramente informativo.',
+      },
+      {
+        id: 'pannello-direzioni-multiple',
+        name: 'Direzioni multiple (più destinazioni)',
+        shape: 'Rettangolo con frecce multiple e nomi delle destinazioni',
+        description:
+          'Pannello che indica più destinazioni raggiungibili dalle diverse direzioni all\'incrocio. Ogni freccia corrisponde a una destinazione specifica con la relativa distanza. Il conducente deve selezionare la direzione corretta in base alla propria destinazione.',
+        whenToObeyIt: 'All\'incrocio, per scegliere la direzione corretta verso la propria destinazione.',
+        whatHappensIfIgnored:
+          'Rischio di prendere la direzione sbagliata con perdita di tempo e chilometri extra.',
+      },
+      {
+        id: 'pannello-conferma-direzione',
+        name: 'Conferma di direzione',
+        shape: 'Rettangolo con freccia dritta e nome della destinazione',
+        description:
+          'Pannello che conferma la direzione di marcia e la destinazione sulla strada attuale. Generalmente posizionato dopo un incrocio o uno svincolo per rassicurare il conducente che sta procedendo nella direzione corretta. Mostra il nome della località e spesso la distanza rimanente.',
+        whenToObeyIt: 'Informativo, per confermare di essere sulla strada giusta.',
+        whatHappensIfIgnored: 'Non applicabile — è puramente informativo.',
+      },
+      {
+        id: 'pannello-numero-uscita',
+        name: 'Numero uscita autostradale',
+        shape: 'Rettangolo con numero dell\'uscita',
+        description:
+          'Pannello che indica il numero identificativo di un\'uscita autostradale. Ogni uscita ha un numero progressivo che cresce lungo il percorso dell\'autostrada. Aiuta il conducente a identificare rapidamente l\'uscita desiderata, specialmente quando si utilizza il navigatore.',
+        whenToObeyIt: 'Informativo, per identificare l\'uscita autostradale corretta.',
+        whatHappensIfIgnored:
+          'Non applicabile — è informativo. Non identificare l\'uscita può portare a perdere lo svincolo desiderato.',
+      },
+      {
+        id: 'pannello-estensione',
+        name: 'Estensione del divieto (frecce)',
+        shape: 'Rettangolo con frecce che indicano l\'estensione del divieto',
+        description:
+          'Pannello integrativo che indica la lunghezza o l\'estensione spaziale di un divieto o di un obbligo. Le frecce possono indicare che il divieto si estende per un certo numero di metri o fino a un punto specifico. Fondamentale per capire esattamente dove inizia e dove finisce la prescrizione.',
+        whenToObeyIt: 'Insieme al segnale principale, per comprendere l\'estensione della validità.',
+        whatHappensIfIgnored:
+          'Rischiare di violare il divieto o di non rispettarlo per l\'intera lunghezza prevista.',
+      },
+      {
+        id: 'pannello-mesi',
+        name: 'Mesi di validità (dicembre-aprile, ecc.)',
+        shape: 'Rettangolo con nomi dei mesi',
+        description:
+          'Pannello integrativo che indica il periodo di validità di un segnale, specificando i mesi in cui è in vigore. Molto comune per i segnali di obbligo di pneumatici invernali o catene da neve, generalmente valido da novembre ad aprile. Al di fuori del periodo indicato, il segnale non ha valore.',
+        whenToObeyIt: 'Rispettare il segnale solo nei mesi indicati sul pannello.',
+        whatHappensIfIgnored:
+          'Non rispettare il segnale nel periodo di validità comporta sanzioni. Fuori periodo, il segnale non è efficace.',
+      },
+      {
+        id: 'pannello-giorni-festivi',
+        name: 'Giorni festivi',
+        shape: 'Rettangolo con scritta GIORNI FESTIVI',
+        description:
+          'Pannello integrativo che indica che il segnale principale è valido (o non valido) solo nei giorni festivi. Utilizzato per esempio per indicare divieti di transito o limitazioni di velocità che si applicano esclusivamente nei giorni di festa e prefestivi.',
+        whenToObeyIt: 'Applicare il segnale principale solo nei giorni festivi indicati.',
+        whatHappensIfIgnored:
+          'Non rispettare il divieto nei giorni festivi comporta multe. Rispettarlo nei giorni feriali è comunque consentito.',
+      },
+      {
+        id: 'pannello-pedoni',
+        name: 'Pedoni',
+        shape: 'Rettangolo con simbolo di pedone',
+        description:
+          'Pannello integrativo che indica la presenza di pedoni o che il segnale principale si applica ai pedoni. Può indicare un attraversamento pedonale, un marciapiede o una zona frequentata da pedoni. Aiuta il conducente a prestare particolare attenzione alle persone a piedi.',
+        whenToObeyIt: 'Insieme al segnale principale, prestare attenzione ai pedoni nella zona.',
+        whatHappensIfIgnored:
+          'Rischio di investimento pedonale con gravi conseguenze legali, penali e morali.',
+      },
+      {
+        id: 'pannello-velocita-consigliata',
+        name: 'Velocità consigliata',
+        shape: 'Rettangolo blu con simbolo di specchietto e velocità in km/h',
+        description:
+          'Pannello integrativo che indica la velocità consigliata per percorrere in sicurezza un tratto stradale particolare, come una curva, un dosso o un dislivello. Non si tratta di un limite di velocità obbligatorio, ma di un\'indicazione prudente. La velocità consigliata tiene conto delle caratteristiche geometriche della strada.',
+        whenToObeyIt: 'Consigliato mantenere la velocità indicata per la massima sicurezza.',
+        whatHappensIfIgnored:
+          'Non comporta sanzioni dirette, ma superare la velocità consigliata aumenta il rischio di incidente.',
       },
     ],
   },
