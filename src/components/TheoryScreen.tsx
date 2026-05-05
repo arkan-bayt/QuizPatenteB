@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '@/store/useStore';
 import { SIGNAL_CATEGORIES, SignalInfo, SignalCategory } from '@/data/signalsData';
 import { getSignalImage } from '@/data/signalImageMap';
+import { signalArabicTranslations } from '@/data/signalArabicTranslations';
+import { speakText, stopSpeech, isSpeaking } from '@/logic/ttsEngine';
 import SignIcon from '@/components/SignIcon';
 import {
   THEORY_TOPICS,
@@ -41,6 +43,15 @@ export default function TheoryScreen() {
   const [selectedChapterId, setSelectedChapterId] = useState<number | null>(null);
 
   const tabsRef = useRef<HTMLDivElement>(null);
+  const [playingIt, setPlayingIt] = useState(false);
+  const [playingAr, setPlayingAr] = useState(false);
+
+  // Stop speech when signal changes
+  useEffect(() => {
+    stopSpeech();
+    setPlayingIt(false);
+    setPlayingAr(false);
+  }, [selectedSignalId]);
 
   // ── Derived: Signals ───────────────────────────────────────
   const activeCategory = useMemo(
@@ -78,6 +89,25 @@ export default function TheoryScreen() {
     })),
     []
   );
+
+  // ── Handlers: TTS ────────────────────────────────────────
+  const handlePlayItalian = useCallback(() => {
+    if (!selectedSignal) return;
+    setPlayingIt(true);
+    stopSpeech();
+    const fullText = `${selectedSignal.name}. ${selectedSignal.description}. ${selectedSignal.whenToObeyIt}. ${selectedSignal.whatHappensIfIgnored}`;
+    speakText(fullText.substring(0, 200), 'it-IT').finally(() => setPlayingIt(false));
+  }, [selectedSignal]);
+
+  const handlePlayArabic = useCallback(() => {
+    if (!selectedSignalId) return;
+    const ar = signalArabicTranslations[selectedSignalId];
+    if (!ar) return;
+    setPlayingAr(true);
+    stopSpeech();
+    const fullText = `${ar.name}. ${ar.description}. ${ar.whenToObeyIt}. ${ar.whatHappensIfIgnored}`;
+    speakText(fullText.substring(0, 200), 'ar').finally(() => setPlayingAr(false));
+  }, [selectedSignalId]);
 
   // ── Handlers: Signals ──────────────────────────────────────
   const handleCategoryChange = (catId: string) => {
@@ -247,6 +277,7 @@ export default function TheoryScreen() {
 
           {/* Description Boxes */}
           <div className="space-y-4">
+            {/* Italian Section */}
             <div
               className="rounded-2xl overflow-hidden anim-up"
               style={{
@@ -255,13 +286,35 @@ export default function TheoryScreen() {
               }}
             >
               <div
-                className="px-4 py-2.5 flex items-center gap-2 border-b"
+                className="px-4 py-2.5 flex items-center justify-between border-b"
                 style={{ borderColor: hexToRgba(catColor, 0.12) }}
               >
-                <span className="text-sm">🇮🇹</span>
-                <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
-                  Italiano
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">🇮🇹</span>
+                  <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+                    Italiano
+                  </span>
+                </div>
+                <button
+                  onClick={handlePlayItalian}
+                  disabled={playingIt}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-200 disabled:opacity-50"
+                  style={{
+                    background: hexToRgba(catColor, 0.08),
+                    color: catColor,
+                  }}
+                >
+                  {playingIt ? (
+                    <svg className="w-3.5 h-3.5 animate-pulse" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.22l-7.5 6.002c-.97.776-.97 2.274 0 3.05l7.5 6.002c.944.785 2.56.116 2.56-1.22V4.06z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+                    </svg>
+                  )}
+                  Ascolta
+                </button>
               </div>
               <div className="px-4 py-3 space-y-3">
                 <BulletPoint text={selectedSignal.description} dotColor={catColor} textColor="var(--text-primary)" />
@@ -269,6 +322,57 @@ export default function TheoryScreen() {
                 <BulletPoint text={selectedSignal.whatHappensIfIgnored} dotColor={catColor} textColor="var(--text-secondary)" />
               </div>
             </div>
+
+            {/* Arabic Section */}
+            {selectedSignalId && signalArabicTranslations[selectedSignalId] && (
+              <div
+                className="rounded-2xl overflow-hidden anim-up"
+                style={{
+                  background: 'rgba(79, 70, 229, 0.03)',
+                  border: '1px solid rgba(79, 70, 229, 0.12)',
+                }}
+              >
+                <div
+                  className="px-4 py-2.5 flex items-center justify-between border-b"
+                  style={{ borderColor: 'rgba(79, 70, 229, 0.12)' }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">🇸🇦</span>
+                    <span className="text-xs font-bold" style={{ color: '#4F46E5' }}>
+                      العربية
+                    </span>
+                  </div>
+                  <button
+                    onClick={handlePlayArabic}
+                    disabled={playingAr}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-200 disabled:opacity-50"
+                    style={{
+                      background: 'rgba(79, 70, 229, 0.08)',
+                      color: '#4F46E5',
+                    }}
+                  >
+                    {playingAr ? (
+                      <svg className="w-3.5 h-3.5 animate-pulse" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.22l-7.5 6.002c-.97.776-.97 2.274 0 3.05l7.5 6.002c.944.785 2.56.116 2.56-1.22V4.06z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+                      </svg>
+                    )}
+                    استمع
+                  </button>
+                </div>
+                <div className="px-4 py-3 space-y-3" dir="rtl">
+                  <p className="text-sm font-bold leading-relaxed" style={{ color: '#4F46E5' }}>
+                    {signalArabicTranslations[selectedSignalId].name}
+                  </p>
+                  <BulletPoint text={signalArabicTranslations[selectedSignalId].description} dotColor="#4F46E5" textColor="var(--text-primary)" />
+                  <BulletPoint text={signalArabicTranslations[selectedSignalId].whenToObeyIt} dotColor="#4F46E5" textColor="var(--text-secondary)" />
+                  <BulletPoint text={signalArabicTranslations[selectedSignalId].whatHappensIfIgnored} dotColor="#4F46E5" textColor="var(--text-secondary)" />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Navigation Buttons */}
