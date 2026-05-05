@@ -831,16 +831,6 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
       'Segnali rotondi con bordo blu e sfondo bianco. Impongono un comportamento specifico: direzione, percorso, equipaggiamento. Il blu significa "obbligatorio".',
     signals: [
       {
-        id: 'sens-unico',
-        name: 'Senso unico di circolazione',
-        shape: 'Rettangolo blu con freccia bianca',
-        description:
-          'Obbliga a procedere nella direzione indicata dalla freccia. Nota: è rettangolare (non rotondo come gli altri obblighi).',
-        whenToObeyIt: 'All\'inizio della strada a senso unico.',
-        whatHappensIfIgnored:
-          'Circolare nel verso opposto = multa grave e rischio di incidente frontale.',
-      },
-      {
         id: 'pista-ciclabile',
         name: 'Pista ciclabile',
         shape: 'Cerchio con bordo blu e simbolo bicicletta bianca',
@@ -1535,6 +1525,16 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
           'Indica la presenza di una pista ciclabile nelle vicinanze. A differenza del segnale di obbligo (cerchio blu), questo segnale di indicazione informa i ciclisti dell\'esistenza di un percorso ciclabile consigliato. I ciclisti non sono obbligati a utilizzarlo.',
         whenToObeyIt: 'Informativo per i ciclisti, indica un percorso ciclabile disponibile.',
         whatHappensIfIgnored: 'Non applicabile — è un segnale informativo, non prescrittivo.',
+      },
+      {
+        id: 'sens-unico',
+        name: 'Senso unico di circolazione',
+        shape: 'Rettangolo blu con freccia bianca',
+        description:
+          'Indica una strada a senso unico: tutti i veicoli devono procedere nella direzione indicata dalla freccia. Il conducente non può circolare nel verso opposto. Il segnale è rettangolare (non rotondo come gli altri segnali di obbligo) ed è posizionato all\'inizio della strada a senso unico.',
+        whenToObeyIt: 'All\'inizio della strada a senso unico.',
+        whatHappensIfIgnored:
+          'Circolare nel verso opposto = multa grave e rischio di incidente frontale.',
       },
       {
         id: 'parcheggio',

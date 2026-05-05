@@ -44,7 +44,7 @@ export const SIGNAL_IMAGE_MAP: Record<string, string[]> = {
   'muro-costone': ['/img_sign/231.png'],
   'slittamento': ['/img_sign/139.png'],
   'traffico-convergente': ['/img_sign/248.png'],
-  'ponte-stretto': ['/img_sign/231.png'],
+  'ponte-stretto': ['/img_sign/242.png'],
   'neve-ghiaccio': ['/img_sign/138.png'],
 
   // ═══════════════════════════════════════════════════════════
@@ -77,7 +77,7 @@ export const SIGNAL_IMAGE_MAP: Record<string, string[]> = {
   'divieto-transito-bici': ['/img_sign/63.png'],
   'divieto-transito-moto': ['/img_sign/64.png'],
   'divieto-inversione': ['/img_sign/57.png'],
-  'divieto-retromarcia': ['/img_sign/57.png'],
+  'divieto-retromarcia': ['/img_sign/61.png'],
   'accesso-pedoni': ['/img_sign/66.png'],
   'divieto-rimorchio': ['/img_sign/70.png'],
   'divieto-carri-funebri': ['/img_sign/74.png'],
@@ -95,8 +95,8 @@ export const SIGNAL_IMAGE_MAP: Record<string, string[]> = {
   'divieto-sosta': ['/img_sign/84.png'],
   'divieto-fermata': ['/img_sign/85.png'],
   'parcheggio': ['/img_sign/86.png'],
-  'zona-30': ['/img_sign/58.png'],
-  'fine-zona-30': ['/img_sign/80.png'],
+  'zona-30': ['/img_sign/511.png'],
+  'fine-zona-30': ['/img_sign/515.png'],
   'disco-orario': ['/img_sign/123.png'],
   'ztl': ['/img_sign/187.png'],
 
@@ -116,10 +116,8 @@ export const SIGNAL_IMAGE_MAP: Record<string, string[]> = {
   'percorso-pedonale': ['/img_sign/108.png'],
   'percorso-bici': ['/img_sign/110.png'],
   'pista-ciclabile': ['/img_sign/112.png'],
-  'sens-unico': ['/img_sign/152.png', '/img_sign/153.png'],
   'pneumatici-invernali': ['/img_sign/107.png'],
   'rotonda-destra': ['/img_sign/104.png'],
-  'strada-pericolosa': ['/img_sign/193.png'],
   'fermata-obbligatoria': ['/img_sign/120.png'],
 
   // ═══════════════════════════════════════════════════════════
@@ -133,7 +131,7 @@ export const SIGNAL_IMAGE_MAP: Record<string, string[]> = {
   'velocita-consigliata': ['/img_sign/226.png'],
   'inizio-galleria': ['/img_sign/230.png'],
   'area-pedonale': ['/img_sign/186.png'],
-  'traffico-limitato': ['/img_sign/187.png'],
+  'traffico-limitato': ['/img_sign/189.png'],
   'scuolabus': ['/img_sign/219.png'],
   'pronto-soccorso': ['/img_sign/210.png'],
   'ospedale': ['/img_sign/214.png'],
@@ -155,12 +153,14 @@ export const SIGNAL_IMAGE_MAP: Record<string, string[]> = {
   'ristorante-indicazione': ['/img_sign/217.png'],
   'albergo': ['/img_sign/217.png'],
   'taxi-stand': ['/img_sign/272.png'],
-  'fermata-tram': ['/img_sign/162.png'],
+  'fermata-tram': ['/img_sign/163.png'],
   'soccorso-stradale': ['/img_sign/274.png'],
   'telefono-emergenza': ['/img_sign/220.png'],
-  'passaggio-sotto-livello': ['/img_sign/231.png'],
+  'passaggio-sotto-livello': ['/img_sign/240.png'],
   'strada-riservata': ['/img_sign/228.png'],
   'pista-ciclabile-indicazione': ['/img_sign/236.png'],
+  'sens-unico': ['/img_sign/152.png', '/img_sign/153.png'],
+  'strada-pericolosa': ['/img_sign/193.png'],
 
   // ═══════════════════════════════════════════════════════════
   // PANNELLI INTEGRATIVI (121-145+)
@@ -171,18 +171,18 @@ export const SIGNAL_IMAGE_MAP: Record<string, string[]> = {
   'pannello-km': ['/img_sign/528.png'],
   'pannello-nome-localita': ['/img_sign/173.png'],
   'pannello-direzioni-multiple': ['/img_sign/174.png'],
-  'pannello-conferma-direzione': ['/img_sign/184.png'],
-  'pannello-numero-uscita': ['/img_sign/200.png'],
+  'pannello-conferma-direzione': ['/img_sign/182.png'],
+  'pannello-numero-uscita': ['/img_sign/201.png'],
   'pannello-estensione': ['/img_sign/129.png'],
   'pannello-mesi': ['/img_sign/124.png'],
   'pannello-giorni-festivi': ['/img_sign/125.png'],
   'pannello-pedoni': ['/img_sign/218.png'],
-  'pannello-velocita-consigliata': ['/img_sign/226.png'],
+  'pannello-velocita-consigliata': ['/img_sign/225.png'],
   'presenza-code': ['/img_sign/136.png'],
   'zona-allagamento': ['/img_sign/135.png'],
   'zona-rimozione': ['/img_sign/141.png'],
   'mezzi-lavoro': ['/img_sign/137.png'],
-  'strada-ghiacciata': ['/img_sign/138.png'],
+  'strada-ghiacciata': ['/img_sign/142.png'],
 };
 
 export function getSignalImage(signalId: string): string {
