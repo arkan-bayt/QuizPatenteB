@@ -562,16 +562,6 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
           'Multa automatica (circa 80-100 euro). Le telecamere registrano la targa.',
       },
       {
-        id: 'parcheggio',
-        name: 'Parcheggio',
-        shape: 'Quadrato blu con bordo blu e lettera P bianca',
-        description:
-          'Indica un\'area di parcheggio. Possono essere associati pannelli con orari, tariffe o categorie (disabili, camper, ecc.). Attenzione: è un segnale di divieto di sosta su tutto il resto della strada.',
-        whenToObeyIt: 'Per trovare un parcheggio autorizzato.',
-        whatHappensIfIgnored:
-          'Parcheggiare fuori dagli spazi previsti può comportare multe e rimozione.',
-      },
-      {
         id: 'divieto-sorpasso-camion',
         name: 'Divieto di sorpasso per i camion',
         shape:
@@ -826,17 +816,6 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
         whatHappensIfIgnored:
           'Non applicabile — è un segnale che conclude una prescrizione e ripristina i limiti generali.',
       },
-      {
-        id: 'disco-orario',
-        name: 'Disco orario (sosta a tempo)',
-        shape: 'Cerchio blu con freccia e simbolo di orologio',
-        description:
-          'Indica una zona di sosta regolamentata con limite di tempo. Il conducente deve esporre il disco orario sul cruscotto, indicando l\'ora di arrivo. La durata massima della sosta è indicata dal pannello integrativo (es. 1 ora, 2 ore).',
-        whenToObeyIt:
-          'All\'atto della sosta, posizionando il disco orario in modo visibile dal esterno del veicolo.',
-        whatHappensIfIgnored:
-          'Multa per sosta irregolare se il disco non è esposto o se si supera il tempo consentito. Rimozione del veicolo in caso di violazione ripetuta.',
-      },
     ],
   },
 
@@ -1020,17 +999,6 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
           'All\'ingresso della rotatoria, seguendo il senso di circolazione indicato.',
         whatHappensIfIgnored:
           'Multa severa e rischio gravissimo di incidente frontale con veicoli che circolano nel verso corretto.',
-      },
-      {
-        id: 'strada-pericolosa',
-        name: 'Strada pericolosa (obbligo di percorrerla)',
-        shape: 'Cerchio con bordo blu e simbolo di strada con rischio',
-        description:
-          'Obbliga a percorrere la strada indicata, che è classificata come pericolosa. Questo segnale è tipicamente utilizzato in zone montane o in presenza di tratti stradali con rischi specifici come frane, smottamenti o strade strette. Il conducente deve mantenere la massima attenzione e rispettare i limiti di velocità.',
-        whenToObeyIt:
-          'All\'ingresso del tratto stradale pericoloso, mantenendo la massima prudenza.',
-        whatHappensIfIgnored:
-          'Multa per aver ignorato l\'obbligo di percorso e rischio di incidenti dovuti alle condizioni pericolose della strada.',
       },
       {
         id: 'fermata-obbligatoria',
@@ -1568,6 +1536,27 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
         whenToObeyIt: 'Informativo per i ciclisti, indica un percorso ciclabile disponibile.',
         whatHappensIfIgnored: 'Non applicabile — è un segnale informativo, non prescrittivo.',
       },
+      {
+        id: 'parcheggio',
+        name: 'Parcheggio',
+        shape: 'Quadrato blu con bordo blu e lettera P bianca',
+        description:
+          'Indica un\'area di parcheggio. Possono essere associati pannelli con orari, tariffe o categorie (disabili, camper, ecc.). Il segnale autorizza la sosta nell\'area indicata.',
+        whenToObeyIt: 'Per trovare un parcheggio autorizzato.',
+        whatHappensIfIgnored:
+          'Parcheggiare fuori dagli spazi previsti può comportare multe e rimozione.',
+      },
+      {
+        id: 'strada-pericolosa',
+        name: 'Strada pericolosa (preavviso)',
+        shape: 'Rettangolo bianco con bordo rosso e simbolo di pericolo',
+        description:
+          'Segnale di preavviso che indica un tratto di strada particolarmente pericoloso. Il conducente deve ridurre la velocità e prestare la massima attenzione. Questo segnale è tipicamente utilizzato in zone montane o in presenza di tratti stradali con rischi specifici come frane, smottamenti o strade strette.',
+        whenToObeyIt:
+          'All\'ingresso del tratto stradale pericoloso, mantenendo la massima prudenza.',
+        whatHappensIfIgnored:
+          'Rischio di incidenti dovuti alle condizioni pericolose della strada non previste.',
+      },
     ],
   },
 
@@ -1762,6 +1751,17 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
         whenToObeyIt: 'Consigliato mantenere la velocità indicata per la massima sicurezza.',
         whatHappensIfIgnored:
           'Non comporta sanzioni dirette, ma superare la velocità consigliata aumenta il rischio di incidente.',
+      },
+      {
+        id: 'disco-orario',
+        name: 'Disco orario (sosta a tempo)',
+        shape: 'Cerchio blu con freccia e simbolo di orologio',
+        description:
+          'Indica una zona di sosta regolamentata con limite di tempo. Il conducente deve esporre il disco orario sul cruscotto, indicando l\'ora di arrivo. La durata massima della sosta è indicata dal pannello integrativo (es. 1 ora, 2 ore). Questo pannello è sempre associato a un segnale di parcheggio o di sosta.',
+        whenToObeyIt:
+          'All\'atto della sosta, posizionando il disco orario in modo visibile dal esterno del veicolo.',
+        whatHappensIfIgnored:
+          'Multa per sosta irregolare se il disco non è esposto o se si supera il tempo consentito. Rimozione del veicolo in caso di violazione ripetuta.',
       },
     ],
   },
