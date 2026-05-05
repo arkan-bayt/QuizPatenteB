@@ -900,15 +900,19 @@ async function handleExplain(body: {
     const zai = await ZAI.create();
     const completion = await zai.chat.completions.create({
       messages: [
-        { role: 'system', content: `Sei un istruttore di patente B esperto. Quando spieghi un errore, dai SEMPRE informazioni reali e specifiche. Se la domanda riguarda un segnale stradale (ha immagine), identifica il segnale e spiega cosa significa e il suo nome. Se parla di una regola, spiega la regola. Mai dire "rivedi il capitolo" o "studia l'argomento". Rispondi in italiano, massimo 4 frasi, testo semplice, nessun markdown. Dai solo la spiegazione, niente introduzioni.` },
-        { role: 'user', content: `Domanda: "${question}"\nCapitolo: ${chapterName || '-'}\nArgomento: ${subtopic || '-'}\nHa immagine di segnale: ${hasImage ? 'SI' : 'NO'}\nRisposta corretta: ${correctText}\nRisposta utente: ${userText}\n\nSpiega PERCHE' la risposta corretta e' ${correctText}. Se c'e' un segnale, spiega il nome del segnale e cosa significa. Dai informazioni reali e utili.` }
+        { role: 'system', content: `Sei un istruttore di patente B esperto. Quando spieghi un errore, dai SEMPRE informazioni reali e specifiche. Se la domanda riguarda un segnale stradale (ha immagine), identifica il segnale e spiega cosa significa e il suo nome. Se parla di una regola, spiega la regola. Mai dire "rivedi il capitolo" o "studia l'argomento". Rispondi SEMPRE in DUE lingue: prima in italiano (max 3 frasi), poi con "---ARABIC---" e la stessa spiegazione in arabo (max 3 frasi). Testo semplice, nessun markdown. Dai solo la spiegazione, niente introduzioni.` },
+        { role: 'user', content: `Domanda: "${question}"\nCapitolo: ${chapterName || '-'}\nArgomento: ${subtopic || '-'}\nHa immagine di segnale: ${hasImage ? 'SI' : 'NO'}\nRisposta corretta: ${correctText}\nRisposta utente: ${userText}\n\nSpiega PERCHE' la risposta corretta e' ${correctText}. Se c'e' un segnale, spiega il nome del segnale e cosa significa. Dai informazioni reali e utili. Rispondi in italiano e arabo, separati da "---ARABIC---".` }
       ],
       temperature: 0.2,
       max_tokens: 250,
     });
     const explanation = completion.choices[0]?.message?.content;
     if (explanation && explanation.trim().length > 20 && !explanation.toLowerCase().includes('ripass') && !explanation.toLowerCase().includes('rivedi')) {
-      return NextResponse.json({ explanation: explanation.trim(), correctAnswer: correctText });
+      // Split bilingual response into Italian and Arabic parts
+      const parts = explanation.split('---ARABIC---');
+      const italianExplanation = parts[0].trim();
+      const arabicExplanation = parts[1]?.trim() || '';
+      return NextResponse.json({ explanation: italianExplanation, explanationAr: arabicExplanation, correctAnswer: correctText });
     }
   } catch (error: unknown) {
     console.error('AI Explain error:', error instanceof Error ? error.message : 'Unknown');
@@ -1071,15 +1075,18 @@ async function handleHint(body: { action: string; question: string; chapterName?
     const zai = await ZAI.create();
     const completion = await zai.chat.completions.create({
       messages: [
-        { role: 'system', content: `Sei un istruttore di patente B. Dai un INDIZIO breve per aiutare lo studente a rispondere correttamente. NON dire la risposta corretta (VERO/FALSO). Usa max 2 frasi. Rispondi in italiano. Se c'e' un'immagine di segnale, suggerisci di osservare la forma e il colore. Nessun markdown.` },
-        { role: 'user', content: `Domanda: "${question}"\nCapitolo: ${chapterName || '-'}\nArgomento: ${subtopic || '-'}\nHa immagine: ${hasImage ? 'SI' : 'NO'}\n\nDai un indizio breve che aiuti a capire la risposta senza rivelarla.` }
+        { role: 'system', content: `Sei un istruttore di patente B. Dai un INDIZIO breve per aiutare lo studente a rispondere correttamente. NON dire la risposta corretta (VERO/FALSO). Usa max 2 frasi. Rispondi SEMPRE in DUE lingue: prima in italiano, poi con "---ARABIC---" e lo stesso indizio in arabo. Se c'e' un'immagine di segnale, suggerisci di osservare la forma e il colore. Nessun markdown.` },
+        { role: 'user', content: `Domanda: "${question}"\nCapitolo: ${chapterName || '-'}\nArgomento: ${subtopic || '-'}\nHa immagine: ${hasImage ? 'SI' : 'NO'}\n\nDai un indizio breve che aiuti a capire la risposta senza rivelarla. Rispondi in italiano e arabo, separati da "---ARABIC---".` }
       ],
       temperature: 0.3,
       max_tokens: 150,
     });
     const hint = completion.choices[0]?.message?.content;
     if (hint && hint.trim().length > 15 && !hint.toLowerCase().includes('vero') && !hint.toLowerCase().includes('falso')) {
-      return NextResponse.json({ hint: hint.trim(), fallback: false });
+      const parts = hint.split('---ARABIC---');
+      const italianHint = parts[0].trim();
+      const arabicHint = parts[1]?.trim() || '';
+      return NextResponse.json({ hint: italianHint, hintAr: arabicHint, fallback: false });
     }
   } catch (error: unknown) {
     console.error('AI Hint error:', error instanceof Error ? error.message : 'Unknown');
