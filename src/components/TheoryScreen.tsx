@@ -14,6 +14,11 @@ import {
   getTheoryChapter,
   getChaptersByTopic,
 } from '@/data/theoryChapters';
+import {
+  CHAPTER_EXPLANATIONS,
+  TOPICS_INFO,
+  ChapterExplanation,
+} from '@/data/explanationsData';
 
 // ============================================================
 // Helper: Convert hex color to rgba with low opacity
@@ -82,6 +87,11 @@ export default function TheoryScreen() {
     [selectedChapterId]
   );
 
+  const selectedChapterExplanation = useMemo(
+    () => (selectedChapterId ? CHAPTER_EXPLANATIONS.find((e) => e.id === selectedChapterId) || null : null),
+    [selectedChapterId]
+  );
+
   const chaptersByTopic = useMemo(
     () => THEORY_TOPICS.map((topic) => ({
       topic,
@@ -108,6 +118,34 @@ export default function TheoryScreen() {
     const fullText = `${ar.name}. ${ar.description}. ${ar.whenToObeyIt}. ${ar.whatHappensIfIgnored}`;
     speakText(fullText.substring(0, 200), 'ar').finally(() => setPlayingAr(false));
   }, [selectedSignalId]);
+
+  // ── Handlers: TTS for chapters ───────────────────────────
+  const [playingChIt, setPlayingChIt] = useState(false);
+  const [playingChAr, setPlayingChAr] = useState(false);
+
+  const handlePlayChapterItalian = useCallback(() => {
+    if (!selectedChapter) return;
+    setPlayingChIt(true);
+    stopSpeech();
+    const fullText = `${selectedChapter.title}. ${selectedChapter.overview}. ${selectedChapter.keyPoints.map((kp) => kp.title + '. ' + kp.description).join('. ')}`;
+    speakText(fullText.substring(0, 300), 'it-IT').finally(() => setPlayingChIt(false));
+  }, [selectedChapter]);
+
+  const handlePlayChapterArabic = useCallback(() => {
+    if (!selectedChapterExplanation) return;
+    setPlayingChAr(true);
+    stopSpeech();
+    const ar = selectedChapterExplanation;
+    const fullText = `${ar.titleAr}. ${ar.overview.ar}. ${ar.keyPoints.map((kp) => kp.titleAr + '. ' + kp.descAr).join('. ')}`;
+    speakText(fullText.substring(0, 300), 'ar').finally(() => setPlayingChAr(false));
+  }, [selectedChapterExplanation]);
+
+  // Stop chapter speech when chapter changes
+  useEffect(() => {
+    stopSpeech();
+    setPlayingChIt(false);
+    setPlayingChAr(false);
+  }, [selectedChapterId]);
 
   // ── Handlers: Signals ──────────────────────────────────────
   const handleCategoryChange = (catId: string) => {
@@ -434,6 +472,8 @@ export default function TheoryScreen() {
   if (view === 'chapterDetail' && selectedChapter) {
     const ch = selectedChapter;
     const chColor = ch.color;
+    const chEx = selectedChapterExplanation;
+    const hasArabic = !!chEx;
 
     return (
       <div className="min-h-screen bg-mesh pb-8">
@@ -465,7 +505,7 @@ export default function TheoryScreen() {
         </div>
 
         <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-5 space-y-5 anim-up">
-          {/* Chapter Icon & Title */}
+          {/* Chapter Icon & Title — bilingual */}
           <div className="flex items-center gap-4">
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
@@ -480,51 +520,152 @@ export default function TheoryScreen() {
               <h1 className="text-lg font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
                 {ch.title}
               </h1>
+              {hasArabic && (
+                <p className="text-sm font-semibold leading-tight mt-0.5" dir="rtl" style={{ color: '#4F46E5' }}>
+                  {chEx!.titleAr}
+                </p>
+              )}
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
                 {ch.topicGroup}
               </p>
             </div>
           </div>
 
+          {/* TTS buttons for chapter */}
+          <div className="flex gap-2">
+            <button
+              onClick={handlePlayChapterItalian}
+              disabled={playingChIt || playingChAr}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-semibold transition-all duration-200 disabled:opacity-50"
+              style={{
+                background: hexToRgba(chColor, 0.08),
+                color: chColor,
+                border: `1px solid ${hexToRgba(chColor, 0.2)}`,
+              }}
+            >
+              {playingChIt ? (
+                <svg className="w-3.5 h-3.5 animate-pulse" fill="currentColor" viewBox="0 0 24 24"><path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.22l-7.5 6.002c-.97.776-.97 2.274 0 3.05l7.5 6.002c.944.785 2.56.116 2.56-1.22V4.06z" /></svg>
+              ) : (
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg>
+              )}
+              🇮🇹 Ascolta
+            </button>
+            {hasArabic && (
+              <button
+                onClick={handlePlayChapterArabic}
+                disabled={playingChIt || playingChAr}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-semibold transition-all duration-200 disabled:opacity-50"
+                style={{
+                  background: 'rgba(79, 70, 229, 0.08)',
+                  color: '#4F46E5',
+                  border: '1px solid rgba(79, 70, 229, 0.2)',
+                }}
+              >
+                {playingChAr ? (
+                  <svg className="w-3.5 h-3.5 animate-pulse" fill="currentColor" viewBox="0 0 24 24"><path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.22l-7.5 6.002c-.97.776-.97 2.274 0 3.05l7.5 6.002c.944.785 2.56.116 2.56-1.22V4.06z" /></svg>
+                ) : (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg>
+                )}
+                🇸🇦 استمع
+              </button>
+            )}
+          </div>
+
           {/* ── Overview ────────────────────────────────────── */}
           {ch.overview && (
-            <SectionBlock
-              icon="📖"
-              title="Panoramica"
-              color={chColor}
-            >
-              <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-primary)' }}>
-                {ch.overview}
-              </p>
-            </SectionBlock>
+            <>
+              {/* Italian Overview */}
+              <SectionBlock
+                icon="📖"
+                title="Panoramica"
+                color={chColor}
+              >
+                <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+                  {ch.overview}
+                </p>
+              </SectionBlock>
+              {/* Arabic Overview */}
+              {hasArabic && (
+                <div
+                  className="rounded-2xl overflow-hidden anim-up"
+                  style={{
+                    background: 'rgba(79, 70, 229, 0.03)',
+                    border: '1px solid rgba(79, 70, 229, 0.12)',
+                  }}
+                >
+                  <div className="px-4 py-2.5 flex items-center gap-2 border-b" style={{ borderColor: 'rgba(79, 70, 229, 0.12)' }}>
+                    <span className="text-sm">🇸🇦</span>
+                    <span className="text-xs font-bold" style={{ color: '#4F46E5' }}>نظرة عامة</span>
+                  </div>
+                  <div className="px-4 py-3" dir="rtl">
+                    <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+                      {chEx!.overview.ar}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* ── Key Points ──────────────────────────────────── */}
           {ch.keyPoints.length > 0 && (
-            <SectionBlock
-              icon="🔑"
-              title="Punti chiave"
-              color={chColor}
-            >
-              <div className="space-y-3">
-                {ch.keyPoints.map((kp, i) => (
-                  <div key={i} className="flex items-start gap-2.5">
-                    <div
-                      className="w-2 h-2 rounded-full flex-shrink-0 mt-[7px]"
-                      style={{ background: chColor }}
-                    />
-                    <div>
-                      <p className="text-[13px] font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>
-                        {kp.title}
-                      </p>
-                      <p className="text-[12px] leading-relaxed mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                        {kp.description}
-                      </p>
+            <>
+              {/* Italian Key Points */}
+              <SectionBlock
+                icon="🔑"
+                title="Punti chiave"
+                color={chColor}
+              >
+                <div className="space-y-3">
+                  {ch.keyPoints.map((kp, i) => (
+                    <div key={i} className="flex items-start gap-2.5">
+                      <div
+                        className="w-2 h-2 rounded-full flex-shrink-0 mt-[7px]"
+                        style={{ background: chColor }}
+                      />
+                      <div>
+                        <p className="text-[13px] font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>
+                          {kp.title}
+                        </p>
+                        <p className="text-[12px] leading-relaxed mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                          {kp.description}
+                        </p>
+                      </div>
                     </div>
+                  ))}
+                </div>
+              </SectionBlock>
+              {/* Arabic Key Points */}
+              {hasArabic && chEx!.keyPoints.length > 0 && (
+                <div
+                  className="rounded-2xl overflow-hidden anim-up"
+                  style={{
+                    background: 'rgba(79, 70, 229, 0.03)',
+                    border: '1px solid rgba(79, 70, 229, 0.12)',
+                  }}
+                >
+                  <div className="px-4 py-2.5 flex items-center gap-2 border-b" style={{ borderColor: 'rgba(79, 70, 229, 0.12)' }}>
+                    <span className="text-sm">🇸🇦</span>
+                    <span className="text-xs font-bold" style={{ color: '#4F46E5' }}>النقاط الرئيسية</span>
                   </div>
-                ))}
-              </div>
-            </SectionBlock>
+                  <div className="px-4 py-3 space-y-3" dir="rtl">
+                    {chEx!.keyPoints.map((kp, i) => (
+                      <div key={i} className="flex items-start gap-2.5">
+                        <div className="w-2 h-2 rounded-full flex-shrink-0 mt-[7px]" style={{ background: '#4F46E5' }} />
+                        <div>
+                          <p className="text-[13px] font-bold leading-snug" style={{ color: '#4F46E5' }}>
+                            {kp.titleAr}
+                          </p>
+                          <p className="text-[12px] leading-relaxed mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                            {kp.descAr}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* ── Rules ───────────────────────────────────────── */}
@@ -544,56 +685,126 @@ export default function TheoryScreen() {
 
           {/* ── Common Mistakes ─────────────────────────────── */}
           {ch.commonMistakes.length > 0 && (
-            <SectionBlock
-              icon="⚠️"
-              title="Errori comuni"
-              color="#EF4444"
-            >
-              <div className="space-y-2">
-                {ch.commonMistakes.map((mistake, i) => (
-                  <div
-                    key={i}
-                    className="flex items-start gap-2.5 px-3 py-2 rounded-lg"
-                    style={{
-                      background: hexToRgba('#EF4444', 0.04),
-                      border: `1px solid ${hexToRgba('#EF4444', 0.1)}`,
-                    }}
-                  >
-                    <span className="text-sm flex-shrink-0 mt-px">✕</span>
-                    <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                      {mistake}
-                    </p>
+            <>
+              {/* Italian Common Mistakes */}
+              <SectionBlock
+                icon="⚠️"
+                title="Errori comuni"
+                color="#EF4444"
+              >
+                <div className="space-y-2">
+                  {ch.commonMistakes.map((mistake, i) => (
+                    <div
+                      key={i}
+                      className="flex items-start gap-2.5 px-3 py-2 rounded-lg"
+                      style={{
+                        background: hexToRgba('#EF4444', 0.04),
+                        border: `1px solid ${hexToRgba('#EF4444', 0.1)}`,
+                      }}
+                    >
+                      <span className="text-sm flex-shrink-0 mt-px">✕</span>
+                      <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                        {mistake}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </SectionBlock>
+              {/* Arabic Common Mistakes */}
+              {hasArabic && chEx!.commonMistakes.length > 0 && (
+                <div
+                  className="rounded-2xl overflow-hidden anim-up"
+                  style={{
+                    background: 'rgba(79, 70, 229, 0.03)',
+                    border: '1px solid rgba(79, 70, 229, 0.12)',
+                  }}
+                >
+                  <div className="px-4 py-2.5 flex items-center gap-2 border-b" style={{ borderColor: 'rgba(79, 70, 229, 0.12)' }}>
+                    <span className="text-sm">🇸🇦</span>
+                    <span className="text-xs font-bold" style={{ color: '#4F46E5' }}>أخطاء شائعة</span>
                   </div>
-                ))}
-              </div>
-            </SectionBlock>
+                  <div className="px-4 py-3 space-y-2" dir="rtl">
+                    {chEx!.commonMistakes.map((mistake, i) => (
+                      <div
+                        key={i}
+                        className="flex items-start gap-2.5 px-3 py-2 rounded-lg"
+                        style={{
+                          background: 'rgba(79, 70, 229, 0.04)',
+                          border: '1px solid rgba(79, 70, 229, 0.1)',
+                        }}
+                      >
+                        <span className="text-sm flex-shrink-0 mt-px">✕</span>
+                        <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+                          {mistake.ar}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* ── Memory Tips ─────────────────────────────────── */}
           {ch.memoryTips.length > 0 && (
-            <SectionBlock
-              icon="💡"
-              title="Trucchi di memoria"
-              color="#F59E0B"
-            >
-              <div className="space-y-2">
-                {ch.memoryTips.map((tip, i) => (
-                  <div
-                    key={i}
-                    className="flex items-start gap-2.5 px-3 py-2 rounded-lg"
-                    style={{
-                      background: hexToRgba('#F59E0B', 0.04),
-                      border: `1px solid ${hexToRgba('#F59E0B', 0.1)}`,
-                    }}
-                  >
-                    <span className="text-sm flex-shrink-0 mt-px">💡</span>
-                    <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                      {tip}
-                    </p>
+            <>
+              {/* Italian Memory Tips */}
+              <SectionBlock
+                icon="💡"
+                title="Trucchi di memoria"
+                color="#F59E0B"
+              >
+                <div className="space-y-2">
+                  {ch.memoryTips.map((tip, i) => (
+                    <div
+                      key={i}
+                      className="flex items-start gap-2.5 px-3 py-2 rounded-lg"
+                      style={{
+                        background: hexToRgba('#F59E0B', 0.04),
+                        border: `1px solid ${hexToRgba('#F59E0B', 0.1)}`,
+                      }}
+                    >
+                      <span className="text-sm flex-shrink-0 mt-px">💡</span>
+                      <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                        {tip}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </SectionBlock>
+              {/* Arabic Memory Tips */}
+              {hasArabic && chEx!.memoryTips.length > 0 && (
+                <div
+                  className="rounded-2xl overflow-hidden anim-up"
+                  style={{
+                    background: 'rgba(79, 70, 229, 0.03)',
+                    border: '1px solid rgba(79, 70, 229, 0.12)',
+                  }}
+                >
+                  <div className="px-4 py-2.5 flex items-center gap-2 border-b" style={{ borderColor: 'rgba(79, 70, 229, 0.12)' }}>
+                    <span className="text-sm">🇸🇦</span>
+                    <span className="text-xs font-bold" style={{ color: '#4F46E5' }}>حيل للذاكرة</span>
                   </div>
-                ))}
-              </div>
-            </SectionBlock>
+                  <div className="px-4 py-3 space-y-2" dir="rtl">
+                    {chEx!.memoryTips.map((tip, i) => (
+                      <div
+                        key={i}
+                        className="flex items-start gap-2.5 px-3 py-2 rounded-lg"
+                        style={{
+                          background: 'rgba(79, 70, 229, 0.04)',
+                          border: '1px solid rgba(79, 70, 229, 0.1)',
+                        }}
+                      >
+                        <span className="text-sm flex-shrink-0 mt-px">💡</span>
+                        <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+                          {tip.ar}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* ── Important Numbers ───────────────────────────── */}
