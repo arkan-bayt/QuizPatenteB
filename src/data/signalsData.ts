@@ -161,17 +161,6 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
           'Rischio di caduta nel fiume o canale con il veicolo.',
       },
       {
-        id: 'neve-ghiaccio',
-        name: 'Neve o ghiaccio',
-        shape: 'Triangolo con fiocco di neve',
-        description:
-          'Possibilità di neve o ghiaccio sulla strada. È possibile che sia obbligatorio montare catene o pneumatici invernali. Ridurre la velocità in modo significativo.',
-        whenToObeyIt:
-          'Appena visibile, prepararsi con catene o pneumatici invernali.',
-        whatHappensIfIgnored:
-          'Perdita di controllo, sbandata, incidente multiplo.',
-      },
-      {
         id: 'vento',
         name: 'Vento laterale forte',
         shape: 'Triangolo con simbolo vento',
@@ -366,50 +355,6 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
           'Non applicabile — è un segnale puramente informativo.',
       },
       {
-        id: 'curva-gomito-sinistra',
-        name: 'Curva a gomito a sinistra',
-        shape: 'Triangolo con freccia che forma un angolo retto a sinistra',
-        description:
-          'Indica la presenza di una curva molto stretta a gomito verso sinistra, con un cambio di direzione brusco di circa 90 gradi. Il conducente deve ridurre notevolmente la velocità prima della curva e tenersi il più possibile a destra nella propria corsia.',
-        whenToObeyIt:
-          'Appena il segnale diventa visibile, rallentare in anticipo prima di raggiungere la curva.',
-        whatHappensIfIgnored:
-          'Rischio di uscire di strada, invadere la corsia opposta o perdere il controllo del veicolo con possibili collisioni gravi.',
-      },
-      {
-        id: 'curva-gomito-destra',
-        name: 'Curva a gomito a destra',
-        shape: 'Triangolo con freccia che forma un angolo retto a destra',
-        description:
-          'Indica la presenza di una curva molto stretta a gomito verso destra, con un cambio di direzione brusco di circa 90 gradi. Il conducente deve ridurre notevolmente la velocità prima della curva e mantenere la posizione corretta sulla carreggiata.',
-        whenToObeyIt:
-          'Appena il segnale diventa visibile, rallentare prima della curva per mantenere il controllo del veicolo.',
-        whatHappensIfIgnored:
-          'Rischio di sbandare, urtare il guardrail o uscire di strada con il rischio di collisione frontale o laterale.',
-      },
-      {
-        id: 'curve-ad-s',
-        name: 'Curve a S',
-        shape: 'Triangolo con due frecce curve che formano una S',
-        description:
-          'Indica la presenza di una successione di curve alternate (destra-sinistra o sinistra-destra) ravvicinate, simili alla forma della lettera S. Richiede grande prudenza, velocità ridotta e mantenimento costante della propria corsia senza tagliare le curve.',
-        whenToObeyIt:
-          'Appena il segnale diventa visibile, prima di imboccare la prima curva della successione.',
-        whatHappensIfIgnored:
-          'Rischio di perdere il controllo del veicolo sulle curve alternate, specialmente in condizioni di manto stradale bagnato o con visibilità ridotta.',
-      },
-      {
-        id: 'incrocio-tram',
-        name: 'Incrocio con tram',
-        shape: 'Triangolo con simbolo di tram e frecce di incrocio',
-        description:
-          'Indica un incrocio dove i binari del tram attraversano la carreggiata. Il conducente deve prestare massima attenzione ai tram in transito, dare loro la precedenza quando necessario e non fermarsi sui binari in nessun caso.',
-        whenToObeyIt:
-          'Avvicinandosi all\'incrocio, verificare in tutte le direzioni la presenza di tram.',
-        whatHappensIfIgnored:
-          'Rischio di collisione con il tram che, data la sua massa, può causare danni enormi al veicolo e pericolo grave per gli occupanti.',
-      },
-      {
         id: 'passaggio-livello-barriere',
         name: 'Passaggio a livello con barriere',
         shape: 'Triangolo con simbolo di treno e barriere semichiuse',
@@ -419,61 +364,6 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
           'Sempre quando ci si avvicina al passaggio a livello. Fermarsi quando le barriere sono chiuse o in movimento.',
         whatHappensIfIgnored:
           'Rischio di essere investiti dal treno con conseguenze quasi sempre letali. È una delle infrazioni più pericolose del Codice della Strada.',
-      },
-      {
-        id: 'deposito-materiale',
-        name: 'Deposito di materiale',
-        shape: 'Triangolo con simbolo di pietre o materiale accatastato',
-        description:
-          'Indica la possibile presenza di materiale depositato ai bordi della carreggiata o sulla strada. Il conducente deve ridurre la velocità e prestare attenzione al possibile restringimento della carreggiata o alla presenza di detriti sparsi sulla via.',
-        whenToObeyIt:
-          'Su tutto il tratto segnalato, mantenendo la velocità ridotta e la massima attenzione.',
-        whatHappensIfIgnored:
-          'Rischio di collisione con il materiale depositato, danni al veicolo, perdita di controllo o blocco della circolazione.',
-      },
-      {
-        id: 'muro-costone',
-        name: 'Muro o costone laterale',
-        shape: 'Triangolo con profilo di muro o parete verticale',
-        description:
-          'Indica la presenza di un muro, di un costone roccioso o di una parete verticale a ridosso della carreggiata. Il conducente deve mantenere la distanza di sicurezza dal bordo e non uscire dalla carreggiata. Particolare attenzione per i veicoli alti o con carico sporgente.',
-        whenToObeyIt:
-          'Su tutto il tratto segnalato, mantenendo la corsia e la distanza di sicurezza laterale.',
-        whatHappensIfIgnored:
-          'Rischio di urto contro il muro o il costone, con danni al veicolo, possibili lesioni per gli occupanti e blocco della strada.',
-      },
-      {
-        id: 'slittamento',
-        name: 'Slittamento',
-        shape: 'Triangolo con simbolo di veicolo che slitta lateralmente',
-        description:
-          'Indica un tratto di strada particolarmente soggetto a slittamento dei veicoli, spesso a causa di asfalto liscio, fango, foglie umide o sudiciume sulla carreggiata. Il conducente deve procedere a velocità molto ridotta, evitando brusche frenate, accelerate o sterzate.',
-        whenToObeyIt:
-          'Su tutto il tratto segnalato, con attenzione particolarmente elevata in caso di pioggia o umidità.',
-        whatHappensIfIgnored:
-          'Perdita di aderenza del veicolo con sbandata laterale, uscita di strada, testacoda o capottamento.',
-      },
-      {
-        id: 'traffico-convergente',
-        name: 'Traffico convergente',
-        shape: 'Triangolo con frecce che convergono verso il centro',
-        description:
-          'Indica che due o più corsie si uniscono in un\'unica carreggiata, costringendo i veicoli a fondersi. Il conducente deve adattare la velocità e alternarsi con cortesia con gli altri veicoli, rispettando la regola della cremagliera.',
-        whenToObeyIt:
-          'Avvicinandosi al punto di convergenza, riducendo la velocità e inserendosi nel traffico con prudenza.',
-        whatHappensIfIgnored:
-          'Rischio di collisione laterale con i veicoli che confluiscono, code pericolose e situazioni di blocco del traffico.',
-      },
-      {
-        id: 'ponte-stretto',
-        name: 'Ponte stretto',
-        shape: 'Triangolo con simbolo di ponte con restringimento laterale',
-        description:
-          'Indica la presenza di un ponte con carreggiata più stretta rispetto alla strada ordinaria. Il conducente deve ridurre la velocità prima di immettersi sul ponte. Se il ponte non consente il passaggio simultaneo di due veicoli, si applica la precedenza dal diritto diresso.',
-        whenToObeyIt:
-          'Prima di immettersi sul ponte, verificando le dimensioni del proprio veicolo e la larghezza del ponte.',
-        whatHappensIfIgnored:
-          'Rischio di collisione con veicoli provenienti dalla direzione opposta, danni al veicolo contro le balaustre del ponte o caduta nel vuoto.',
       },
     ],
   },
@@ -549,17 +439,6 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
         whenToObeyIt: 'Su tutto il tratto segnalato.',
         whatHappensIfIgnored:
           'Multa e decurtazione punti. Se causa incidente: responsabilità penale.',
-      },
-      {
-        id: 'ztl',
-        name: 'Zona a traffico limitato (ZTL)',
-        shape: 'Cerchio bianco con bordo rosso e scritta ZTL',
-        description:
-          'Accesso limitato a determinati orari o categorie di veicoli. Spesso controllata da telecamere. I residenti e autorizzati hanno accesso con permesso.',
-        whenToObeyIt:
-          'Verificare sempre gli orari di attivazione e la categoria del proprio veicolo.',
-        whatHappensIfIgnored:
-          'Multa automatica (circa 80-100 euro). Le telecamere registrano la targa.',
       },
       {
         id: 'divieto-sorpasso-camion',
@@ -794,29 +673,18 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
         whatHappensIfIgnored:
           'Multa elevata. In caso di incendio provocato, si applicano responsabilità penali gravissime fino al carcere.',
       },
+    
       {
-        id: 'zona-30',
-        name: 'Zona 30 (limite 30 km/h)',
-        shape: 'Rettangolo bianco con bordo rosso e scritta "ZONA 30"',
+        id: 'parcheggio',
+        name: 'Parcheggio',
+        shape: 'Quadrato blu con bordo blu e lettera P bianca',
         description:
-          'Indica l\'inizio di una zona a traffico limitato dove la velocità massima consentita è di 30 km/h per tutti i veicoli. Tipicamente istituita in centri storici, zone scolastiche o aree residenziali per proteggere pedoni e ciclisti.',
-        whenToObeyIt:
-          'Da quando si entra nella zona 30 fino al segnale di fine zona 30. Il limite si applica a tutta la zona, non solo alla strada dove è esposto il segnale.',
+          'Indica un\'area di parcheggio. Possono essere associati pannelli con orari, tariffe o categorie (disabili, camper, ecc.). Il segnale autorizza la sosta nell\'area indicata.',
+        whenToObeyIt: 'Per trovare un parcheggio autorizzato.',
         whatHappensIfIgnored:
-          'Multa proporzionale all\'eccesso di velocità. In zona 30, anche piccoli eccessi sono pericolosi per pedoni e ciclisti.',
+          'Parcheggiare fuori dagli spazi previsti può comportare multe e rimozione.',
       },
-      {
-        id: 'fine-zona-30',
-        name: 'Fine zona 30',
-        shape: 'Rettangolo bianco con bordo grigio e scritta "FINE ZONA 30" barrata',
-        description:
-          'Indica la fine della zona a traffico limitato a 30 km/h. Da questo punto in poi si applicano i limiti di velocità generali previsti dal Codice della Strada per il tipo di strada che si sta percorrendo.',
-        whenToObeyIt:
-          'Appena superato il segnale, riprendere la velocità consentita per il tipo di strada (es. 50 km/h in centro abitato).',
-        whatHappensIfIgnored:
-          'Non applicabile — è un segnale che conclude una prescrizione e ripristina i limiti generali.',
-      },
-    ],
+],
   },
 
   // ─────────────────────────────────────────────────────────────
@@ -990,18 +858,28 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
         whatHappensIfIgnored:
           'Multa severa e rischio gravissimo di incidente frontale con veicoli che circolano nel verso corretto.',
       },
+    
       {
-        id: 'fermata-obbligatoria',
-        name: 'Fermata obbligatoria davanti al passaggio a livello',
-        shape: 'Rettangolo con bordo rosso e scritta FERMATA OBBLIGATORIA',
+        id: 'parcheggio-coperto',
+        name: 'Parcheggio coperto',
+        shape: 'Rettangolo blu con simbolo P e icona di tetto/struttura coperta',
         description:
-          'Obbliga il conducente a fermarsi completamente davanti al passaggio a livello, anche in assenza di barriere chiuse o segnale di stop. Il conducente deve verificare visivamente e uditivamente l\'assenza di treni prima di attraversare i binari. Non sostare mai sui binari.',
-        whenToObeyIt:
-          'Sempre quando ci si avvicina al passaggio a livello, fermarsi completamente prima dei binari.',
-        whatHappensIfIgnored:
-          'Multa molto severa e rischio gravissimo di collisione con un treno, con conseguenze quasi sempre letali.',
+          'Indica la presenza di un parcheggio multipiano o sotterraneo nelle vicinanze. Il parcheggio coperto offre protezione dalle intemperie ed è generalmente a pagamento. Spesso indicato con pannelli che mostrano i posti disponibili in tempo reale.',
+        whenToObeyIt: 'Informativo, per trovare un parcheggio al coperto nelle vicinanze.',
+        whatHappensIfIgnored: 'Non applicabile — è informativo. Parcheggiare in divieto di sosta comporta multe.',
       },
-    ],
+
+      {
+        id: 'parcheggio-disabili',
+        name: 'Parcheggio per disabili',
+        shape: 'Rettangolo blu con simbolo P e simbolo di disabile',
+        description:
+          'Indica stalli di parcheggio riservati esclusivamente ai veicoli con contrassegno disabili. L\'occupazione abusiva di questi posti è punita con sanzioni molto severe. Il contrassegno deve essere esposto in modo ben visibile sul parabrezza.',
+        whenToObeyIt: 'Solo i veicoli con regolare contrassegno disabili possono utilizzare questi stalli.',
+        whatHappensIfIgnored:
+          'Multa da 80 a 328 euro e decurtazione di 2 punti dalla patente. Possibile rimozione del veicolo.',
+      },
+],
   },
 
   // ─────────────────────────────────────────────────────────────
@@ -1128,17 +1006,6 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
           'Su tutto il tratto stradale segnalato, quando si incontra un veicolo proveniente dalla direzione opposta.',
         whatHappensIfIgnored:
           'Multa e rischio di collisione o di blocco del traffico in una strada stretta con veicoli impossibilitati a retrocedere.',
-      },
-      {
-        id: 'precedenza-strada-stretta',
-        name: 'Precedenza nel tratto stretto (veicolo opposto)',
-        shape: 'Rettangolo con frecce che indicano la direzione del veicolo prioritario',
-        description:
-          'Stabilisce quale direzione ha la precedenza in un tratto di strada troppo stretto per consentire il passaggio contemporaneo di veicoli provenienti da entrambe le direzioni. Il segnale indica con una freccia più grande la direzione che deve passare per prima. Il conducente dalla direzione non prioritaria deve fermarsi e attendere.',
-        whenToObeyIt:
-          'Avvicinandosi al tratto stretto, se la freccia grande indica la direzione opposta.',
-        whatHappensIfIgnored:
-          'Multa e rischio di incastro con veicoli provenienti dalla direzione opposta, con possibile necessità di manovre di retromarcia pericolose.',
       },
       {
         id: 'incrocio-prioritaria',
@@ -1367,25 +1234,6 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
         whatHappensIfIgnored: 'Non applicabile — è informativo. Sostare con camper fuori dalle aree designate può comportare multe.',
       },
       {
-        id: 'parcheggio-coperto',
-        name: 'Parcheggio coperto',
-        shape: 'Rettangolo blu con simbolo P e icona di tetto/struttura coperta',
-        description:
-          'Indica la presenza di un parcheggio multipiano o sotterraneo nelle vicinanze. Il parcheggio coperto offre protezione dalle intemperie ed è generalmente a pagamento. Spesso indicato con pannelli che mostrano i posti disponibili in tempo reale.',
-        whenToObeyIt: 'Informativo, per trovare un parcheggio al coperto nelle vicinanze.',
-        whatHappensIfIgnored: 'Non applicabile — è informativo. Parcheggiare in divieto di sosta comporta multe.',
-      },
-      {
-        id: 'parcheggio-disabili',
-        name: 'Parcheggio per disabili',
-        shape: 'Rettangolo blu con simbolo P e simbolo di disabile',
-        description:
-          'Indica stalli di parcheggio riservati esclusivamente ai veicoli con contrassegno disabili. L\'occupazione abusiva di questi posti è punita con sanzioni molto severe. Il contrassegno deve essere esposto in modo ben visibile sul parabrezza.',
-        whenToObeyIt: 'Solo i veicoli con regolare contrassegno disabili possono utilizzare questi stalli.',
-        whatHappensIfIgnored:
-          'Multa da 80 a 328 euro e decurtazione di 2 punti dalla patente. Possibile rimozione del veicolo.',
-      },
-      {
         id: 'area-sosta',
         name: 'Area di sosta',
         shape: 'Rettangolo blu con simbolo di parcheggio e lettera S o simbolo specifico',
@@ -1537,16 +1385,6 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
           'Circolare nel verso opposto = multa grave e rischio di incidente frontale.',
       },
       {
-        id: 'parcheggio',
-        name: 'Parcheggio',
-        shape: 'Quadrato blu con bordo blu e lettera P bianca',
-        description:
-          'Indica un\'area di parcheggio. Possono essere associati pannelli con orari, tariffe o categorie (disabili, camper, ecc.). Il segnale autorizza la sosta nell\'area indicata.',
-        whenToObeyIt: 'Per trovare un parcheggio autorizzato.',
-        whatHappensIfIgnored:
-          'Parcheggiare fuori dagli spazi previsti può comportare multe e rimozione.',
-      },
-      {
         id: 'strada-pericolosa',
         name: 'Strada pericolosa (preavviso)',
         shape: 'Rettangolo bianco con bordo rosso e simbolo di pericolo',
@@ -1557,7 +1395,187 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
         whatHappensIfIgnored:
           'Rischio di incidenti dovuti alle condizioni pericolose della strada non previste.',
       },
-    ],
+    
+      {
+        id: 'curva-gomito-destra',
+        name: 'Curva a gomito a destra',
+        shape: 'Triangolo con freccia che forma un angolo retto a destra',
+        description:
+          'Indica la presenza di una curva molto stretta a gomito verso destra, con un cambio di direzione brusco di circa 90 gradi. Il conducente deve ridurre notevolmente la velocità prima della curva e mantenere la posizione corretta sulla carreggiata.',
+        whenToObeyIt:
+          'Appena il segnale diventa visibile, rallentare prima della curva per mantenere il controllo del veicolo.',
+        whatHappensIfIgnored:
+          'Rischio di sbandare, urtare il guardrail o uscire di strada con il rischio di collisione frontale o laterale.',
+      },
+
+      {
+        id: 'curva-gomito-sinistra',
+        name: 'Curva a gomito a sinistra',
+        shape: 'Triangolo con freccia che forma un angolo retto a sinistra',
+        description:
+          'Indica la presenza di una curva molto stretta a gomito verso sinistra, con un cambio di direzione brusco di circa 90 gradi. Il conducente deve ridurre notevolmente la velocità prima della curva e tenersi il più possibile a destra nella propria corsia.',
+        whenToObeyIt:
+          'Appena il segnale diventa visibile, rallentare in anticipo prima di raggiungere la curva.',
+        whatHappensIfIgnored:
+          'Rischio di uscire di strada, invadere la corsia opposta o perdere il controllo del veicolo con possibili collisioni gravi.',
+      },
+
+      {
+        id: 'curve-ad-s',
+        name: 'Curve a S',
+        shape: 'Triangolo con due frecce curve che formano una S',
+        description:
+          'Indica la presenza di una successione di curve alternate (destra-sinistra o sinistra-destra) ravvicinate, simili alla forma della lettera S. Richiede grande prudenza, velocità ridotta e mantenimento costante della propria corsia senza tagliare le curve.',
+        whenToObeyIt:
+          'Appena il segnale diventa visibile, prima di imboccare la prima curva della successione.',
+        whatHappensIfIgnored:
+          'Rischio di perdere il controllo del veicolo sulle curve alternate, specialmente in condizioni di manto stradale bagnato o con visibilità ridotta.',
+      },
+
+      {
+        id: 'deposito-materiale',
+        name: 'Deposito di materiale',
+        shape: 'Triangolo con simbolo di pietre o materiale accatastato',
+        description:
+          'Indica la possibile presenza di materiale depositato ai bordi della carreggiata o sulla strada. Il conducente deve ridurre la velocità e prestare attenzione al possibile restringimento della carreggiata o alla presenza di detriti sparsi sulla via.',
+        whenToObeyIt:
+          'Su tutto il tratto segnalato, mantenendo la velocità ridotta e la massima attenzione.',
+        whatHappensIfIgnored:
+          'Rischio di collisione con il materiale depositato, danni al veicolo, perdita di controllo o blocco della circolazione.',
+      },
+
+      {
+        id: 'incrocio-tram',
+        name: 'Incrocio con tram',
+        shape: 'Triangolo con simbolo di tram e frecce di incrocio',
+        description:
+          'Indica un incrocio dove i binari del tram attraversano la carreggiata. Il conducente deve prestare massima attenzione ai tram in transito, dare loro la precedenza quando necessario e non fermarsi sui binari in nessun caso.',
+        whenToObeyIt:
+          'Avvicinandosi all\'incrocio, verificare in tutte le direzioni la presenza di tram.',
+        whatHappensIfIgnored:
+          'Rischio di collisione con il tram che, data la sua massa, può causare danni enormi al veicolo e pericolo grave per gli occupanti.',
+      },
+
+      {
+        id: 'muro-costone',
+        name: 'Muro o costone laterale',
+        shape: 'Triangolo con profilo di muro o parete verticale',
+        description:
+          'Indica la presenza di un muro, di un costone roccioso o di una parete verticale a ridosso della carreggiata. Il conducente deve mantenere la distanza di sicurezza dal bordo e non uscire dalla carreggiata. Particolare attenzione per i veicoli alti o con carico sporgente.',
+        whenToObeyIt:
+          'Su tutto il tratto segnalato, mantenendo la corsia e la distanza di sicurezza laterale.',
+        whatHappensIfIgnored:
+          'Rischio di urto contro il muro o il costone, con danni al veicolo, possibili lesioni per gli occupanti e blocco della strada.',
+      },
+
+      {
+        id: 'neve-ghiaccio',
+        name: 'Neve o ghiaccio',
+        shape: 'Triangolo con fiocco di neve',
+        description:
+          'Possibilità di neve o ghiaccio sulla strada. È possibile che sia obbligatorio montare catene o pneumatici invernali. Ridurre la velocità in modo significativo.',
+        whenToObeyIt:
+          'Appena visibile, prepararsi con catene o pneumatici invernali.',
+        whatHappensIfIgnored:
+          'Perdita di controllo, sbandata, incidente multiplo.',
+      },
+
+      {
+        id: 'ponte-stretto',
+        name: 'Ponte stretto',
+        shape: 'Triangolo con simbolo di ponte con restringimento laterale',
+        description:
+          'Indica la presenza di un ponte con carreggiata più stretta rispetto alla strada ordinaria. Il conducente deve ridurre la velocità prima di immettersi sul ponte. Se il ponte non consente il passaggio simultaneo di due veicoli, si applica la precedenza dal diritto diresso.',
+        whenToObeyIt:
+          'Prima di immettersi sul ponte, verificando le dimensioni del proprio veicolo e la larghezza del ponte.',
+        whatHappensIfIgnored:
+          'Rischio di collisione con veicoli provenienti dalla direzione opposta, danni al veicolo contro le balaustre del ponte o caduta nel vuoto.',
+      },
+
+      {
+        id: 'slittamento',
+        name: 'Slittamento',
+        shape: 'Triangolo con simbolo di veicolo che slitta lateralmente',
+        description:
+          'Indica un tratto di strada particolarmente soggetto a slittamento dei veicoli, spesso a causa di asfalto liscio, fango, foglie umide o sudiciume sulla carreggiata. Il conducente deve procedere a velocità molto ridotta, evitando brusche frenate, accelerate o sterzate.',
+        whenToObeyIt:
+          'Su tutto il tratto segnalato, con attenzione particolarmente elevata in caso di pioggia o umidità.',
+        whatHappensIfIgnored:
+          'Perdita di aderenza del veicolo con sbandata laterale, uscita di strada, testacoda o capottamento.',
+      },
+
+      {
+        id: 'traffico-convergente',
+        name: 'Traffico convergente',
+        shape: 'Triangolo con frecce che convergono verso il centro',
+        description:
+          'Indica che due o più corsie si uniscono in un\'unica carreggiata, costringendo i veicoli a fondersi. Il conducente deve adattare la velocità e alternarsi con cortesia con gli altri veicoli, rispettando la regola della cremagliera.',
+        whenToObeyIt:
+          'Avvicinandosi al punto di convergenza, riducendo la velocità e inserendosi nel traffico con prudenza.',
+        whatHappensIfIgnored:
+          'Rischio di collisione laterale con i veicoli che confluiscono, code pericolose e situazioni di blocco del traffico.',
+      },
+
+      {
+        id: 'fine-zona-30',
+        name: 'Fine zona 30',
+        shape: 'Rettangolo bianco con bordo grigio e scritta "FINE ZONA 30" barrata',
+        description:
+          'Indica la fine della zona a traffico limitato a 30 km/h. Da questo punto in poi si applicano i limiti di velocità generali previsti dal Codice della Strada per il tipo di strada che si sta percorrendo.',
+        whenToObeyIt:
+          'Appena superato il segnale, riprendere la velocità consentita per il tipo di strada (es. 50 km/h in centro abitato).',
+        whatHappensIfIgnored:
+          'Non applicabile — è un segnale che conclude una prescrizione e ripristina i limiti generali.',
+      },
+
+      {
+        id: 'zona-30',
+        name: 'Zona 30 (limite 30 km/h)',
+        shape: 'Rettangolo bianco con bordo rosso e scritta "ZONA 30"',
+        description:
+          'Indica l\'inizio di una zona a traffico limitato dove la velocità massima consentita è di 30 km/h per tutti i veicoli. Tipicamente istituita in centri storici, zone scolastiche o aree residenziali per proteggere pedoni e ciclisti.',
+        whenToObeyIt:
+          'Da quando si entra nella zona 30 fino al segnale di fine zona 30. Il limite si applica a tutta la zona, non solo alla strada dove è esposto il segnale.',
+        whatHappensIfIgnored:
+          'Multa proporzionale all\'eccesso di velocità. In zona 30, anche piccoli eccessi sono pericolosi per pedoni e ciclisti.',
+      },
+
+      {
+        id: 'ztl',
+        name: 'Zona a traffico limitato (ZTL)',
+        shape: 'Cerchio bianco con bordo rosso e scritta ZTL',
+        description:
+          'Accesso limitato a determinati orari o categorie di veicoli. Spesso controllata da telecamere. I residenti e autorizzati hanno accesso con permesso.',
+        whenToObeyIt:
+          'Verificare sempre gli orari di attivazione e la categoria del proprio veicolo.',
+        whatHappensIfIgnored:
+          'Multa automatica (circa 80-100 euro). Le telecamere registrano la targa.',
+      },
+
+      {
+        id: 'fermata-obbligatoria',
+        name: 'Fermata obbligatoria davanti al passaggio a livello',
+        shape: 'Rettangolo con bordo rosso e scritta FERMATA OBBLIGATORIA',
+        description:
+          'Obbliga il conducente a fermarsi completamente davanti al passaggio a livello, anche in assenza di barriere chiuse o segnale di stop. Il conducente deve verificare visivamente e uditivamente l\'assenza di treni prima di attraversare i binari. Non sostare mai sui binari.',
+        whenToObeyIt:
+          'Sempre quando ci si avvicina al passaggio a livello, fermarsi completamente prima dei binari.',
+        whatHappensIfIgnored:
+          'Multa molto severa e rischio gravissimo di collisione con un treno, con conseguenze quasi sempre letali.',
+      },
+
+      {
+        id: 'precedenza-strada-stretta',
+        name: 'Precedenza nel tratto stretto (veicolo opposto)',
+        shape: 'Rettangolo con frecce che indicano la direzione del veicolo prioritario',
+        description:
+          'Stabilisce quale direzione ha la precedenza in un tratto di strada troppo stretto per consentire il passaggio contemporaneo di veicoli provenienti da entrambe le direzioni. Il segnale indica con una freccia più grande la direzione che deve passare per prima. Il conducente dalla direzione non prioritaria deve fermarsi e attendere.',
+        whenToObeyIt:
+          'Avvicinandosi al tratto stretto, se la freccia grande indica la direzione opposta.',
+        whatHappensIfIgnored:
+          'Multa e rischio di incastro con veicoli provenienti dalla direzione opposta, con possibile necessità di manovre di retromarcia pericolose.',
+      },
+],
   },
 
   // ─────────────────────────────────────────────────────────────
