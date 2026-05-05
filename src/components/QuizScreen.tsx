@@ -99,9 +99,11 @@ export default function QuizScreen() {
   const [imgErr, setImgErr] = useState(false);
   const [answerAnim, setAnswerAnim] = useState(false);
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
+  const [aiExplanationAr, setAiExplanationAr] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiExplained, setAiExplained] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
+  const [hintAr, setHintAr] = useState<string | null>(null);
   const [hintLoading, setHintLoading] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
   const prevIdxRef = useRef(currentIdx);
@@ -287,6 +289,7 @@ export default function QuizScreen() {
       .then(data => {
         if (!cancelled) {
           setAiExplanation(data.explanation || null);
+          setAiExplanationAr(data.explanationAr || null);
           if (data.ai_remaining !== undefined) setAiRemaining(data.ai_remaining);
           if (data.ai_limit !== undefined) setAiLimit(data.ai_limit);
           if (data.error && data.error.includes('limit')) {
@@ -522,6 +525,7 @@ export default function QuizScreen() {
       })
       .then(data => {
         setHint(data.hint || null);
+        setHintAr(data.hintAr || null);
         setHintUsed(true);
         setHintLoading(false);
         if (data.ai_remaining !== undefined) setAiRemaining(data.ai_remaining);
@@ -778,24 +782,39 @@ export default function QuizScreen() {
 
             {/* Hint Card */}
             {hint && !showFeedback && (
-              <div className="mb-4 p-3.5 rounded-2xl anim-fade" style={{ background: 'rgba(217, 119, 6, 0.06)', border: '1.5px solid rgba(217, 119, 6, 0.2)' }}>
-                <div className="flex items-start gap-2.5">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'rgba(217, 119, 6, 0.1)' }}>
-                    <span className="text-sm">💡</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[11px] font-bold" style={{ color: '#D97706' }}>Indizio IA</span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(217, 119, 6, 0.1)', color: '#D97706' }}>TIP</span>
-                      {aiLimit !== null && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
-                          {aiRemaining} rimasti
-                        </span>
-                      )}
+              <div className="mb-4 space-y-3">
+                {/* Italian Hint */}
+                <div className="p-3.5 rounded-2xl anim-fade" style={{ background: 'rgba(217, 119, 6, 0.06)', border: '1.5px solid rgba(217, 119, 6, 0.2)' }}>
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'rgba(217, 119, 6, 0.1)' }}>
+                      <span className="text-sm">💡</span>
                     </div>
-                    <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{hint}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm">🇮🇹</span>
+                        <span className="text-[11px] font-bold" style={{ color: '#D97706' }}>Indizio IA</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(217, 119, 6, 0.1)', color: '#D97706' }}>TIP</span>
+                        {aiLimit !== null && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
+                            {aiRemaining} rimasti
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{hint}</p>
+                    </div>
                   </div>
                 </div>
+                {/* Arabic Hint */}
+                {hintAr && (
+                  <div className="p-3.5 rounded-2xl anim-fade" dir="rtl" style={{ background: 'rgba(79, 70, 229, 0.03)', border: '1px solid rgba(79, 70, 229, 0.12)' }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm">🇸🇦</span>
+                      <span className="text-[11px] font-bold" style={{ color: '#4F46E5' }}>تلميح</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(79, 70, 229, 0.08)', color: '#4F46E5' }}>TIP</span>
+                    </div>
+                    <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-primary)' }}>{hintAr}</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -858,21 +877,36 @@ export default function QuizScreen() {
                         </div>
                       </div>
                     ) : aiExplanation ? (
-                      <div className="p-4 rounded-2xl" style={{ background: 'var(--bg-card)', border: '1.5px solid rgba(79, 70, 229, 0.16)' }}>
-                        <div className="flex items-start gap-3">
-                          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'rgba(79, 70, 229, 0.08)' }}>
-                            <svg className="w-4 h-4" style={{ color: '#818CF8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
-                            </svg>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1.5">
-                              <span className="text-[12px] font-bold" style={{ color: '#818CF8' }}>Spiegazione IA</span>
-                              <span className="text-[9px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(79, 70, 229, 0.08)', color: '#818CF8' }}>AI</span>
+                      <div className="space-y-3">
+                        {/* Italian AI Explanation */}
+                        <div className="p-4 rounded-2xl" style={{ background: 'var(--bg-card)', border: '1.5px solid rgba(79, 70, 229, 0.16)' }}>
+                          <div className="flex items-start gap-3">
+                            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'rgba(79, 70, 229, 0.08)' }}>
+                              <svg className="w-4 h-4" style={{ color: '#818CF8' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+                              </svg>
                             </div>
-                            <p className="text-[14px] leading-relaxed font-medium" style={{ color: 'var(--text-primary)' }}>{aiExplanation}</p>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <span className="text-sm">🇮🇹</span>
+                                <span className="text-[12px] font-bold" style={{ color: '#818CF8' }}>Spiegazione IA</span>
+                                <span className="text-[9px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(79, 70, 229, 0.08)', color: '#818CF8' }}>AI</span>
+                              </div>
+                              <p className="text-[14px] leading-relaxed font-medium" style={{ color: 'var(--text-primary)' }}>{aiExplanation}</p>
+                            </div>
                           </div>
                         </div>
+                        {/* Arabic AI Explanation */}
+                        {aiExplanationAr && (
+                          <div className="p-4 rounded-2xl" dir="rtl" style={{ background: 'rgba(79, 70, 229, 0.03)', border: '1px solid rgba(79, 70, 229, 0.12)' }}>
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className="text-sm">🇸🇦</span>
+                              <span className="text-[12px] font-bold" style={{ color: '#4F46E5' }}>شرح الذكاء الاصطناعي</span>
+                              <span className="text-[9px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(79, 70, 229, 0.08)', color: '#4F46E5' }}>AI</span>
+                            </div>
+                            <p className="text-[14px] leading-relaxed font-medium" style={{ color: 'var(--text-primary)' }}>{aiExplanationAr}</p>
+                          </div>
+                        )}
                       </div>
                     ) : null}
                   </div>
