@@ -177,7 +177,6 @@ export const SIGNAL_IMAGE_MAP: Record<string, string[]> = {
   'pannello-mesi': ['/img_sign/124.png'],
   'pannello-giorni-festivi': ['/img_sign/125.png'],
   'pannello-pedoni': ['/img_sign/218.png'],
-  'pannello-velocita-consigliata': ['/img_sign/225.png'],
   'presenza-code': ['/img_sign/136.png'],
   'zona-allagamento': ['/img_sign/135.png'],
   'zona-rimozione': ['/img_sign/141.png'],

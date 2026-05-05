@@ -2509,16 +2509,6 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
           'Rischio di investimento pedonale con gravi conseguenze legali, penali e morali.',
       },
       {
-        id: 'pannello-velocita-consigliata',
-        name: 'Velocità consigliata',
-        shape: 'Rettangolo blu con simbolo di specchietto e velocità in km/h',
-        description:
-          'Pannello integrativo che indica la velocità consigliata per percorrere in sicurezza un tratto stradale particolare, come una curva, un dosso o un dislivello. Non si tratta di un limite di velocità obbligatorio, ma di un\'indicazione prudente. La velocità consigliata tiene conto delle caratteristiche geometriche della strada.',
-        whenToObeyIt: 'Consigliato mantenere la velocità indicata per la massima sicurezza.',
-        whatHappensIfIgnored:
-          'Non comporta sanzioni dirette, ma superare la velocità consigliata aumenta il rischio di incidente.',
-      },
-      {
         id: 'disco-orario',
         name: 'Disco orario (sosta a tempo)',
         shape: 'Cerchio blu con freccia e simbolo di orologio',
