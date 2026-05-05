@@ -63,7 +63,6 @@ export const SIGNAL_IMAGE_MAP: Record<string, string[]> = {
   'strada-prioritaria': ['/img_sign/52.png'],
   'precedenza-opposti-discesa': ['/img_sign/53.png'],
   'precedenza-strada-stretta': ['/img_sign/536.png'],
-  'fermata-obbligatoria': ['/img_sign/120.png'],
 
   // ═══════════════════════════════════════════════════════════
   // SEGNALI DI DIVIETO (54-86)
@@ -121,6 +120,7 @@ export const SIGNAL_IMAGE_MAP: Record<string, string[]> = {
   'pneumatici-invernali': ['/img_sign/107.png'],
   'rotonda-destra': ['/img_sign/104.png'],
   'strada-pericolosa': ['/img_sign/193.png'],
+  'fermata-obbligatoria': ['/img_sign/120.png'],
 
   // ═══════════════════════════════════════════════════════════
   // SEGNALI DI INDICAZIONE (116-260+)

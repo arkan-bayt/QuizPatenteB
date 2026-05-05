@@ -399,28 +399,6 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
           'Rischio di perdere il controllo del veicolo sulle curve alternate, specialmente in condizioni di manto stradale bagnato o con visibilità ridotta.',
       },
       {
-        id: 'incrocio-prioritaria',
-        name: 'Incrocio con strada prioritaria',
-        shape: 'Triangolo con croce e linea spessa su un braccio',
-        description:
-          'Indica un incrocio in cui la strada trasversale ha la precedenza. Il conducente deve rallentare e dare la precedenza ai veicoli provenienti dalla strada principale. Non fermarsi se la visibilità è sufficiente e non ci sono veicoli in arrivo.',
-        whenToObeyIt:
-          'Avvicinandosi all\'incrocio, ridurre la velocità e valutare il traffico sulla strada prioritaria.',
-        whatHappensIfIgnored:
-          'Rischio di collisione laterale con veicoli che hanno la precedenza. In caso di incidente, la responsabilità è totale per chi non ha dato la precedenza.',
-      },
-      {
-        id: 'semincrocio',
-        name: 'Semincrocio',
-        shape: 'Triangolo con una freccia e un ramo secondario',
-        description:
-          'Indica la presenza di un semincrocio, ovvero un incrocio in cui solo una delle strade è prioritaria. Il conducente proveniente dalla strada secondaria deve dare la precedenza ai veicoli sulla strada principale, mentre chi percorre la strada prioritaria può proseguire senza fermarsi.',
-        whenToObeyIt:
-          'Avvicinandosi al semincrocio, controllare i veicoli sulla strada principale e cedere il passo se necessario.',
-        whatHappensIfIgnored:
-          'Rischio di collisione con veicoli che transitano sulla strada prioritaria, con conseguenze gravi e responsabilità totale in caso di incidente.',
-      },
-      {
         id: 'incrocio-tram',
         name: 'Incrocio con tram',
         shape: 'Triangolo con simbolo di tram e frecce di incrocio',
@@ -1054,6 +1032,17 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
         whatHappensIfIgnored:
           'Multa per aver ignorato l\'obbligo di percorso e rischio di incidenti dovuti alle condizioni pericolose della strada.',
       },
+      {
+        id: 'fermata-obbligatoria',
+        name: 'Fermata obbligatoria davanti al passaggio a livello',
+        shape: 'Rettangolo con bordo rosso e scritta FERMATA OBBLIGATORIA',
+        description:
+          'Obbliga il conducente a fermarsi completamente davanti al passaggio a livello, anche in assenza di barriere chiuse o segnale di stop. Il conducente deve verificare visivamente e uditivamente l\'assenza di treni prima di attraversare i binari. Non sostare mai sui binari.',
+        whenToObeyIt:
+          'Sempre quando ci si avvicina al passaggio a livello, fermarsi completamente prima dei binari.',
+        whatHappensIfIgnored:
+          'Multa molto severa e rischio gravissimo di collisione con un treno, con conseguenze quasi sempre letali.',
+      },
     ],
   },
 
@@ -1194,15 +1183,26 @@ export const SIGNAL_CATEGORIES: SignalCategory[] = [
           'Multa e rischio di incastro con veicoli provenienti dalla direzione opposta, con possibile necessità di manovre di retromarcia pericolose.',
       },
       {
-        id: 'fermata-obbligatoria',
-        name: 'Fermata obbligatoria davanti al passaggio a livello',
-        shape: 'Rettangolo con bordo rosso e scritta FERMATA OBBLIGATORIA',
+        id: 'incrocio-prioritaria',
+        name: 'Incrocio con strada prioritaria',
+        shape: 'Triangolo con croce e linea spessa su un braccio',
         description:
-          'Obbliga il conducente a fermarsi completamente davanti al passaggio a livello, anche in assenza di barriere chiuse o segnale di stop. Il conducente deve verificare visivamente e uditivamente l\'assenza di treni prima di attraversare i binari. Non sostare mai sui binari.',
+          'Indica un incrocio in cui la strada trasversale ha la precedenza. Il conducente deve rallentare e dare la precedenza ai veicoli provenienti dalla strada principale. Non fermarsi se la visibilità è sufficiente e non ci sono veicoli in arrivo.',
         whenToObeyIt:
-          'Sempre quando ci si avvicina al passaggio a livello, fermarsi completamente prima dei binari.',
+          'Avvicinandosi all\'incrocio, ridurre la velocità e valutare il traffico sulla strada prioritaria.',
         whatHappensIfIgnored:
-          'Multa molto severa e rischio gravissimo di collisione con un treno, con conseguenze quasi sempre letali.',
+          'Rischio di collisione laterale con veicoli che hanno la precedenza. In caso di incidente, la responsabilità è totale per chi non ha dato la precedenza.',
+      },
+      {
+        id: 'semincrocio',
+        name: 'Semincrocio',
+        shape: 'Triangolo con una freccia e un ramo secondario',
+        description:
+          'Indica la presenza di un semincrocio, ovvero un incrocio in cui solo una delle strade è prioritaria. Il conducente proveniente dalla strada secondaria deve dare la precedenza ai veicoli sulla strada principale, mentre chi percorre la strada prioritaria può proseguire senza fermarsi.',
+        whenToObeyIt:
+          'Avvicinandosi al semincrocio, controllare i veicoli sulla strada principale e cedere il passo se necessario.',
+        whatHappensIfIgnored:
+          'Rischio di collisione con veicoli che transitano sulla strada prioritaria, con conseguenze gravi e responsabilità totale in caso di incidente.',
       },
     ],
   },
