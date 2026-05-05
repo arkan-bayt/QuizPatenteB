@@ -4,6 +4,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import { SIGNAL_CATEGORIES, SignalInfo, SignalCategory } from '@/data/signalsData';
 import { getSignalImage } from '@/data/signalImageMap';
+import SignIcon from '@/components/SignIcon';
 import {
   THEORY_TOPICS,
   THEORY_CHAPTERS,
@@ -183,7 +184,7 @@ export default function TheoryScreen() {
         </div>
 
         <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-5 space-y-5 anim-up">
-          {/* Signal Image */}
+          {/* Signal Image / SVG Icon */}
           <div className="flex justify-center">
             {hasImage ? (
               <div
@@ -201,24 +202,23 @@ export default function TheoryScreen() {
                   className="w-full h-full object-contain p-3"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
-                    (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                    const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                    if (fallback) (fallback as HTMLElement).style.display = 'flex';
                   }}
                 />
-                <div className="hidden w-full h-full flex-col items-center justify-center gap-2">
-                  <span className="text-5xl">{activeCategory.icon}</span>
-                  <span className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>Nessuna immagine</span>
+                <div className="w-full h-full hidden flex-col items-center justify-center">
+                  <SignIcon signalId={selectedSignal.id} categoryId={activeCategoryId} size={120} />
                 </div>
               </div>
             ) : (
               <div
-                className="w-44 h-44 rounded-2xl flex flex-col items-center justify-center gap-2"
+                className="w-44 h-44 rounded-2xl flex items-center justify-center"
                 style={{
                   background: hexToRgba(catColor, 0.06),
-                  border: `2px dashed ${hexToRgba(catColor, 0.25)}`,
+                  border: `2px solid ${hexToRgba(catColor, 0.2)}`,
                 }}
               >
-                <span className="text-6xl">{activeCategory.icon}</span>
-                <span className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>Nessuna immagine</span>
+                <SignIcon signalId={selectedSignal.id} categoryId={activeCategoryId} size={120} />
               </div>
             )}
           </div>
@@ -747,6 +747,7 @@ export default function TheoryScreen() {
                 const img = getSignalImage(signal.id);
                 const hasImg = img.length > 0;
                 const catColor = activeCategory?.color || '#6B7280';
+                const catId = activeCategory?.id || '';
 
                 return (
                   <button
@@ -766,26 +767,26 @@ export default function TheoryScreen() {
                       }}
                     >
                       {hasImg ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={img}
-                          alt={signal.name}
-                          className="w-11 h-11 object-contain"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            if (target.nextElementSibling) {
-                              (target.nextElementSibling as HTMLElement).style.display = 'flex';
-                            }
-                          }}
-                        />
-                      ) : null}
-                      <span
-                        className={`${hasImg ? 'hidden' : 'flex'} text-2xl`}
-                        style={hasImg ? undefined : { display: 'flex' }}
-                      >
-                        {activeCategory?.icon}
-                      </span>
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={img}
+                            alt={signal.name}
+                            className="w-11 h-11 object-contain"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const fb = target.nextElementSibling;
+                              if (fb) (fb as HTMLElement).style.display = 'flex';
+                            }}
+                          />
+                          <div className="w-11 h-11 items-center justify-center" style={{ display: 'none' }}>
+                            <SignIcon signalId={signal.id} categoryId={catId} size={40} />
+                          </div>
+                        </>
+                      ) : (
+                        <SignIcon signalId={signal.id} categoryId={catId} size={40} />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
