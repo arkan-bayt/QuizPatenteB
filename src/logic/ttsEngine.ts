@@ -94,16 +94,16 @@ function speakWebSpeech(text: string, langCode: string, generation: number): Pro
       if (window.speechSynthesis && window.speechSynthesis.speaking) {
         try { window.speechSynthesis.resume(); } catch (e) { /* ignore */ }
       }
-    }, 10000);
+    }, 8000);
 
-    // Timeout: if speech doesn't start within 8 seconds
+    // Timeout: if speech doesn't start within 30 seconds
     setTimeout(() => {
       clearInterval(keepAlive);
       if (!resolved) {
         try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
         finish(false);
       }
-    }, 8000);
+    }, 30000);
 
     try {
       window.speechSynthesis.speak(utterance);
@@ -224,6 +224,94 @@ export async function speakWord(word: string, lang: 'it' | 'ar' = 'it'): Promise
   // If Web Speech failed or was cancelled, try Google TTS
   if (myGeneration === _speechGeneration) {
     await speakGoogleTTS(word.trim(), langCode, myGeneration);
+  }
+}
+
+// ============================================================
+// PUBLIC API - speakContinuous
+// Plays long text in sequential chunks using ONLY Web Speech API
+// No fallback to Google TTS (prevents voice switching)
+// Does NOT call stopSpeech between chunks
+// ============================================================
+export async function speakContinuous(
+  text: string, 
+  lang = 'it-IT',
+  cancelToken?: { cancelled: boolean }
+): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (!text || text.trim().length === 0) return;
+  if (!isWebSpeechAvailable()) return;
+
+  const langCode = lang.startsWith('ar') ? 'ar-SA' : 'it-IT';
+
+  // Cancel any existing speech before starting
+  stopSpeech();
+
+  // Split into chunks at sentence boundaries
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  const chunks: string[] = [];
+  let current = '';
+  for (const s of sentences) {
+    if ((current + ' ' + s).length > 450) {
+      if (current) chunks.push(current.trim());
+      current = s;
+    } else {
+      current = current ? current + ' ' + s : s;
+    }
+  }
+  if (current.trim()) chunks.push(current.trim());
+
+  for (const chunk of chunks) {
+    if (cancelToken?.cancelled) break;
+
+    await new Promise<void>((resolve) => {
+      if (cancelToken?.cancelled) { resolve(); return; }
+
+      const utterance = new SpeechSynthesisUtterance(chunk.trim().substring(0, 500));
+      utterance.rate = 0.85;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      utterance.lang = langCode;
+
+      let resolved = false;
+      const finish = () => {
+        if (!resolved) {
+          resolved = true;
+          resolve();
+        }
+      };
+
+      utterance.onend = finish;
+      utterance.onerror = finish;
+
+      // Chrome keepAlive: resume every 8 seconds
+      const keepAlive = setInterval(() => {
+        if (cancelToken?.cancelled) {
+          clearInterval(keepAlive);
+          finish();
+          return;
+        }
+        if (window.speechSynthesis && window.speechSynthesis.speaking) {
+          try { window.speechSynthesis.resume(); } catch (e) { /* ignore */ }
+        }
+      }, 8000);
+
+      // 30-second timeout per chunk
+      setTimeout(() => {
+        clearInterval(keepAlive);
+        if (!resolved) {
+          try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+          finish();
+        }
+      }, 30000);
+
+      try {
+        window.speechSynthesis.speak(utterance);
+      } catch (e) {
+        clearInterval(keepAlive);
+        finish();
+      }
+    });
   }
 }
 

@@ -8,7 +8,7 @@ import ZAI from 'z-ai-web-dev-sdk';
 import { createClient } from '@supabase/supabase-js';
 import { verifySession } from '@/lib/auth';
 
-export const maxDuration = 15; // Allow up to 15 seconds for translation APIs
+export const maxDuration = 60; // Allow up to 60 seconds for translation APIs
 
 // ============================================================
 // AI USAGE LIMITING - Middleware for explain/hint actions

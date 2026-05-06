@@ -1,7 +1,110 @@
 'use client';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useStore } from '@/store/useStore';
-import { speakText, stopSpeech, isSpeaking } from '@/logic/ttsEngine';
+import { speakContinuous, stopSpeech, isSpeaking } from '@/logic/ttsEngine';
+
+// ============================================================
+// SIGNAL IMAGE MAPPING - Book headings → clean sign images from /img_sign/
+// ============================================================
+const HEADING_SIGN_IMAGE: Record<string, string> = {
+  // Lesson 2: Segnali di Pericolo
+  'STRADA DEFORMATA': '/img_sign/1.png',
+  'DOSSO': '/img_sign/2.png',
+  'CUNETTA': '/img_sign/3.png',
+  'CURVA A DESTRA': '/img_sign/4.png',
+  'CURVA A SINISTRA': '/img_sign/5.png',
+  'DOPPIA CURVA, LA PRIMA A DESTRA': '/img_sign/6.png',
+  'DOPPIA CURVA, LA PRIMA A SINISTRA': '/img_sign/7.png',
+  'PASSAGGIO A LIVELLO CON BARRIERE O SEMIBARRIERE': '/img_sign/8.png',
+  'PASSAGGIO A LIVELLO SENZA BARRIERE': '/img_sign/9.png',
+  'INCROCIO': '/img_sign/10.png',
+  'GALLERIA': '/img_sign/12.png',
+  'LAVORI': '/img_sign/13.png',
+  'ATTRAVERSAMENTO TRANVIARIO': '/img_sign/14.png',
+  'ATTRAVERSAMENTO PEDONALE': '/img_sign/15.png',
+  'ATTRAVERSAMENTO CICLABILE': '/img_sign/16.png',
+  'DISCESA PERICOLOSA CON PENDENZA DEL 10 %': '/img_sign/17.png',
+  'SALITA RIPIDA CON PENDENZA DEL 10 %': '/img_sign/18.png',
+  'STRETTOIA SIMMETRICA': '/img_sign/19.png',
+  'STRETTOIA ASIMMETRICA A SINISTRA': '/img_sign/20.png',
+  'STRETTOIA ASIMMETRICA A DESTRA': '/img_sign/21.png',
+  'PONTE MOBILE': '/img_sign/22.png',
+  'BANCHINA PERICOLOSA': '/img_sign/23.png',
+  'STRADA SDRUCCIOLEVOLE': '/img_sign/24.png',
+  'ATTENZIONE AI BAMBINI': '/img_sign/25.png',
+  'ATTENZIONE AGLI ANIMALI DOMESTICI VAGANTI (LIBERI)': '/img_sign/26.png',
+  'ATTENZIONE AGLI ANIMALI SELVATICI VAGANTI (LIBERI)': '/img_sign/27.png',
+  'DOPPIO SENSO DI CIRCOLAZIONE': '/img_sign/28.png',
+  'ROTATORIA': '/img_sign/29.png',
+  'SBOCCO SU MOLO O SU ARGINE': '/img_sign/30.png',
+  'PIETRISCO': '/img_sign/31.png',
+  'CADUTA MASSI DA SINISTRA': '/img_sign/32.png',
+  'CADUTA MASSI DA DESTRA': '/img_sign/33.png',
+  'AEROMOBILI A BASSA QUOTA': '/img_sign/36.png',
+  'FORTE VENTO LATERALE': '/img_sign/37.png',
+  'PERICOLO DI INCENDIO': '/img_sign/38.png',
+  'ALTRI PERICOLI': '/img_sign/39.png',
+  'PREAVVISO DI SEMAFORO VERTICALE': '/img_sign/34.png',
+  'PREAVVISO DI SEMAFORO ORIZZONTALE': '/img_sign/35.png',
+  // Lesson 3: Segnali di Precedenza
+  'DARE PRECEDENZA': '/img_sign/40.png',
+  'PREAVVISO DI DARE PRECEDENZA': '/img_sign/42.png',
+  'FERMARSI E DARE PRECEDENZA (STOP)': '/img_sign/41.png',
+  'PREAVVISO DI FERMARSI E DARE PRECEDENZA (STOP)': '/img_sign/43.png',
+  'INTERSEZIONE CON PRECEDENZA A DESTRA': '/img_sign/44.png',
+  'INTERSEZIONE CON DIRITTO DI PRECEDENZA': '/img_sign/44.png',
+  'DIRETTO DI PRECEDENZA': '/img_sign/52.png',
+  'FINE DEL DIRITTO DI PRECEDENZA': '/img_sign/46.png',
+  'DARE PRECEDENZA NEI SENSI UNICI ALTERNATI': '/img_sign/45.png',
+  // Lesson 4: Segnali di Divieto
+  'DIVIETO DI TRANSITO': '/img_sign/54.png',
+  'SENSO VIETATO': '/img_sign/55.png',
+  'DIVIETO DI SORPASSO': '/img_sign/56.png',
+  'FINE DEL DIVIETO DI SORPASSO': '/img_sign/82.png',
+  'DIVIETO DI SEGNALAZIONI ACUSTICHE': '/img_sign/59.png',
+  'DIVIETO DI SOSTA': '/img_sign/84.png',
+  'DIVIETO DI FERMATA': '/img_sign/85.png',
+  'PARCHEGGIO': '/img_sign/86.png',
+  'VIA LIBERA': '/img_sign/80.png',
+  'LIMITE MASSIMO DI VELOCITÀ DI 80 KM/H': '/img_sign/58.png',
+  'FINE DEL LIMITE MASSIMO DI VELOCITÀ DI 50 KM/H': '/img_sign/81.png',
+  'DIVIETO DI TRANSITO AI PEDONI': '/img_sign/62.png',
+  'DIVIETO DI TRANSITO AI VEICOLI A BRACCIA': '/img_sign/65.png',
+  'DIVIETO DI TRANSITO AI VELOCIPEDI (BICICLETTE)': '/img_sign/63.png',
+  'DIVIETO DI TRANSITO AI MOTOCICLI': '/img_sign/64.png',
+  'DIVIETO DI TRANSITO AGLI AUTOBUS': '/img_sign/67.png',
+  'DIVIETO DI INVERSIONE DEL SENSO DI MARCIA': '/img_sign/57.png',
+  'DIVIETO DI RETROMARCIA': '/img_sign/61.png',
+  // Lesson 5: Segnali di Obbligo
+  'DIREZIONE OBBLIGATORIA DIRITTO': '/img_sign/93.png',
+  'DIREZIONE OBBLIGATORIA A SINISTRA': '/img_sign/94.png',
+  'DIREZIONE OBBLIGATORIA A DESTRA': '/img_sign/95.png',
+  'DIREZIONI CONSENTITE DESTRA E SINISTRA': '/img_sign/98.png',
+  'DIREZIONI CONSENTITE DIRITTO E DESTRA': '/img_sign/99.png',
+  'DIREZIONI CONSENTITE DIRITTO E SINISTRA': '/img_sign/100.png',
+  'PASSAGGIO OBBLIGATORIO A SINISTRA': '/img_sign/101.png',
+  'PASSAGGIO OBBLIGATORIO A DESTRA': '/img_sign/102.png',
+  'PASSAGGI CONSENTITI': '/img_sign/103.png',
+  'CATENE DA NEVE OBBLIGATORIE': '/img_sign/107.png',
+  'LIMITE MINIMO DI VELOCITÀ DI 30 KM/H': '/img_sign/105.png',
+  'PERCORSO PEDONALE': '/img_sign/108.png',
+  'PISTA CICLABILE': '/img_sign/112.png',
+  'PISTA CICLABILE CONTIGUA (ACCANTO) AL MARCIAPIEDE': '/img_sign/113.png',
+  'PERCORSO UNICO PEDONALE E CICLABILE': '/img_sign/113.png',
+};
+
+// Try to get clean sign image for a section heading
+function getSignImage(heading: string): string | null {
+  if (!heading) return null;
+  // Exact match first
+  if (HEADING_SIGN_IMAGE[heading]) return HEADING_SIGN_IMAGE[heading];
+  // Partial match (for headings with extra text)
+  const upper = heading.toUpperCase();
+  for (const [key, img] of Object.entries(HEADING_SIGN_IMAGE)) {
+    if (upper.includes(key) || key.includes(upper)) return img;
+  }
+  return null;
+}
 
 // ============================================================
 // LESSON INDEX - 30 lessons from the official theory book
@@ -85,7 +188,8 @@ export default function TheoryBookScreen() {
   const [visibleTranslations, setVisibleTranslations] = useState<Set<number>>(new Set());
   const [playingSection, setPlayingSection] = useState<number | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const stopRef = useRef(false); // ref to stop speech between chunks
+  const stopRef = useRef(false);
+  const cancelTokenRef = useRef({ cancelled: false });
 
   // Load lesson content when selected
   useEffect(() => {
@@ -159,7 +263,7 @@ export default function TheoryBookScreen() {
 
     // Toggle if already playing this section
     if (playingSection === sectionIdx) {
-      stopRef.current = true;
+      cancelTokenRef.current.cancelled = true;
       stopSpeech();
       setPlayingSection(null);
       return;
@@ -167,36 +271,17 @@ export default function TheoryBookScreen() {
 
     stopSpeech();
     stopRef.current = false;
+    cancelTokenRef.current.cancelled = false;
     setPlayingSection(sectionIdx);
 
-    // Split into chunks of max 450 chars at sentence boundaries
-    const sentences = text.split(/(?<=[.!?])\s+/);
-    const chunks: string[] = [];
-    let current = '';
-    for (const s of sentences) {
-      if ((current + ' ' + s).length > 450) {
-        if (current) chunks.push(current.trim());
-        current = s;
-      } else {
-        current = current ? current + ' ' + s : s;
-      }
-    }
-    if (current.trim()) chunks.push(current.trim());
-
-    // Play chunks sequentially without isSpeaking() check between them
-    for (const chunk of chunks) {
-      if (stopRef.current) break; // Use ref to check if user stopped
-      await speakText(chunk, 'it-IT');
-    }
-
-    if (!stopRef.current) {
-      setPlayingSection(null);
-    }
+    // Use speakContinuous - Web Speech only, no voice switching
+    await speakContinuous(text, 'it-IT', cancelTokenRef.current);
+    setPlayingSection(null);
   }, [sections, playingSection]);
 
   // Stop all speech
   const handleStopAll = useCallback(() => {
-    stopRef.current = true;
+    cancelTokenRef.current.cancelled = true;
     stopSpeech();
     setPlayingSection(null);
   }, []);
