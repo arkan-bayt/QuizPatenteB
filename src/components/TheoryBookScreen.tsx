@@ -318,7 +318,55 @@ export default function TheoryBookScreen() {
   }, []);
 
   // ============================================================
-  // PER-SECTION TRANSLATION
+  // CLIENT-SIDE GOOGLE TRANSLATE FALLBACK
+  // When the server API fails, translate directly from client
+  // ============================================================
+  const googleTranslateClient = async (text: string): Promise<string | null> => {
+    try {
+      // Split into paragraphs and translate each
+      const paragraphs = text.split('\n').filter(p => p.trim().length > 3);
+      const translated: string[] = [];
+
+      for (const para of paragraphs) {
+        // Split long paragraphs into segments of max 500 chars
+        const segments: string[] = [];
+        let seg = '';
+        for (const sentence of para.split(/(?<=[.!?])\s+/)) {
+          if ((seg + ' ' + sentence).length > 500) {
+            if (seg.trim()) segments.push(seg.trim());
+            seg = sentence;
+          } else {
+            seg = seg ? seg + ' ' + sentence : sentence;
+          }
+        }
+        if (seg.trim()) segments.push(seg.trim());
+
+        for (const s of segments) {
+          try {
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=it&tl=ar&dt=t&q=${encodeURIComponent(s.substring(0, 800))}`;
+            const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (Array.isArray(data) && Array.isArray(data[0])) {
+              const tr = data[0]
+                .filter((entry: any[]) => entry && entry[0])
+                .map((entry: any[]) => entry[0] as string)
+                .join('');
+              if (tr) translated.push(tr);
+            }
+          } catch { /* skip failed segment */ }
+        }
+      }
+
+      const result = translated.join('\n\n');
+      return result.trim().length > 5 ? result : null;
+    } catch {
+      return null;
+    }
+  };
+
+  // ============================================================
+  // PER-SECTION TRANSLATION (with client-side Google fallback)
   // ============================================================
   const handleTranslateSection = useCallback(async (sectionIdx: number) => {
     // If already translated, toggle visibility
@@ -348,7 +396,18 @@ export default function TheoryBookScreen() {
     setTranslatingSection(sectionIdx);
     setTranslationError(null);
 
+    // Helper to save and show a successful translation
+    const showTranslation = (translation: string) => {
+      setArabicTranslations(prev => ({ ...prev, [sectionIdx]: translation }));
+      setVisibleTranslations(prev => {
+        const next = new Set(prev);
+        next.add(sectionIdx);
+        return next;
+      });
+    };
+
     try {
+      // METHOD 1: Server API (ZAI SDK + Google Translate fallback)
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -357,28 +416,39 @@ export default function TheoryBookScreen() {
           text: text.substring(0, 3000),
         }),
       });
-      
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        setTranslationError('خطأ في الاتصال بالخادم');
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.translation && data.translation.length > 5) {
+          showTranslation(data.translation);
+          setTranslatingSection(null);
+          return;
+        }
+      }
+
+      // METHOD 2: Client-side Google Translate fallback
+      console.log('[Translation] Server API failed, trying client-side Google Translate');
+      const clientTranslation = await googleTranslateClient(text.substring(0, 3000));
+      if (clientTranslation) {
+        showTranslation(clientTranslation);
+        setTranslatingSection(null);
         return;
       }
-      
-      const data = await res.json();
-      if (data.translation && data.translation.length > 5) {
-        setArabicTranslations(prev => ({ ...prev, [sectionIdx]: data.translation }));
-        setVisibleTranslations(prev => {
-          const next = new Set(prev);
-          next.add(sectionIdx);
-          return next;
-        });
-      } else if (data.error) {
-        setTranslationError('حدث خطأ في الترجمة، حاول مرة أخرى');
-      } else {
-        setTranslationError('لم يتم الحصول على ترجمة، حاول مرة أخرى');
-      }
+
+      setTranslationError('فشلت الترجمة، تحقق من الإنترنت وحاول مرة أخرى');
     } catch (e) {
       console.error('Translation error for section', sectionIdx, ':', e);
+
+      // Last resort: try client-side Google Translate even on network error
+      try {
+        const clientTranslation = await googleTranslateClient(text.substring(0, 3000));
+        if (clientTranslation) {
+          showTranslation(clientTranslation);
+          setTranslatingSection(null);
+          return;
+        }
+      } catch { /* ignore */ }
+
       setTranslationError('فشل الاتصال، تحقق من الإنترنت وحاول مرة أخرى');
     }
 

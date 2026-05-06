@@ -1,13 +1,19 @@
 // ============================================================
-// LOGIC - Text-to-Speech (HYBRID Engine with Anti-Overlap Lock)
-// Primary: Web Speech API (free, browser-native)
-// Fallback: Google TTS via server proxy (universal compatibility)
+// LOGIC - Text-to-Speech Engine v3 (FIXED)
+// ============================================================
+// ROOT CAUSE of TTS cutting off: Chrome stops Web Speech API
+// after ~15 seconds. Previous code used 350-char chunks (25-35s)
+// which always exceeded this limit.
+//
+// FIX: Use very short chunks (max 100 chars ≈ 8-10s of speech)
+// + aggressive keepAlive (every 2s) + pause/resume between chunks
+// + cancel() before each new utterance to reset Chrome's timer
 // ============================================================
 
 let _speaking = false;
 let _fallbackAudio: HTMLAudioElement | null = null;
 let _webSpeechAvailable: boolean | null = null;
-let _speechGeneration = 0; // Anti-overlap: increment on each new speech request
+let _speechGeneration = 0;
 
 // ============================================================
 // CHECK WEB SPEECH API AVAILABILITY
@@ -23,17 +29,13 @@ function isWebSpeechAvailable(): boolean {
 // STOP SPEECH (both engines + kill generation)
 // ============================================================
 export function stopSpeech(): void {
-  // Increment generation to invalidate any pending speech
   _speechGeneration++;
-
   _speaking = false;
 
-  // Stop Web Speech API
   if (typeof window !== 'undefined' && window.speechSynthesis) {
     try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
   }
 
-  // Stop fallback audio
   if (_fallbackAudio) {
     try {
       _fallbackAudio.pause();
@@ -45,69 +47,146 @@ export function stopSpeech(): void {
 }
 
 // ============================================================
-// SPEAK via Web Speech API (primary - free, no network needed)
-// Uses generation counter to prevent overlap
+// HELPER: Sleep for N milliseconds
 // ============================================================
-function speakWebSpeech(text: string, langCode: string, generation: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    // If generation changed, another speech started — abort
-    if (generation !== _speechGeneration) { resolve(false); return; }
-    if (!isWebSpeechAvailable()) { resolve(false); return; }
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-    // Cancel any existing speech
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+// ============================================================
+// HELPER: Pick best voice for language
+// ============================================================
+function pickVoice(langCode: string): SpeechSynthesisVoice | null {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return null;
+
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices || voices.length === 0) return null;
+
+  const langPrefix = langCode.split('-')[0];
+  const langVoices = voices.filter(v => v.lang.startsWith(langPrefix));
+  if (langVoices.length === 0) return null;
+
+  // Prefer local voices (offline, more reliable, no network delay)
+  const localVoices = langVoices.filter(v => v.localService);
+  if (localVoices.length > 0) return localVoices[0];
+
+  return langVoices[0];
+}
+
+// ============================================================
+// Split text into short chunks safe for Chrome's 15s limit
+// Max ~100 chars per chunk ≈ 8-10 seconds of speech at rate 1.0
+// ============================================================
+function splitIntoSafeChunks(text: string, maxLen = 100): string[] {
+  // First split by sentences
+  const sentences = text.split(/(?<=[.!?;:,\n])\s+/);
+  const chunks: string[] = [];
+  let current = '';
+
+  for (const s of sentences) {
+    const trimmed = s.trim();
+    if (!trimmed) continue;
+
+    if ((current + ' ' + trimmed).length > maxLen) {
+      if (current.trim()) chunks.push(current.trim());
+      current = trimmed;
+    } else {
+      current = current ? current + ' ' + trimmed : trimmed;
     }
+  }
+  if (current.trim()) chunks.push(current.trim());
 
-    const utterance = new SpeechSynthesisUtterance(text.trim().substring(0, 500));
-    utterance.rate = 0.85;
+  // Handle case where a single sentence is too long (split by commas)
+  const finalChunks: string[] = [];
+  for (const chunk of chunks) {
+    if (chunk.length > maxLen) {
+      // Split by spaces, keeping under maxLen
+      const words = chunk.split(' ');
+      let sub = '';
+      for (const w of words) {
+        if ((sub + ' ' + w).length > maxLen) {
+          if (sub.trim()) finalChunks.push(sub.trim());
+          sub = w;
+        } else {
+          sub = sub ? sub + ' ' + w : w;
+        }
+      }
+      if (sub.trim()) finalChunks.push(sub.trim());
+    } else {
+      finalChunks.push(chunk);
+    }
+  }
+
+  return finalChunks;
+}
+
+// ============================================================
+// Speak ONE short chunk via Web Speech API
+// Returns true if spoke successfully, false if failed/cancelled
+// ============================================================
+function speakOneChunk(text: string, langCode: string, voice: SpeechSynthesisVoice | null, generation: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (generation !== _speechGeneration) { resolve(false); return; }
+
+    // CRITICAL: Cancel any existing speech BEFORE starting new one
+    // This resets Chrome's internal 15-second timer
+    try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+
+    const utterance = new SpeechSynthesisUtterance(text.trim());
+    utterance.rate = 1.0; // Normal speed = shorter duration = less likely to hit 15s limit
     utterance.pitch = 1;
     utterance.volume = 1;
+    utterance.lang = langCode;
 
-    const langMap: Record<string, string> = {
-      'it': 'it-IT',
-      'ar': 'ar-SA',
-      'it-IT': 'it-IT',
-      'ar-SA': 'ar-SA',
-    };
-    utterance.lang = langMap[langCode] || langCode;
+    if (voice) utterance.voice = voice;
 
     let resolved = false;
     const finish = (success: boolean) => {
       if (!resolved) {
         resolved = true;
-        if (generation === _speechGeneration) _speaking = false;
+        clearInterval(keepAlive);
+        clearTimeout(timeoutId);
         resolve(success);
       }
     };
 
     utterance.onend = () => finish(true);
-    utterance.onerror = () => finish(false);
+    utterance.onerror = (e) => {
+      // "interrupted" or "canceled" errors are normal when stopping
+      const errMsg = (e.error as string) || '';
+      if (errMsg === 'interrupted' || errMsg === 'canceled' || errMsg === 'interrupted-by-user') {
+        finish(false);
+      } else {
+        finish(true); // Other errors still count as "spoke something"
+      }
+    };
 
-    // Chrome bug workaround: speechSynthesis pauses after ~15 seconds
-    // Resume periodically to prevent freezing
+    // AGGRESSIVE keepAlive: every 2 seconds (Chrome pauses after ~15s)
+    // Calling resume() prevents Chrome from killing the speech
     const keepAlive = setInterval(() => {
       if (generation !== _speechGeneration) {
         clearInterval(keepAlive);
         return;
       }
-      if (window.speechSynthesis && window.speechSynthesis.speaking) {
-        try { window.speechSynthesis.resume(); } catch (e) { /* ignore */ }
+      if (window.speechSynthesis) {
+        try {
+          if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.resume();
+          }
+        } catch (e) { /* ignore */ }
       }
-    }, 8000);
+    }, 2000);
 
-    // Timeout: if speech doesn't start within 30 seconds
-    setTimeout(() => {
-      clearInterval(keepAlive);
+    // Safety timeout: 15 seconds (matches Chrome's limit)
+    const timeoutId = setTimeout(() => {
       if (!resolved) {
         try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
-        finish(false);
+        finish(true); // Assume it spoke something before timing out
       }
-    }, 30000);
+    }, 15000);
 
     try {
       window.speechSynthesis.speak(utterance);
-      _speaking = true;
     } catch (e) {
       clearInterval(keepAlive);
       finish(false);
@@ -116,15 +195,13 @@ function speakWebSpeech(text: string, langCode: string, generation: number): Pro
 }
 
 // ============================================================
-// SPEAK via Google TTS fallback (server proxy)
-// Uses generation counter to prevent overlap
+// Speak via Google TTS proxy (server-side)
+// Fallback when Web Speech API is unavailable
 // ============================================================
-function speakGoogleTTS(text: string, langCode: string, generation: number): Promise<boolean> {
+function speakGoogleTTSChunk(text: string, langCode: string, generation: number): Promise<boolean> {
   return new Promise((resolve) => {
-    // If generation changed, another speech started — abort
     if (generation !== _speechGeneration) { resolve(false); return; }
 
-    // Cancel any existing audio
     if (_fallbackAudio) {
       try {
         _fallbackAudio.pause();
@@ -142,14 +219,11 @@ function speakGoogleTTS(text: string, langCode: string, generation: number): Pro
     audio.preload = 'auto';
 
     let resolved = false;
-
     const finish = (success: boolean) => {
       if (!resolved) {
         resolved = true;
-        if (generation === _speechGeneration) {
-          _speaking = false;
-          _fallbackAudio = null;
-        }
+        clearTimeout(timeoutId);
+        _fallbackAudio = null;
         resolve(success);
       }
     };
@@ -161,8 +235,7 @@ function speakGoogleTTS(text: string, langCode: string, generation: number): Pro
       audio.play().catch(() => finish(false));
     };
 
-    // Timeout: 12 seconds
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       if (!resolved) {
         try { audio.pause(); } catch (e) { /* ignore */ }
         finish(false);
@@ -171,14 +244,11 @@ function speakGoogleTTS(text: string, langCode: string, generation: number): Pro
 
     audio.src = audioUrl;
     _fallbackAudio = audio;
-    _speaking = true;
   });
 }
 
 // ============================================================
-// PUBLIC API - speakText
-// Stops any current speech before starting new one
-// Uses generation counter to guarantee no overlap
+// PUBLIC API - speakText (short text, single utterance)
 // ============================================================
 export async function speakText(text: string, lang = 'it-IT'): Promise<void> {
   if (typeof window === 'undefined') return;
@@ -186,24 +256,23 @@ export async function speakText(text: string, lang = 'it-IT'): Promise<void> {
 
   const langCode = lang.startsWith('ar') ? 'ar' : 'it';
 
-  // STOP any current speech and get new generation
   stopSpeech();
   const myGeneration = ++_speechGeneration;
 
-  // Try Web Speech API first (free, offline)
   if (isWebSpeechAvailable()) {
-    const success = await speakWebSpeech(text, langCode, myGeneration);
+    const speechLangCode = lang.startsWith('ar') ? 'ar-SA' : 'it-IT';
+    const voice = pickVoice(speechLangCode);
+    const success = await speakOneChunk(text.trim().substring(0, 200), speechLangCode, voice, myGeneration);
     if (success && myGeneration === _speechGeneration) return;
   }
 
-  // If Web Speech failed or was cancelled, try Google TTS
   if (myGeneration === _speechGeneration) {
-    await speakGoogleTTS(text, langCode, myGeneration);
+    await speakGoogleTTSChunk(text.trim(), langCode, myGeneration);
   }
 }
 
 // ============================================================
-// PUBLIC API - speakWord
+// PUBLIC API - speakWord (single word)
 // ============================================================
 export async function speakWord(word: string, lang: 'it' | 'ar' = 'it'): Promise<void> {
   if (typeof window === 'undefined') return;
@@ -211,70 +280,26 @@ export async function speakWord(word: string, lang: 'it' | 'ar' = 'it'): Promise
 
   const langCode = lang === 'ar' ? 'ar' : 'it';
 
-  // STOP any current speech and get new generation
   stopSpeech();
   const myGeneration = ++_speechGeneration;
 
-  // Try Web Speech API first
   if (isWebSpeechAvailable()) {
-    const success = await speakWebSpeech(word.trim(), langCode, myGeneration);
+    const speechLangCode = lang === 'ar' ? 'ar-SA' : 'it-IT';
+    const voice = pickVoice(speechLangCode);
+    const success = await speakOneChunk(word.trim(), speechLangCode, voice, myGeneration);
     if (success && myGeneration === _speechGeneration) return;
   }
 
-  // If Web Speech failed or was cancelled, try Google TTS
   if (myGeneration === _speechGeneration) {
-    await speakGoogleTTS(word.trim(), langCode, myGeneration);
+    await speakGoogleTTSChunk(word.trim(), langCode, myGeneration);
   }
-}
-
-// ============================================================
-// VOICE SELECTION - Pick the best voice for a language and PIN it
-// Prevents voice switching between chunks
-// ============================================================
-function pickVoice(langCode: string): SpeechSynthesisVoice | null {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return null;
-  
-  const voices = window.speechSynthesis.getVoices();
-  if (!voices || voices.length === 0) return null;
-
-  // Filter voices matching the language
-  const langVoices = voices.filter(v => v.lang.startsWith(langCode.split('-')[0]));
-  if (langVoices.length === 0) return null;
-
-  // Prefer female voices (more common for educational content)
-  // Priority: female local > female remote > male local > any
-  const femaleKeywords = ['female', 'woman', 'donna', 'femmina'];
-  const maleKeywords = ['male', 'man', 'uomo', 'maschio'];
-
-  const femaleVoices = langVoices.filter(v => 
-    femaleKeywords.some(k => v.name.toLowerCase().includes(k))
-  );
-  const maleVoices = langVoices.filter(v => 
-    maleKeywords.some(k => v.name.toLowerCase().includes(k))
-  );
-
-  // Prefer local (offline) voices over network (remote) voices
-  const localFemale = femaleVoices.filter(v => v.localService);
- const remoteFemale = femaleVoices.filter(v => !v.localService);
-  const localMale = maleVoices.filter(v => v.localService);
-  const remoteMale = maleVoices.filter(v => !v.localService);
-
-  // Return best available: local female > remote female > local male > any
-  if (localFemale.length > 0) return localFemale[0];
-  if (remoteFemale.length > 0) return remoteFemale[0];
-  if (localMale.length > 0) return localMale[0];
-  // If no gender match, prefer local
-  const localVoices = langVoices.filter(v => v.localService);
-  if (localVoices.length > 0) return localVoices[0];
-  // Fallback: first matching voice
-  return langVoices[0];
 }
 
 // ============================================================
 // PUBLIC API - speakContinuous
-// Plays long text in sequential chunks.
-// PRIMARY: Google TTS Audio API via /api/tts (no Chrome 15s bug)
-// FALLBACK: Web Speech API if Google TTS fails
+// Plays long text in sequential SHORT chunks.
+// PRIMARY: Web Speech API with 100-char chunks (fits in 15s limit)
+// FALLBACK: Google TTS via server proxy
 // ============================================================
 export async function speakContinuous(
   text: string,
@@ -285,178 +310,95 @@ export async function speakContinuous(
   if (!text || text.trim().length === 0) return;
 
   const langCode = lang.startsWith('ar') ? 'ar' : 'it';
+  const speechLangCode = lang.startsWith('ar') ? 'ar-SA' : 'it-IT';
 
-  // Cancel any existing speech before starting
+  // Cancel any existing speech
   stopSpeech();
   _speaking = true;
 
-  // Split into sentences (max 200 chars each for Google TTS)
-  const sentences = text.split(/(?<=[.!?])\s+/);
-  const chunks: string[] = [];
-  let current = '';
-  for (const s of sentences) {
-    if ((current + ' ' + s).length > 200) {
-      if (current) chunks.push(current.trim());
-      current = s;
-    } else {
-      current = current ? current + ' ' + s : s;
-    }
-  }
-  if (current.trim()) chunks.push(current.trim());
+  // Split into SHORT chunks (max 100 chars to stay well under Chrome's 15s limit)
+  const chunks = splitIntoSafeChunks(text, 100);
 
   if (chunks.length === 0) {
     _speaking = false;
     return;
   }
 
-  // --- TRY GOOGLE TTS (PRIMARY) ---
-  let googleTTSFailed = false;
-  try {
-    for (let i = 0; i < chunks.length; i++) {
-      if (cancelToken?.cancelled) break;
+  // --- PRIMARY: Web Speech API with short chunks ---
+  if (isWebSpeechAvailable()) {
+    // Pick voice ONCE and reuse for all chunks
+    let voice = pickVoice(speechLangCode);
+    if (!voice) {
+      window.speechSynthesis.getVoices();
+      await sleep(200);
+      voice = pickVoice(speechLangCode);
+    }
 
-      const chunk = chunks[i].trim().substring(0, 200);
+    const myGen = _speechGeneration;
+    let allSucceeded = true;
+
+    for (let i = 0; i < chunks.length; i++) {
+      if (cancelToken?.cancelled || myGen !== _speechGeneration) break;
+
+      const chunk = chunks[i];
       if (!chunk) continue;
 
-      const played = await new Promise<boolean>((resolve) => {
-        if (cancelToken?.cancelled) { resolve(false); return; }
+      const success = await speakOneChunk(chunk, speechLangCode, voice, myGen);
 
-        const audioUrl = `/api/tts?text=${encodeURIComponent(chunk)}&lang=${langCode}`;
-        const audio = new Audio();
-        audio.volume = 1;
-        audio.preload = 'auto';
+      if (cancelToken?.cancelled || myGen !== _speechGeneration) break;
 
-        let resolved = false;
-        const finish = (success: boolean) => {
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timeoutId);
-            _fallbackAudio = null;
-            resolve(success);
-          }
-        };
-
-        audio.onended = () => finish(true);
-        audio.onerror = () => finish(false);
-        audio.oncanplaythrough = () => {
-          if (cancelToken?.cancelled) { finish(false); return; }
-          audio.play().catch(() => finish(false));
-        };
-
-        // 15-second timeout per chunk
-        const timeoutId = setTimeout(() => {
-          try { audio.pause(); } catch (e) { /* ignore */ }
-          finish(false);
-        }, 15000);
-
-        audio.src = audioUrl;
-        _fallbackAudio = audio;
-      });
-
-      if (!played) {
-        // Google TTS failed on this chunk, bail to fallback
-        googleTTSFailed = true;
+      if (!success) {
+        allSucceeded = false;
         break;
       }
+
+      // CRITICAL: Small delay between chunks (300ms)
+      // This gives Chrome time to properly transition between utterances
+      // Without this, Chrome may stall or skip chunks
+      if (i < chunks.length - 1) {
+        await sleep(300);
+      }
     }
-  } catch {
-    googleTTSFailed = true;
-  }
 
-  // If Google TTS worked for all chunks, we're done
-  if (!googleTTSFailed || cancelToken?.cancelled) {
-    _speaking = false;
-    _fallbackAudio = null;
-    return;
-  }
+    if (allSucceeded && !cancelToken?.cancelled && myGen === _speechGeneration) {
+      _speaking = false;
+      return;
+    }
 
-  // --- FALLBACK: Web Speech API ---
-  if (!isWebSpeechAvailable()) {
-    _speaking = false;
-    return;
-  }
-
-  const speechLangCode = lang.startsWith('ar') ? 'ar-SA' : 'it-IT';
-
-  let voice = pickVoice(speechLangCode);
-  if (!voice) {
-    window.speechSynthesis.getVoices();
-    await new Promise(r => setTimeout(r, 100));
-    voice = pickVoice(speechLangCode);
-  }
-
-  // Continue from where Google TTS failed — restart from beginning for simplicity
-  // since Web Speech API handles long text better when restarted fresh
-  const webSpeechChunks: string[] = [];
-  let wsCurrent = '';
-  for (const s of sentences) {
-    if ((wsCurrent + ' ' + s).length > 350) {
-      if (wsCurrent) webSpeechChunks.push(wsCurrent.trim());
-      wsCurrent = s;
-    } else {
-      wsCurrent = wsCurrent ? wsCurrent + ' ' + s : s;
+    // Web Speech failed, fall through to Google TTS
+    if (cancelToken?.cancelled || myGen !== _speechGeneration) {
+      _speaking = false;
+      return;
     }
   }
-  if (wsCurrent.trim()) webSpeechChunks.push(wsCurrent.trim());
 
-  for (let i = 0; i < webSpeechChunks.length; i++) {
+  // --- FALLBACK: Google TTS via server proxy ---
+  // Split into slightly larger chunks for Google TTS (max 200 chars)
+  const googleChunks = splitIntoSafeChunks(text, 200);
+  let anyPlayed = false;
+
+  for (let i = 0; i < googleChunks.length; i++) {
+    if (cancelToken?.cancelled || _speechGeneration !== _speechGeneration) break;
+
+    const chunk = googleChunks[i];
+    if (!chunk) continue;
+
+    const played = await speakGoogleTTSChunk(chunk, langCode, _speechGeneration);
+
     if (cancelToken?.cancelled) break;
 
-    const chunk = webSpeechChunks[i];
-
-    await new Promise<void>((resolve) => {
-      if (cancelToken?.cancelled) { resolve(); return; }
-
-      const utterance = new SpeechSynthesisUtterance(chunk.trim().substring(0, 400));
-      utterance.rate = 0.85;
-      utterance.pitch = 1;
-      utterance.volume = 1;
-      utterance.lang = speechLangCode;
-
-      if (voice) {
-        utterance.voice = voice;
+    if (played) {
+      anyPlayed = true;
+      // Small delay between Google TTS chunks
+      if (i < googleChunks.length - 1) {
+        await sleep(200);
       }
-
-      let resolved = false;
-      const finish = () => {
-        if (!resolved) {
-          resolved = true;
-          clearInterval(keepAlive);
-          clearTimeout(timeoutId);
-          resolve();
-        }
-      };
-
-      utterance.onend = () => finish();
-      utterance.onerror = () => finish();
-
-      const keepAlive = setInterval(() => {
-        if (cancelToken?.cancelled) {
-          clearInterval(keepAlive);
-          finish();
-          return;
-        }
-        if (window.speechSynthesis && window.speechSynthesis.speaking) {
-          try { window.speechSynthesis.resume(); } catch (e) { /* ignore */ }
-        }
-      }, 5000);
-
-      const timeoutId = setTimeout(() => {
-        if (!resolved) {
-          try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
-          finish();
-        }
-      }, 20000);
-
-      try {
-        window.speechSynthesis.speak(utterance);
-      } catch (e) {
-        finish();
-      }
-    });
+    }
+    // If Google TTS fails for a chunk, try next chunk (don't bail immediately)
   }
 
   _speaking = false;
+  _fallbackAudio = null;
 }
 
 // ============================================================
