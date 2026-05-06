@@ -296,9 +296,24 @@ export default function HomeScreen() {
           <div className="flex items-center gap-4">
             <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl" style={{ background: 'rgba(5, 150, 105, 0.1)' }}>📖</div>
             <div className="flex-1">
-              <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Teoria</p>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Spiegazione dettagliata di tutti i segnali e argomenti</p>
+              <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Segnali Stradali</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Spiegazione dettagliata di tutti i segnali stradali</p>
             </div>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: 'var(--text-muted)' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </div>
+        </button>
+
+        {/* Theory Book Section */}
+        <button onClick={() => store.setScreen('theoryBook')} className="w-full card p-5 text-left hover:shadow-md transition-all anim-up" style={{ animationDelay: '50ms' }}>
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl" style={{ background: 'rgba(79, 70, 229, 0.1)' }}>📘</div>
+            <div className="flex-1">
+              <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Libro di Teoria</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Manuale completo 30 lezioni — Patenti A1, A e B</p>
+            </div>
+            <span className="text-[9px] font-bold px-2 py-1 rounded-lg" style={{ background: 'rgba(79, 70, 229, 0.1)', color: '#4F46E5' }}>NUOVO</span>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: 'var(--text-muted)' }}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
             </svg>
