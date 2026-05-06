@@ -4,10 +4,12 @@ import { useStore } from '@/store/useStore';
 import { speakContinuous, stopSpeech, isSpeaking } from '@/logic/ttsEngine';
 
 // ============================================================
-// SIGNAL IMAGE MAPPING - Book headings → clean sign images from /img_sign/
+// SIGNAL IMAGE MAPPING - EXACT MATCH ONLY (no partial matching!)
+// Maps Italian road sign heading names → clean /img_sign/ images
+// Partial matching REMOVED to prevent wrong image-to-topic mapping
 // ============================================================
 const HEADING_SIGN_IMAGE: Record<string, string> = {
-  // Lesson 2: Segnali di Pericolo
+  // Lesson 2: Segnali di Pericolo (fig 1-39)
   'STRADA DEFORMATA': '/img_sign/1.png',
   'DOSSO': '/img_sign/2.png',
   'CUNETTA': '/img_sign/3.png',
@@ -18,6 +20,7 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
   'PASSAGGIO A LIVELLO CON BARRIERE O SEMIBARRIERE': '/img_sign/8.png',
   'PASSAGGIO A LIVELLO SENZA BARRIERE': '/img_sign/9.png',
   'INCROCIO': '/img_sign/10.png',
+  'CROCE DI S. ANDREA': '/img_sign/11.png',
   'GALLERIA': '/img_sign/12.png',
   'LAVORI': '/img_sign/13.png',
   'ATTRAVERSAMENTO TRANVIARIO': '/img_sign/14.png',
@@ -36,74 +39,94 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
   'ATTENZIONE AGLI ANIMALI SELVATICI VAGANTI (LIBERI)': '/img_sign/27.png',
   'DOPPIO SENSO DI CIRCOLAZIONE': '/img_sign/28.png',
   'ROTATORIA': '/img_sign/29.png',
-  'SBOCCO SU MOLO O SU ARGINE': '/img_sign/30.png',
+  'PREAVVISO DI CIRCOLAZIONE ROTATORIA': '/img_sign/30.png',
+  'SBOCCO SU MOLO O SU ARGINE': '/img_sign/31.png',
+  'MATERIALE INSTABILE SULLA STRADA': '/img_sign/33.png',
   'PIETRISCO': '/img_sign/31.png',
   'CADUTA MASSI DA SINISTRA': '/img_sign/32.png',
   'CADUTA MASSI DA DESTRA': '/img_sign/33.png',
+  'PREAVVISO DI SEMAFORO VERTICALE': '/img_sign/34.png',
+  'PREAVVISO DI SEMAFORO ORIZZONTALE': '/img_sign/35.png',
   'AEROMOBILI A BASSA QUOTA': '/img_sign/36.png',
   'FORTE VENTO LATERALE': '/img_sign/37.png',
   'PERICOLO DI INCENDIO': '/img_sign/38.png',
   'ALTRI PERICOLI': '/img_sign/39.png',
-  'PREAVVISO DI SEMAFORO VERTICALE': '/img_sign/34.png',
-  'PREAVVISO DI SEMAFORO ORIZZONTALE': '/img_sign/35.png',
-  // Lesson 3: Segnali di Precedenza
+  // Lesson 3: Segnali di Precedenza (fig 40-53)
   'DARE PRECEDENZA': '/img_sign/40.png',
-  'PREAVVISO DI DARE PRECEDENZA': '/img_sign/42.png',
   'FERMARSI E DARE PRECEDENZA (STOP)': '/img_sign/41.png',
+  'PREAVVISO DI DARE PRECEDENZA': '/img_sign/42.png',
   'PREAVVISO DI FERMARSI E DARE PRECEDENZA (STOP)': '/img_sign/43.png',
   'INTERSEZIONE CON PRECEDENZA A DESTRA': '/img_sign/44.png',
-  'INTERSEZIONE CON DIRITTO DI PRECEDENZA': '/img_sign/44.png',
-  'DIRETTO DI PRECEDENZA': '/img_sign/52.png',
+  'INTERSEZIONE CON PRECEDENZA A SINISTRA': '/img_sign/47.png',
+  'INTERSEZIONE CON DIRITTO DI PRECEDENZA': '/img_sign/48.png',
+  'INTERSEZIONE A "T" CON DIRITTO DI PRECEDENZA A DESTRA': '/img_sign/49.png',
+  'INTERSEZIONE A "T" CON DIRITTO DI PRECEDENZA A SINISTRA': '/img_sign/50.png',
+  'CONFLUENZA A DESTRA': '/img_sign/51.png',
+  'CONFLUENZA A SINISTRA': '/img_sign/51.png',
+  'DIRITTO DI PRECEDENZA': '/img_sign/52.png',
   'FINE DEL DIRITTO DI PRECEDENZA': '/img_sign/46.png',
   'DARE PRECEDENZA NEI SENSI UNICI ALTERNATI': '/img_sign/45.png',
-  // Lesson 4: Segnali di Divieto
+  'DIRITTO DI PRECEDENZA NEI SENSI UNICI ALTERNATI': '/img_sign/53.png',
+  // Lesson 4: Segnali di Divieto (fig 54-89)
   'DIVIETO DI TRANSITO': '/img_sign/54.png',
-  'SENSO VIETATO': '/img_sign/55.png',
-  'DIVIETO DI SORPASSO': '/img_sign/56.png',
-  'FINE DEL DIVIETO DI SORPASSO': '/img_sign/82.png',
-  'DIVIETO DI SEGNALAZIONI ACUSTICHE': '/img_sign/59.png',
-  'DIVIETO DI SOSTA': '/img_sign/84.png',
-  'DIVIETO DI FERMATA': '/img_sign/85.png',
-  'PARCHEGGIO': '/img_sign/86.png',
-  'VIA LIBERA': '/img_sign/80.png',
+  'DIVIETO DI TRANSITO PER AUTOTRENI ED AUTOARTICOLATI': '/img_sign/55.png',
+  'SENSO VIETATO': '/img_sign/56.png',
+  'DIVIETO DI SORPASSO': '/img_sign/57.png',
+  'DIVIETO DI INVERSIONE DEL SENSO DI MARCIA': '/img_sign/57.png',
   'LIMITE MASSIMO DI VELOCITÀ DI 80 KM/H': '/img_sign/58.png',
-  'FINE DEL LIMITE MASSIMO DI VELOCITÀ DI 50 KM/H': '/img_sign/81.png',
+  'DIVIETO DI SEGNALAZIONI ACUSTICHE': '/img_sign/59.png',
+  'DIVIETO DI SOSTA': '/img_sign/60.png',
+  'PASSO CARRABILE': '/img_sign/61.png',
+  'DIVIETO DI FERMATA': '/img_sign/61.png',
+  'DIVIETO DI RETROMARCIA': '/img_sign/61.png',
+  'FINE DEL DIVIETO DI SORPASSO': '/img_sign/82.png',
   'DIVIETO DI TRANSITO AI PEDONI': '/img_sign/62.png',
-  'DIVIETO DI TRANSITO AI VEICOLI A BRACCIA': '/img_sign/65.png',
   'DIVIETO DI TRANSITO AI VELOCIPEDI (BICICLETTE)': '/img_sign/63.png',
   'DIVIETO DI TRANSITO AI MOTOCICLI': '/img_sign/64.png',
+  'DIVIETO DI TRANSITO AI VEICOLI A BRACCIA': '/img_sign/65.png',
+  'DIVIETO DI TRANSITO AI VEICOLI A TRAZIONE ANIMALE': '/img_sign/66.png',
   'DIVIETO DI TRANSITO AGLI AUTOBUS': '/img_sign/67.png',
-  'DIVIETO DI INVERSIONE DEL SENSO DI MARCIA': '/img_sign/57.png',
-  'DIVIETO DI RETROMARCIA': '/img_sign/61.png',
-  // Lesson 5: Segnali di Obbligo
+  'DIVIETO DI TRANSITO AI VEICOLI A MOTORE TRAINANTI UN RIMORCHIO': '/img_sign/68.png',
+  'DIVIETO DI TRANSITO AGLI AUTOVEICOLI E MOTOVEICOLI CON 3 O PIÙ RUOTE': '/img_sign/69.png',
+  'DIVIETO DI SOSTA TEMPORANEO': '/img_sign/70.png',
+  'VIA LIBERA': '/img_sign/80.png',
+  'FINE DEL LIMITE MASSIMO DI VELOCITÀ DI 50 KM/H': '/img_sign/81.png',
+  'PARCHEGGIO': '/img_sign/86.png',
+  'PREAVVISO DI PARCHEGGIO': '/img_sign/88.png',
+  'SOSTA CONSENTITA A PARTICOLARI CATEGORIE': '/img_sign/89.png',
+  'DISTANZIAMENTO MINIMO OBBLIGATORIO DI 70 METRI': '/img_sign/74.png',
+  // Lesson 5: Segnali di Obbligo (fig 90-114)
   'DIREZIONE OBBLIGATORIA DIRITTO': '/img_sign/93.png',
   'DIREZIONE OBBLIGATORIA A SINISTRA': '/img_sign/94.png',
   'DIREZIONE OBBLIGATORIA A DESTRA': '/img_sign/95.png',
+  'PREAVVISO DI DIREZIONE OBBLIGATORIA A DESTRA': '/img_sign/96.png',
+  'PREAVVISO DI DIREZIONE OBBLIGATORIA A SINISTRA': '/img_sign/97.png',
+  'PREAVVISO DI DEVIAZIONE OBBLIGATORIA PER AUTOCARRI IN TRANSITO': '/img_sign/99.png',
   'DIREZIONI CONSENTITE DESTRA E SINISTRA': '/img_sign/98.png',
   'DIREZIONI CONSENTITE DIRITTO E DESTRA': '/img_sign/99.png',
   'DIREZIONI CONSENTITE DIRITTO E SINISTRA': '/img_sign/100.png',
   'PASSAGGIO OBBLIGATORIO A SINISTRA': '/img_sign/101.png',
   'PASSAGGIO OBBLIGATORIO A DESTRA': '/img_sign/102.png',
   'PASSAGGI CONSENTITI': '/img_sign/103.png',
-  'CATENE DA NEVE OBBLIGATORIE': '/img_sign/107.png',
   'LIMITE MINIMO DI VELOCITÀ DI 30 KM/H': '/img_sign/105.png',
+  'FINE DEL LIMITE MINIMO DI VELOCITÀ DI 30 KM/H': '/img_sign/106.png',
+  'CATENE DA NEVE OBBLIGATORIE': '/img_sign/107.png',
   'PERCORSO PEDONALE': '/img_sign/108.png',
+  'FINE DEL PERCORSO PEDONALE': '/img_sign/109.png',
   'PISTA CICLABILE': '/img_sign/112.png',
+  'FINE PISTA CICLABILE': '/img_sign/114.png',
   'PISTA CICLABILE CONTIGUA (ACCANTO) AL MARCIAPIEDE': '/img_sign/113.png',
-  'PERCORSO UNICO PEDONALE E CICLABILE': '/img_sign/113.png',
+  'FINE DELLA PISTA CICLABILE CONTIGUA (ACCANTO) AL MARCIAPIEDE': '/img_sign/114.png',
+  'PERCORSO UNICO PEDONALE E CICLABILE': '/img_sign/110.png',
+  'FINE DEL PERCORSO PEDONALE E CICLABILE': '/img_sign/111.png',
+  'PERCORSO RISERVATO AI QUADRUPEDI DA SOMA E DA SELLA': '/img_sign/90.png',
+  'FINE DEL PERCORSO RISERVATO AI QUADRUPEDI DA SOMA E DA SELLA': '/img_sign/91.png',
 };
 
-// Try to get clean sign image for a section heading
+// EXACT MATCH ONLY — no partial matching to prevent wrong images!
 function getSignImage(heading: string): string | null {
   if (!heading) return null;
-  // Exact match first
-  if (HEADING_SIGN_IMAGE[heading]) return HEADING_SIGN_IMAGE[heading];
-  // Partial match (for headings with extra text)
-  const upper = heading.toUpperCase();
-  for (const [key, img] of Object.entries(HEADING_SIGN_IMAGE)) {
-    if (upper.includes(key) || key.includes(upper)) return img;
-  }
-  return null;
+  return HEADING_SIGN_IMAGE[heading] || null;
 }
 
 // ============================================================
