@@ -4,28 +4,18 @@ import { useStore } from '@/store/useStore';
 import { speakContinuous, stopSpeech, isSpeaking } from '@/logic/ttsEngine';
 
 // ============================================================
-// COMPREHENSIVE SIGNAL IMAGE MAPPING
-// Maps Italian road sign heading names → clean /img_sign/ images
-// Covers ALL 30 lessons from the official theory book
+// SIGNAL IMAGE MAPPING
+// Maps Italian road sign heading names → /img_sign/ images
+// Sign chapters (2-11): Each heading IS a sign name → mapped correctly
+// Theory chapters (1, 12-30): Only keep if the sign IS directly relevant
+// Theory headings without a relevant sign → show generic category icon (null)
 // ============================================================
 const HEADING_SIGN_IMAGE: Record<string, string> = {
   // ═══════════════════════════════════════════════════════════
   // LESSON 1: Definizioni Stradali e di Traffico
+  // Theory chapter about road definitions — headings are NOT sign names
+  // All removed: showing a random sign would be misleading
   // ═══════════════════════════════════════════════════════════
-  'STRADA': '/img_sign/207.png',
-  'CARREGGIATA': '/img_sign/207.png',
-  'CORSIA': '/img_sign/245.png',
-  'CORSIA DI ACCELERAZIONE': '/img_sign/250.png',
-  'CORSIA DI DECELERAZIONE': '/img_sign/251.png',
-  'INTERSEZIONE (INCROCIO) A LIVELLI SFALSATI': '/img_sign/10.png',
-  'INTERSEZIONE (INCROCIO) A RASO': '/img_sign/10.png',
-  'BANCHINA': '/img_sign/23.png',
-  'MARCIAPIEDE': '/img_sign/186.png',
-  'SALVAGENTE': '/img_sign/23.png',
-  'ISOLA DI TRAFFICO': '/img_sign/29.png',
-  'PASSAGGIO A LIVELLO': '/img_sign/8.png',
-  'AREA PEDONALE': '/img_sign/186.png',
-  'VELOCITÀ MASSIMA': '/img_sign/58.png',
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 2: Segnali di Pericolo (fig 1-39)
@@ -120,10 +110,9 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
   'VIA LIBERA': '/img_sign/80.png',
   'FINE DEL LIMITE MASSIMO DI VELOCITÀ DI 50 KM/H': '/img_sign/81.png',
   'PARCHEGGIO': '/img_sign/86.png',
-  'PREAVVISO DI PARCHEGGIO': '/img_sign/88.png',
+  'PREAVVISO DI PARCHEGGIO': '/img_sign/86.png',
   'SOSTA CONSENTITA A PARTICOLARI CATEGORIE': '/img_sign/89.png',
   'DISTANZIAMENTO MINIMO OBBLIGATORIO DI 70 METRI': '/img_sign/74.png',
-  // NEW: Additional Lesson 4 mappings
   'DIVIETO DI SORPASSO PER GLI AUTOCARRI CHE SUPERANO 3,5 T.': '/img_sign/60.png',
   'FINE DEL DIVIETO DI SORPASSO PER GLI AUTOCARRI CHE SUPERANO 3,5 T.': '/img_sign/82.png',
   'DIVIETO DI TRANSITO AGLI AUTOCARRI CHE SUPERANO 3,5 T.': '/img_sign/68.png',
@@ -172,13 +161,11 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
   'FINE DEL PERCORSO PEDONALE E CICLABILE': '/img_sign/111.png',
   'PERCORSO RISERVATO AI QUADRUPEDI DA SOMA E DA SELLA': '/img_sign/90.png',
   'FINE DEL PERCORSO RISERVATO AI QUADRUPEDI DA SOMA E DA SELLA': '/img_sign/91.png',
-  // NEW: Additional Lesson 5 mappings
   'ALT-DOGANA': '/img_sign/118.png',
   'CONFINE DI STATO TRA PAESI DELLA COMUNITÀ EUROPEA': '/img_sign/116.png',
   'PREAVVISO DI CONFINE DI STATO TRA PAESI DELLA COMUNITÀ EUROPEA': '/img_sign/164.png',
   'ALT-POLIZIA': '/img_sign/119.png',
   'ALT-STAZIONE': '/img_sign/120.png',
-  // Lesson 5 heading "ROTATORIA" maps to obbligo (roundabout obligation sign)
   'ROTATORIA (OBBLIGATORIA)': '/img_sign/104.png',
 
   // ═══════════════════════════════════════════════════════════
@@ -217,8 +204,6 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
   'OSPEDALE': '/img_sign/214.png',
   'SEGNALE DI LOCALIZZAZIONE TERRITORIALE (NOME FIUME)': '/img_sign/216.png',
   'PREAVVISO DI INFORMAZIONI TURISTICO-ALBERGHIERE': '/img_sign/199.png',
-  // Lesson 6 versions of attraversamento handled by LESSON_IMAGE_OVERRIDE
-
   'SCUOLABUS': '/img_sign/219.png',
   'FERMATA AUTOBUS': '/img_sign/256.png',
   'PARCHEGGIO DI SCAMBIO CON LINEE AUTOBUS': '/img_sign/265.png',
@@ -248,7 +233,6 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
   // ═══════════════════════════════════════════════════════════
   // LESSON 7: Segnali Temporanei e di Cantiere
   // ═══════════════════════════════════════════════════════════
-  // LAVORI: overridden by LESSON_IMAGE_OVERRIDE for lessons 2 & 7
   'PREAVVISO DI SEMAFORO TEMPORANEO': '/img_sign/276.png',
   'DIREZIONE CONSIGLIATA AGLI AUTOCARRI': '/img_sign/283.png',
   'DIREZIONE OBBLIGATORIA PER AUTOTRENI ED AUTOARTICOLATI': '/img_sign/284.png',
@@ -354,38 +338,20 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 12: Pericolo, Intralcio e Velocita
+  // Theory chapter — headings are NOT sign names → all removed
   // ═══════════════════════════════════════════════════════════
-  'PUÒ RITENERSI UTILE PER LA SICUREZZA:': '/img_sign/58.png',
-  'È VIETATO IN QUANTO COSTITUISCE PERICOLO PER LA CIRCOLAZIONE:': '/img_sign/39.png',
-  'LA VELOCITÀ DEVE ESSERE REGOLATA': '/img_sign/58.png',
-  'È OBBLIGATORIO RIDURRE LA VELOCITÀ E SE OCCORRE FERMARSI:': '/img_sign/58.png',
-  'DISTANZA DI SICUREZZA': '/img_sign/58.png',
-  'LIMITI DI VELOCITÀ': '/img_sign/193.png',
-  'LIMITI MASSIMI DI VELOCITÀ GENERALI': '/img_sign/193.png',
-  'LIMITI MASSIMI DI VELOCITÀ PER PARTICOLARI VEICOLI': '/img_sign/58.png',
-  'LIMITI MASSIMI DI VELOCITÀ IN AUTOSTRADA': '/img_sign/184.png',
-  'LIMITI MASSIMI DI VELOCITÀ SU STRADE EXTRAURBANE PRINCIPALI': '/img_sign/194.png',
-  'LIMITI MASSIMI DI VELOCITÀ SU STRADE EXTRAURBANE SECONDARIE': '/img_sign/193.png',
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 13: Posizione dei Veicoli sulla Carreggiata
+  // Theory chapter — headings are NOT sign names → all removed
   // ═══════════════════════════════════════════════════════════
-  'SU UNA STRADA:': '/img_sign/245.png',
-  'È AMMESSA LA MARCIA PER FILE PARALLELE:': '/img_sign/245.png',
-  'DEBBONO ESSERE TENUTI IL PIÙ POSSIBILE VICINO AL MARGINE DESTRO:': '/img_sign/245.png',
-  'QUANDO SI VUOLE CAMBIARE CORSIA O DIREZIONE:': '/img_sign/245.png',
-  'LA SVOLTA A DESTRA SI EFFETTUA:': '/img_sign/245.png',
-  'SVOLTA A SINISTRA': '/img_sign/245.png',
-  'IN PROSSIMITÀ O IN CORRISPONDENZA DEGLI INCROCI È VIETATO:': '/img_sign/10.png',
-  'GIUNGENDO IN PROSSIMITÀ DI UN INCROCIO SI DEVE:': '/img_sign/10.png',
-  'CONVOGLI MILITARI E CORTEI': '/img_sign/10.png',
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 14: Norme sulla Precedenza (Incroci)
+  // All headings ARE about precedence rules → 40.png (dare precedenza) is correct
   // ═══════════════════════════════════════════════════════════
   'È OBBLIGATORIO DARE LA PRECEDENZA A DESTRA E A SINISTRA:': '/img_sign/40.png',
   'ORDINE DI PRECEDENZA:': '/img_sign/40.png',
-  // All specific order-of-precedence diagrams map to intersection sign
   'ORDINE DI PRECEDENZA: R - A - T.': '/img_sign/40.png',
   'ORDINE DI PRECEDENZA: L - C - H.': '/img_sign/40.png',
   'ORDINE DI PRECEDENZA: R - D - F.': '/img_sign/40.png',
@@ -420,6 +386,7 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 15: Sorpasso
+  // All headings ARE about overtaking → 57.png (divieto di sorpasso) is correct
   // ═══════════════════════════════════════════════════════════
   'SORPASSO': '/img_sign/57.png',
   'LO SPAZIO PER LA MANOVRA DI SORPASSO:': '/img_sign/57.png',
@@ -434,6 +401,7 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 16: Fermata e Sosta
+  // All headings ARE about parking/stopping → signs 60/61/86 are relevant
   // ═══════════════════════════════════════════════════════════
   'LA FERMATA': '/img_sign/61.png',
   'LA SOSTA': '/img_sign/60.png',
@@ -448,12 +416,14 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 17: Ingombro della Carreggiata
+  // Both headings are about road obstruction signs → relevant
   // ═══════════════════════════════════════════════════════════
   'INGOMBRO DELLA CARREGGIATA': '/img_sign/39.png',
   'SEGNALE MOBILE TRIANGOLARE DI PERICOLO': '/img_sign/276.png',
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 18: Circolazione sulle Strade Extraurbane
+  // All headings ARE about highway/motorway rules → 184/194 are relevant
   // ═══════════════════════════════════════════════════════════
   'STRADA EXTRAURBANA PRINCIPALE': '/img_sign/194.png',
   'AUTOSTRADA': '/img_sign/184.png',
@@ -465,62 +435,30 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 19: Dispositivi di Equipaggiamento
+  // Most headings about vehicle lights/maintenance → NOT sign images
+  // Kept only: ACCENSIONE DELLE LUCI (154=traffic light, about lights),
+  // NEI/FUORI CENTRI ABITATI (road signs), DISPOSITIVI DI SEGNALAZIONE ACUSTICA (59=horn sign)
   // ═══════════════════════════════════════════════════════════
   'ACCENSIONE DELLE LUCI': '/img_sign/154.png',
-  'USO DELLE LUCI': '/img_sign/154.png',
   'NEI CENTRI ABITATI': '/img_sign/207.png',
   'FUORI DEI CENTRI ABITATI': '/img_sign/194.png',
-  'USO DELLE LUCI DI POSIZIONE': '/img_sign/154.png',
-  'USO DEI PROIETTORI ANABBAGLIANTI': '/img_sign/154.png',
-  'USO DEI PROIETTORI ABBAGLIANTI': '/img_sign/154.png',
-  'SE, DI NOTTE, INCROCIAMO UN VEICOLO CON FARI ABBAGLIANTI ACCESI OC-': '/img_sign/154.png',
-  'CORRE:': '/img_sign/154.png',
-  'PROIETTORE ABBAGLIANTE': '/img_sign/154.png',
-  'PROIETTORE ANABBAGLIANTE ASIMMETRICO CORRETTO': '/img_sign/154.png',
-  'PROIETTORE ANABBAGLIANTE ASIMMETRICO ERRATO': '/img_sign/154.png',
-  'USO DEGLI INDICATORI DI DIREZIONE (FRECCE)': '/img_sign/154.png',
-  'LAMPEGGIO SIMULTANEO DEGLI INDICATORI DI DIREZIONE': '/img_sign/154.png',
-  'LUCE BIANCA DELLA TARGA': '/img_sign/154.png',
-  'LUCI DI SOSTA (O DI STAZIONAMENTO)': '/img_sign/154.png',
-  'CATADIOTTRI': '/img_sign/154.png',
-  'MANUTENZIONE DELL\'IMPIANTO DI ILLUMINAZIONE': '/img_sign/154.png',
   'DISPOSITIVI DI SEGNALAZIONE ACUSTICA (CLACSON, TROMBE)': '/img_sign/59.png',
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 20: Spie e Simboli sui Comandi
+  // Dashboard symbols — NOT road signs → all removed
   // ═══════════════════════════════════════════════════════════
-  'SIMBOLO PROIETTORI ABBAGLIANTI': '/img_sign/154.png',
-  'SIMBOLO PROIETTORI ANABBAGLIANTI': '/img_sign/154.png',
-  'SIMBOLO DEGLI INDICATORI DI DIREZIONE': '/img_sign/154.png',
-  'SIMBOLO DEL SEGNALE DI EMERGENZA': '/img_sign/154.png',
-  'SIMBOLO DEL TERGICRISTALLO': '/img_sign/154.png',
-  'SIMBOLO DEL TERGI-LAVACRISTALLO': '/img_sign/154.png',
-  'SIMBOLO DEL CLACSON': '/img_sign/59.png',
-  'SIMBOLO DELLA RISERVA CARBURANTE': '/img_sign/154.png',
-  'SIMBOLO DELLA TEMPERATURA ECCESSIVA DELL\'ACQUA': '/img_sign/154.png',
-  'SIMBOLO DELLA BATTERIA': '/img_sign/154.png',
-  'SIMBOLO DELLA PRESSIONE BASSA DELL\'OLIO': '/img_sign/154.png',
-  'SIMBOLO DEL LUNOTTO TERMICO': '/img_sign/154.png',
-  'SIMBOLO DI SBRINAMENTO DEL PARABREZZA': '/img_sign/154.png',
-  'SIMBOLO DEI FENDINEBBIA POSTERIORI': '/img_sign/154.png',
-  'SIMBOLO DEI FENDINEBBIA ANTERIORI': '/img_sign/154.png',
-  'SIMBOLO DEL FRENO DI STAZIONAMENTO': '/img_sign/154.png',
-  'SIMBOLO FUNZIONAMENTO DIFETTOSO DEL SISTEMA FRENANTE': '/img_sign/154.png',
-  'SPIE ROSSE': '/img_sign/154.png',
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 21: Cinture di Sicurezza e Airbag
+  // Safety equipment — NOT road signs → all removed
   // ═══════════════════════════════════════════════════════════
-  'CINTURE DI SICUREZZA': '/img_sign/154.png',
-  'SONO ESENTATI (ESCLUSI) DALL\'OBBLIGO DI INDOSSARE LE CINTURE': '/img_sign/154.png',
-  'SISTEMI DI RITENUTA PER BAMBINI': '/img_sign/154.png',
-  'L\'AIRBAG': '/img_sign/154.png',
-  'IL CASCO': '/img_sign/107.png',
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 22: Trasporto di Persone e Carico
+  // Keep only: vehicle panel signs (301-304), cantieri (280), traino (275)
+  // Remove: TRASPORTO DI PERSONE (not a sign topic)
   // ═══════════════════════════════════════════════════════════
-  'TRASPORTO DI PERSONE': '/img_sign/154.png',
   'IL CARICO DEVE ESSERE SISTEMATO SUL VEICOLO IN MODO DA:': '/img_sign/302.png',
   'SPOSTAMENTO DEL CARICO IN AVANTI': '/img_sign/302.png',
   'PANNELLO PER CARICHI SPORGENTI': '/img_sign/302.png',
@@ -536,26 +474,23 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 23: Patenti di Guida
+  // License topics — NOT road signs → all removed
   // ═══════════════════════════════════════════════════════════
-  'CON LA PATENTE DELLA SOTTOCATEGORIA A1 SI POSSONO GUIDARE': '/img_sign/154.png',
-  'CON LA PATENTE DI CATEGORIA A SI POSSONO GUIDARE': '/img_sign/154.png',
-  'CON LA PATENTE DI CATEGORIA B SI POSSONO GUIDARE': '/img_sign/154.png',
-  'DURATA E CONFERMA DI VALIDITÀ DELLA PATENTE DI CATEGORIA B': '/img_sign/154.png',
-  'LA REVISIONE DELLA PATENTE': '/img_sign/154.png',
-  'LA REVOCA DELLA PATENTE': '/img_sign/154.png',
-  'IL RITIRO IMMEDIATO DELLA PATENTE': '/img_sign/154.png',
-  'LA SOSPENSIONE DELLA PATENTE': '/img_sign/154.png',
-  'RITIRO DELLA CARTA DI CIRCOLAZIONE': '/img_sign/154.png',
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 24: Obblighi e Documenti di Guida
+  // Keep only: police-related headings (275=polizia)
+  // Remove: USO DELLE LENTI (not a sign topic)
   // ═══════════════════════════════════════════════════════════
   'CIÒ CHE CONTRADDISTINGUE GLI ADDETTI AL SERVIZIO DI POLIZIA È:': '/img_sign/275.png',
   'DOCUMENTI DA ESIBIRE AGLI AGENTI:': '/img_sign/275.png',
-  'USO DELLE LENTI': '/img_sign/154.png',
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 25: Cause di Incidenti Stradali
+  // Keep relevant: weather signs (37), slippery road (24), gallery (13),
+  // pedestrian (15), lanes (245), no overtaking (57), intersection (10),
+  // speed (58), traffic light (154 for the actual traffic light heading)
+  // Remove: fog (154=traffic light is wrong for fog topic)
   // ═══════════════════════════════════════════════════════════
   'CAUSE PRINCIPALI DI INCIDENTI POSSONO ESSERE:': '/img_sign/39.png',
   'PER EVITARE IL PRODURSI DI INCIDENTI BISOGNA CONTROLLARE:': '/img_sign/39.png',
@@ -563,43 +498,32 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
   'CONDIZIONI AVVERSE DEL TEMPO': '/img_sign/37.png',
   'IN CASO DI PIOGGIA OCCORRE:': '/img_sign/24.png',
   'SU STRADA SDRUCCIOLEVOLE, COPERTA DI NEVE O GHIACCIO BISOGNA:': '/img_sign/24.png',
-  'IN CASO DI NEBBIA FITTA È OPPORTUNO:': '/img_sign/154.png',
   'IN CASO DI FORTE VENTO LATERALE È OPPORTUNO:': '/img_sign/37.png',
   'ALL\'INGRESSO E ALL\'USCITA DELLE GALLERIE È OPPORTUNO:': '/img_sign/13.png',
   'L\'USO CORRETTO DELLA STRADA COMPORTA CHE:': '/img_sign/245.png',
   'SU TUTTE LE STRADE È VIETATO:': '/img_sign/57.png',
   'SE, GIUNGENDO AD UN INCROCIO, SI SBAGLIA CORSIA OCCORRE:': '/img_sign/10.png',
   'ALLA LUCE VERDE DEL SEMAFORO SE UN VEICOLO TARDA A RIPARTIRE BISO-': '/img_sign/154.png',
-  'GNA:': '/img_sign/154.png',
   'CHI GUIDA UN VEICOLO AD ELEVATE PRESTAZIONI DEVE COMUNQUE:': '/img_sign/58.png',
   'IN CASO DI TRAFFICO INTENSO IL CONDUCENTE DEVE:': '/img_sign/58.png',
   'SE UN PEDONE, FUORI DELLE STRISCE, NON CI DA LA PRECEDENZA BISOGNA:': '/img_sign/15.png',
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 26: Comportamento in Caso di Incidente
+  // Keep: accident-related (220=SOS) and police (275) headings
+  // Remove: insurance/civil responsibility headings (no relevant sign)
   // ═══════════════════════════════════════════════════════════
   'IN CASO DI INCIDENTE STRADALE IL CONDUCENTE DEVE:': '/img_sign/220.png',
   'DOPO UN INCIDENTE STRADALE OCCORRE:': '/img_sign/220.png',
   'PER INDIVIDUARE PERSONE E/O VEICOLI COINVOLTI IN UN INCIDENTE': '/img_sign/220.png',
   'PER INDIVIDUARE I TESTIMONI PRESENTI AL SINISTRO (INCIDENTE STRADALE)': '/img_sign/220.png',
   'DOPO UN INCIDENTE STRADALE SI DEVE CHIAMARE LA POLIZIA:': '/img_sign/275.png',
-  'RESPONSABILITÀ CIVILE': '/img_sign/220.png',
-  'IN UN INCIDENTE CHI È CIVILMENTE OBBLIGATO A RISARCIRE I DANNI': '/img_sign/220.png',
-  'RESPONSABILITÀ PENALE': '/img_sign/220.png',
-  'RESPONSABILITÀ PENALE E CIVILE': '/img_sign/220.png',
-  'ASSICURAZIONE R.C.A. (RESPONSABILITÀ CIVILE AUTO)': '/img_sign/220.png',
-  'MASSIMALI DELLA POLIZZA R.C.A.': '/img_sign/220.png',
-  'CONTRATTO CON FORMULA "BONUS-MALUS"': '/img_sign/220.png',
-  'DOCUMENTI CHE DEVE RILASCIARE L\'IMPRESA ASSICURATRICE:': '/img_sign/220.png',
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 27: Stato Fisico ed Effetti dell'Alcool
+  // Keep: first aid headings (210=pronto soccorso), danger (39)
+  // Remove: fatigue/drug/alcohol/SOS headings (no relevant sign)
   // ═══════════════════════════════════════════════════════════
-  'CHI ACCUSA SEGNI DI STANCHEZZA DEVE:': '/img_sign/220.png',
-  'I FARMACI PER IL MAL D\'AUTO': '/img_sign/220.png',
-  'SE SI STANNO SEGUENDO TERAPIE (CURE) CON FARMACI AD AZIONE SEDATIVA': '/img_sign/220.png',
-  'ASSUNZIONE DI ALCOOL E GUIDA IN STATO DI EBBREZZA (UBRIACHEZZA)': '/img_sign/220.png',
-  'GUIDA SOTTO L\'INFLUENZA DI SOSTANZE STUPEFACENTI': '/img_sign/220.png',
   'IL MANCATO SENSO DEL PERICOLO DURANTE LA GUIDA PUÒ ESSERE DATO DA:': '/img_sign/39.png',
   'PRIMO SOCCORSO': '/img_sign/210.png',
   'CORPO ESTRANEO IN UN OCCHIO': '/img_sign/210.png',
@@ -612,6 +536,7 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 28: Consumi e Inquinamento
+  // Fuel (254) and noise/horn (59) signs are somewhat relevant → keep
   // ═══════════════════════════════════════════════════════════
   'PER LIMITARE I CONSUMI DI CARBURANTE OCCORRE:': '/img_sign/254.png',
   'INQUINAMENTO ATMOSFERICO PRODOTTO DAI VEICOLI': '/img_sign/254.png',
@@ -625,33 +550,13 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 29: Elementi Costitutivi del Veicolo
+  // Vehicle parts (tires, brakes, steering) — NOT road signs → all removed
   // ═══════════════════════════════════════════════════════════
-  'SUI PNEUMATICI OCCORRE SPESSO VERIFICARE:': '/img_sign/24.png',
-  'PNEUMATICI CON BATTISTRADA USURATO': '/img_sign/24.png',
-  'I PNEUMATICI CON LESIONI SUI FIANCHI (LATI) CHE INTERESSANO LE TELE:': '/img_sign/24.png',
-  'VIAGGIANDO CON PNEUMATICI DELLO STESSO ASSE GONFIATI DIFFERENTE-': '/img_sign/24.png',
-  'MENTE:': '/img_sign/24.png',
-  'AQUAPLANING (PERDITA DI ADERENZA)': '/img_sign/24.png',
-  'SOSPENSIONI E AMMORTIZZATORI': '/img_sign/24.png',
-  'PERCHÈ GLI ORGANI DI STERZO CONTRIBUISCANO ALLA SICUREZZA:': '/img_sign/24.png',
-  'LO STERZO DIVENTA PIÙ DURO DEL NORMALE:': '/img_sign/24.png',
-  'SE LO STERZO VIBRA FORTEMENTE PUÒ DIPENDERE:': '/img_sign/24.png',
-  'CON FRENI SQUILIBRATI PUÒ AVVENIRE IN FRENATA:': '/img_sign/24.png',
-  'LA SQUILIBRATURA DEI FRENI PUÒ DIPENDERE DA:': '/img_sign/24.png',
-  'SE, PER UN GUASTO, FUNZIONANO SOLO I FRENI POSTERIORI OCCORRE:': '/img_sign/24.png',
-  'SISTEMA ANTI BLOCCAGGIO RUOTE (A.B.S.)': '/img_sign/24.png',
-  'PER MANTENERE I FRENI EFFICIENTI OCCORRE SPESSO CONTROLLARE:': '/img_sign/24.png',
-  // Lesson 29 override handled in LESSON_IMAGE_OVERRIDE
 
   // ═══════════════════════════════════════════════════════════
   // LESSON 30: Stabilita e Tenuta di Strada
+  // Vehicle stability topics — NOT road signs → all removed
   // ═══════════════════════════════════════════════════════════
-  'L\'ADERENZA (CONTATTO) DELLE RUOTE SUL MANTO STRADALE È RIDOTTA DA:': '/img_sign/24.png',
-  'PER ASSICURARE STABILITÀ AL VEICOLO IN CURVA È OPPORTUNO:': '/img_sign/4.png',
-  'SULLA STABILITÀ DEL VEICOLO IN MARCIA INFLUISCE POSITIVAMENTE:': '/img_sign/24.png',
-  'LA INSUFFICIENTE TENUTA DI STRADA DEL VEICOLO PUÒ DIPENDERE:': '/img_sign/24.png',
-  'SE IL VEICOLO IN FASE DI FRENATURA TENDE A SBANDARE': '/img_sign/24.png',
-  'PER CONTROLLARE LO SBANDAMENTO DEL VEICOLO È OPPORTUNO:': '/img_sign/24.png',
 };
 
 // Lesson-specific image overrides (same heading, different image per lesson)
@@ -659,7 +564,6 @@ const LESSON_IMAGE_OVERRIDE: Record<string, Record<string, string>> = {
   2: { 'LAVORI': '/img_sign/13.png' },      // Lesson 2: danger sign for road works
   6: { 'ATTRAVERSAMENTO PEDONALE': '/img_sign/218.png', 'ATTRAVERSAMENTO CICLABILE': '/img_sign/236.png' },
   7: { 'LAVORI': '/img_sign/279.png' },     // Lesson 7: temporary works sign
-  29: { 'PER EVITARE IL PRODURSI DI INCIDENTI BISOGNA CONTROLLARE:': '/img_sign/24.png' },
 };
 
 // EXACT MATCH with fallback to continuation heading detection
@@ -673,24 +577,19 @@ function getSignImage(heading: string, lessonId?: number): string | null {
   if (HEADING_SIGN_IMAGE[heading]) return HEADING_SIGN_IMAGE[heading];
   // 2. Check if heading is a continuation (starts with common prefixes)
   const h = heading.trim().toUpperCase();
-  if (h.startsWith('LI DI CONTAMINARE')) return HEADING_SIGN_IMAGE['LI DI CONTAMINARE L\'ACQUA'] || '/img_sign/72.png';
+  if (h.startsWith('LI DI CONTAMINARE')) return '/img_sign/72.png';
   if (h.startsWith('2,30 METRI')) return '/img_sign/76.png';
   if (h.startsWith('METRI')) return '/img_sign/77.png';
   if (h.startsWith('LUNGHEZZA')) return '/img_sign/77.png';
   if (h.startsWith('NEVE)')) return '/img_sign/189.png';
   if (h.startsWith('TO PER UNA CATEGORIA')) return '/img_sign/169.png';
   if (h.startsWith('LIVELLO SU UN RAMO')) return '/img_sign/170.png';
-  if (h.startsWith('GNA:')) return '/img_sign/154.png';
-  if (h.startsWith('MERGENZA')) return '/img_sign/184.png';
-  if (h.startsWith('CORRE:')) return '/img_sign/154.png';
-  if (h.startsWith('MENTE:')) return '/img_sign/24.png';
   if (h.startsWith('NA) DIPENDE')) return '/img_sign/254.png';
   if (h.startsWith('MASSA A PIENO')) return '/img_sign/304.png';
   if (h.startsWith('SPORTO COSE')) return '/img_sign/304.png';
   // 3. Fallback: match by first word for generic categorization
   if (h.startsWith('ORDINE DI PRECEDENZA')) return '/img_sign/40.png';
   if (h.startsWith('LIMITI MASSIMI')) return '/img_sign/193.png';
-  if (h.startsWith('PER EVITARE')) return '/img_sign/39.png';
   return null;
 }
 
@@ -880,52 +779,8 @@ export default function TheoryBookScreen() {
   // CLIENT-SIDE GOOGLE TRANSLATE FALLBACK
   // When the server API fails, translate directly from client
   // ============================================================
-  const googleTranslateClient = async (text: string): Promise<string | null> => {
-    try {
-      // Split into paragraphs and translate each
-      const paragraphs = text.split('\n').filter(p => p.trim().length > 3);
-      const translated: string[] = [];
-
-      for (const para of paragraphs) {
-        // Split long paragraphs into segments of max 500 chars
-        const segments: string[] = [];
-        let seg = '';
-        for (const sentence of para.split(/(?<=[.!?])\s+/)) {
-          if ((seg + ' ' + sentence).length > 500) {
-            if (seg.trim()) segments.push(seg.trim());
-            seg = sentence;
-          } else {
-            seg = seg ? seg + ' ' + sentence : sentence;
-          }
-        }
-        if (seg.trim()) segments.push(seg.trim());
-
-        for (const s of segments) {
-          try {
-            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=it&tl=ar&dt=t&q=${encodeURIComponent(s.substring(0, 800))}`;
-            const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-            if (!res.ok) continue;
-            const data = await res.json();
-            if (Array.isArray(data) && Array.isArray(data[0])) {
-              const tr = data[0]
-                .filter((entry: any[]) => entry && entry[0])
-                .map((entry: any[]) => entry[0] as string)
-                .join('');
-              if (tr) translated.push(tr);
-            }
-          } catch { /* skip failed segment */ }
-        }
-      }
-
-      const result = translated.join('\n\n');
-      return result.trim().length > 5 ? result : null;
-    } catch {
-      return null;
-    }
-  };
-
   // ============================================================
-  // PER-SECTION TRANSLATION (with client-side Google fallback)
+  // PER-SECTION TRANSLATION (server-side Google Translate proxy)
   // ============================================================
   const handleTranslateSection = useCallback(async (sectionIdx: number) => {
     // If already translated, toggle visibility
@@ -985,26 +840,50 @@ export default function TheoryBookScreen() {
         }
       }
 
-      // METHOD 2: Client-side Google Translate fallback
-      console.log('[Translation] Server API failed, trying client-side Google Translate');
-      const clientTranslation = await googleTranslateClient(text.substring(0, 3000));
-      if (clientTranslation) {
-        showTranslation(clientTranslation);
-        setTranslatingSection(null);
-        return;
+      // METHOD 2: Server-side Google Translate proxy (no CORS issues)
+      console.log('[Translation] Server AI failed, trying server-side Google Translate');
+      const translateRes = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: text.substring(0, 3000),
+          from: 'it',
+          to: 'ar',
+        }),
+      });
+
+      if (translateRes.ok) {
+        const translateData = await translateRes.json();
+        if (translateData.translation && translateData.translation.length > 5) {
+          showTranslation(translateData.translation);
+          setTranslatingSection(null);
+          return;
+        }
       }
 
       setTranslationError('فشلت الترجمة، تحقق من الإنترنت وحاول مرة أخرى');
     } catch (e) {
       console.error('Translation error for section', sectionIdx, ':', e);
 
-      // Last resort: try client-side Google Translate even on network error
+      // Last resort: try server-side Google Translate even on network error
       try {
-        const clientTranslation = await googleTranslateClient(text.substring(0, 3000));
-        if (clientTranslation) {
-          showTranslation(clientTranslation);
-          setTranslatingSection(null);
-          return;
+        const translateRes = await fetch('/api/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: text.substring(0, 3000),
+            from: 'it',
+            to: 'ar',
+          }),
+        });
+
+        if (translateRes.ok) {
+          const translateData = await translateRes.json();
+          if (translateData.translation && translateData.translation.length > 5) {
+            showTranslation(translateData.translation);
+            setTranslatingSection(null);
+            return;
+          }
         }
       } catch { /* ignore */ }
 
