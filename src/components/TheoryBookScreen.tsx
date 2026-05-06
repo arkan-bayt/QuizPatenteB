@@ -17,6 +17,12 @@ interface BookLesson {
   hasImages: boolean;
 }
 
+interface Section {
+  heading: string | null;
+  paragraphs: string[];
+  images: string[];
+}
+
 const LESSONS: BookLesson[] = [
   { id: 1, title: 'Definizioni Stradali e di Traffico', shortTitle: 'تعريفات الطرق', icon: '📖', hasImages: false },
   { id: 2, title: 'Segnali di Pericolo', shortTitle: 'إشارات الخطر', icon: '⚠️', hasImages: true },
@@ -44,7 +50,7 @@ const LESSONS: BookLesson[] = [
   { id: 24, title: 'Obblighi e Documenti di Guida', shortTitle: 'وثائق القيادة', icon: '📋', hasImages: false },
   { id: 25, title: 'Cause di Incidenti Stradali', shortTitle: 'أسباب الحوادث', icon: '💥', hasImages: false },
   { id: 26, title: 'Comportamento in Caso di Incidente', shortTitle: 'التصرف عند الحوادث', icon: '🚑', hasImages: false },
-  { id: 27, title: 'Stato Fisico ed Effetti dell\'Alcool', shortTitle: 'الكحول والقيادة', icon: '🍺', hasImages: false },
+  { id: 27, title: "Stato Fisico ed Effetti dell'Alcool", shortTitle: 'الكحول والقيادة', icon: '🍺', hasImages: false },
   { id: 28, title: 'Consumi e Inquinamento', shortTitle: 'الاستهلاك والتلوث', icon: '🌱', hasImages: false },
   { id: 29, title: 'Elementi Costitutivi del Veicolo', shortTitle: 'أجزاء المركبة', icon: '🔧', hasImages: false },
   { id: 30, title: 'Stabilita e Tenuta di Strada', shortTitle: 'ثبات المركبة', icon: '🎯', hasImages: false },
@@ -56,35 +62,56 @@ const LESSONS: BookLesson[] = [
 export default function TheoryBookScreen() {
   const store = useStore();
   const [selectedLesson, setSelectedLesson] = useState<number | null>(null);
-  const [lessonContent, setLessonContent] = useState<string | null>(null);
-  const [arabicTranslation, setArabicTranslation] = useState<string | null>(null);
-  const [translating, setTranslating] = useState(false);
+  const [sections, setSections] = useState<Section[]>([]);
+  const [arabicTranslations, setArabicTranslations] = useState<Record<number, string>>({});
+  const [translatingSection, setTranslatingSection] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showArabic, setShowArabic] = useState(false);
-  const [playing, setPlaying] = useState(false);
+  const [showAllArabic, setShowAllArabic] = useState(false);
+  const [playingSection, setPlayingSection] = useState<number | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [translateProgress, setTranslateProgress] = useState({ current: 0, total: 0 });
 
   // Load lesson content when selected
   useEffect(() => {
     if (selectedLesson === null) {
-      setLessonContent(null);
-      setArabicTranslation(null);
+      setSections([]);
+      setArabicTranslations({});
       return;
     }
 
     setLoading(true);
-    setArabicTranslation(null);
-    setShowArabic(false);
+    setArabicTranslations({});
+    setShowAllArabic(false);
     stopSpeech();
-    setPlaying(false);
+    setPlayingSection(null);
 
-    fetch('/bookLessons.json').then(r => r.json()).then((lessons) => {
+    fetch('/bookLessonsStructured.json')
+      .then(r => r.json())
+      .then((lessons) => {
         const lesson = (lessons as any[]).find((l: any) => l.id === selectedLesson);
-        if (lesson) {
-          setLessonContent(lesson.content);
+        if (lesson && lesson.sections) {
+          setSections(lesson.sections);
         }
         setLoading(false);
-      }).catch(() => setLoading(false));
+      })
+      .catch(() => {
+        // Fallback to old format
+        fetch('/bookLessons.json')
+          .then(r => r.json())
+          .then((lessons) => {
+            const lesson = (lessons as any[]).find((l: any) => l.id === selectedLesson);
+            if (lesson) {
+              const fallbackSections: Section[] = [{
+                heading: null,
+                paragraphs: lesson.content.split('\n').filter((p: string) => p.trim()),
+                images: lesson.images || [],
+              }];
+              setSections(fallbackSections);
+            }
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      });
   }, [selectedLesson]);
 
   // Scroll to top when lesson changes
@@ -94,60 +121,107 @@ export default function TheoryBookScreen() {
     }
   }, [selectedLesson]);
 
-  // TTS handler
-  const handleSpeak = useCallback(async () => {
-    if (!lessonContent) return;
-    if (isSpeaking() && playing) {
+  // Cleanup speech on unmount
+  useEffect(() => {
+    return () => { stopSpeech(); };
+  }, []);
+
+  // TTS handler for a specific section
+  const handleSpeakSection = useCallback(async (sectionIdx: number) => {
+    const section = sections[sectionIdx];
+    if (!section) return;
+
+    // Build text from heading + paragraphs
+    const text = [
+      ...(section.heading ? [section.heading] : []),
+      ...section.paragraphs,
+    ].join('. ');
+
+    if (!text.trim()) return;
+
+    // Toggle if already playing this section
+    if (playingSection === sectionIdx && isSpeaking()) {
       stopSpeech();
-      setPlaying(false);
+      setPlayingSection(null);
       return;
     }
-    setPlaying(true);
-    // Split long text into chunks for TTS (max 200 chars each)
-    const sentences = lessonContent.split(/(?<=[.!?])\s+/);
+
+    stopSpeech();
+    setPlayingSection(sectionIdx);
+
+    // Split into chunks of max 400 chars
+    const sentences = text.split(/(?<=[.!?])\s+/);
     const chunks: string[] = [];
     let current = '';
     for (const s of sentences) {
-      if ((current + ' ' + s).length > 200) {
-        if (current) chunks.push(current);
+      if ((current + ' ' + s).length > 400) {
+        if (current) chunks.push(current.trim());
         current = s;
       } else {
         current = current ? current + ' ' + s : s;
       }
     }
-    if (current) chunks.push(current);
+    if (current.trim()) chunks.push(current.trim());
 
     for (const chunk of chunks) {
       if (!isSpeaking()) break;
       await speakText(chunk, 'it-IT');
     }
-    setPlaying(false);
-  }, [lessonContent, playing]);
+    setPlayingSection(null);
+  }, [sections, playingSection]);
 
-  // Arabic translation handler
-  const handleTranslate = useCallback(async () => {
-    if (!lessonContent || arabicTranslation) return;
-    setTranslating(true);
-    try {
-      const res = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'translate',
-          text: lessonContent.substring(0, 5000),
-          target_lang: 'ar',
-        }),
-      });
-      const data = await res.json();
-      if (data.translation) {
-        setArabicTranslation(data.translation);
-        setShowArabic(true);
-      }
-    } catch (e) {
-      console.error('Translation error:', e);
+  // Stop all speech
+  const handleStopAll = useCallback(() => {
+    stopSpeech();
+    setPlayingSection(null);
+  }, []);
+
+  // Translate all sections
+  const handleTranslateAll = useCallback(async () => {
+    if (Object.keys(arabicTranslations).length > 0) {
+      setShowAllArabic(!showAllArabic);
+      return;
     }
-    setTranslating(false);
-  }, [lessonContent, arabicTranslation]);
+
+    const sectionsToTranslate = sections.filter(s => s.heading || s.paragraphs.length > 0);
+    setTranslateProgress({ current: 0, total: sectionsToTranslate.length });
+
+    const newTranslations: Record<number, string> = {};
+
+    for (let i = 0; i < sectionsToTranslate.length; i++) {
+      setTranslatingSection(i);
+      setTranslateProgress({ current: i + 1, total: sectionsToTranslate.length });
+
+      const section = sectionsToTranslate[i];
+      const text = [
+        ...(section.heading ? [section.heading] : []),
+        ...section.paragraphs,
+      ].join('\n');
+
+      if (text.length < 20) continue;
+
+      try {
+        const res = await fetch('/api/ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'translateText',
+            text: text.substring(0, 3000),
+          }),
+        });
+        const data = await res.json();
+        if (data.translation) {
+          newTranslations[i] = data.translation;
+          setArabicTranslations(prev => ({ ...prev, [i]: data.translation }));
+        }
+      } catch (e) {
+        console.error('Translation error for section', i, ':', e);
+      }
+    }
+
+    setTranslatingSection(null);
+    setShowAllArabic(true);
+  }, [sections, arabicTranslations, showAllArabic]);
 
   // ============================================================
   // LESSON LIST VIEW
@@ -249,13 +323,15 @@ export default function TheoryBookScreen() {
   const lesson = LESSONS.find(l => l.id === selectedLesson)!;
   const prevLesson = selectedLesson > 1 ? selectedLesson - 1 : null;
   const nextLesson = selectedLesson < 30 ? selectedLesson + 1 : null;
+  const hasTranslations = Object.keys(arabicTranslations).length > 0;
+  const isTranslating = translatingSection !== null;
 
   return (
     <div className="min-h-screen bg-mesh pb-8">
       {/* Header */}
       <div className="sticky top-0 z-30 glass-header">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3.5 flex items-center gap-3">
-          <button onClick={() => { setSelectedLesson(null); stopSpeech(); setPlaying(false); }}
+          <button onClick={() => { setSelectedLesson(null); stopSpeech(); setPlayingSection(null); }}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors"
             style={{ color: 'var(--text-secondary)', background: 'var(--bg-secondary)' }}>
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -271,20 +347,29 @@ export default function TheoryBookScreen() {
               {lesson.title}
             </p>
           </div>
-          <div className="w-16" />
+          {playingSection !== null && (
+            <button onClick={handleStopAll}
+              className="flex items-center gap-1 text-xs font-semibold px-2 py-1.5 rounded-lg transition-colors"
+              style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444' }}>
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                <rect x="6" y="4" width="4" height="16" rx="1" />
+                <rect x="14" y="4" width="4" height="16" rx="1" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
       {/* Content */}
       <div ref={contentRef} className="max-w-2xl mx-auto px-4 sm:px-6 pt-5 space-y-4">
-        {/* Lesson title card */}
+        {/* Lesson title card with actions */}
         <div className="card p-5 anim-up">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
               style={{ background: 'rgba(79, 70, 229, 0.1)' }}>
               {lesson.icon}
             </div>
-            <div>
+            <div className="flex-1">
               <h1 className="text-base font-bold" style={{ color: 'var(--text-primary)' }} dir="ltr">
                 Lezione {lesson.id}. {lesson.title}
               </h1>
@@ -296,34 +381,17 @@ export default function TheoryBookScreen() {
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2">
-            <button onClick={handleSpeak} disabled={loading}
+            <button onClick={handleTranslateAll}
+              disabled={loading || isTranslating}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-semibold transition-all duration-200 hover:scale-105 disabled:opacity-50"
               style={{
-                background: playing ? 'rgba(239, 68, 68, 0.1)' : 'rgba(79, 70, 229, 0.1)',
-                border: `1px solid ${playing ? 'rgba(239, 68, 68, 0.2)' : 'rgba(79, 70, 229, 0.2)'}`,
-                color: playing ? '#EF4444' : '#4F46E5',
+                background: hasTranslations
+                  ? showAllArabic ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.05)'
+                  : 'rgba(79, 70, 229, 0.1)',
+                border: `1px solid ${hasTranslations ? 'rgba(16, 185, 129, 0.2)' : 'rgba(79, 70, 229, 0.2)'}`,
+                color: hasTranslations ? '#059669' : '#4F46E5',
               }}>
-              {playing ? (
-                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                  <rect x="6" y="4" width="4" height="16" rx="1" />
-                  <rect x="14" y="4" width="4" height="16" rx="1" />
-                </svg>
-              ) : (
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
-                </svg>
-              )}
-              {playing ? 'Ferma' : 'Ascolta'}
-            </button>
-
-            <button onClick={handleTranslate} disabled={loading || translating || !!arabicTranslation}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-semibold transition-all duration-200 hover:scale-105 disabled:opacity-50"
-              style={{
-                background: arabicTranslation ? 'rgba(16, 185, 129, 0.1)' : 'rgba(79, 70, 229, 0.1)',
-                border: `1px solid ${arabicTranslation ? 'rgba(16, 185, 129, 0.2)' : 'rgba(79, 70, 229, 0.2)'}`,
-                color: arabicTranslation ? '#059669' : '#4F46E5',
-              }}>
-              {translating ? (
+              {isTranslating ? (
                 <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -333,18 +401,22 @@ export default function TheoryBookScreen() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 21l5.25-11.25L21 21m-9-3h7.5M3 5.621a48.474 48.474 0 016-.371m0 0c1.12 0 2.233.038 3.334.114M9 5.25V3m3.334 2.364C11.176 10.658 7.69 15.08 3 17.502m9.334-12.138c.896.061 1.785.147 2.666.257m-4.589 8.495a18.023 18.023 0 01-3.827-5.802" />
                 </svg>
               )}
-              {arabicTranslation ? 'مترجم ✓' : 'ترجمة عربي'}
+              {isTranslating
+                ? `ترجمه ${translateProgress.current}/${translateProgress.total}...`
+                : hasTranslations
+                  ? (showAllArabic ? 'إخفاء الترجمة' : 'عرض الترجمة ✓')
+                  : 'ترجمة عربي'}
             </button>
 
-            {arabicTranslation && (
-              <button onClick={() => setShowArabic(!showArabic)}
+            {hasTranslations && (
+              <button onClick={() => setShowAllArabic(!showAllArabic)}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-semibold transition-all duration-200 hover:scale-105"
                 style={{
-                  background: showArabic ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-tertiary)',
-                  border: `1px solid ${showArabic ? 'rgba(16, 185, 129, 0.3)' : 'var(--border)'}`,
-                  color: showArabic ? '#059669' : 'var(--text-secondary)',
+                  background: showAllArabic ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-tertiary)',
+                  border: `1px solid ${showAllArabic ? 'rgba(16, 185, 129, 0.3)' : 'var(--border)'}`,
+                  color: showAllArabic ? '#059669' : 'var(--text-secondary)',
                 }}>
-                {showArabic ? 'إخفاء' : 'عرض'} الترجمة
+                {showAllArabic ? 'إخفاء' : 'عرض'} الترجمة
               </button>
             )}
           </div>
@@ -361,53 +433,135 @@ export default function TheoryBookScreen() {
           </div>
         )}
 
-        {/* Italian content */}
-        {!loading && lessonContent && (
-          <div className="card p-5 anim-up" style={{ animationDelay: '100ms' }}>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full" style={{ background: '#4F46E5' }} />
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#4F46E5' }}>
-                Testo Italiano
-              </span>
-            </div>
-            <div className="text-sm leading-relaxed space-y-3" style={{ color: 'var(--text-primary)' }} dir="ltr">
-              {lessonContent.split('\n').filter(p => p.trim()).map((paragraph, idx) => (
-                <p key={idx} className="text-[13px] leading-[1.8]" style={{ color: 'var(--text-secondary)' }}>
-                  {paragraph.trim()}
-                </p>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Sections */}
+        {!loading && sections.map((section, secIdx) => (
+          <div key={secIdx} className="anim-up" style={{ animationDelay: `${secIdx * 50}ms` }}>
+            <div className="card overflow-hidden">
+              {/* Section with heading */}
+              {section.heading && (
+                <div
+                  className="px-4 py-3 flex items-center justify-between"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(79, 70, 229, 0.03) 100%)',
+                    borderBottom: '1px solid rgba(79, 70, 229, 0.1)',
+                  }}>
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {section.images.length > 0 && (
+                      <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border"
+                        style={{ borderColor: 'rgba(79, 70, 229, 0.15)' }}>
+                        <img
+                          src={`/img_book/${section.images[0]}`}
+                          alt={section.heading}
+                          className="w-full h-full object-contain bg-white"
+                          loading="lazy"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded block w-fit mb-0.5"
+                        style={{ background: 'rgba(79, 70, 229, 0.12)', color: '#4F46E5' }}>
+                        {secIdx + 1}
+                      </span>
+                      <h3 className="text-sm font-bold leading-tight" style={{ color: '#4F46E5' }} dir="ltr">
+                        {section.heading}
+                      </h3>
+                    </div>
+                  </div>
+                  {/* Play button for section */}
+                  <button
+                    onClick={() => handleSpeakSection(secIdx)}
+                    className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
+                    style={{
+                      background: playingSection === secIdx
+                        ? 'rgba(239, 68, 68, 0.15)'
+                        : 'rgba(79, 70, 229, 0.1)',
+                    }}>
+                    {playingSection === secIdx ? (
+                      <svg className="w-3.5 h-3.5" fill="#EF4444" viewBox="0 0 24 24">
+                        <rect x="6" y="4" width="4" height="16" rx="1" />
+                        <rect x="14" y="4" width="4" height="16" rx="1" />
+                      </svg>
+                    ) : (
+                      <svg className="w-3.5 h-3.5" fill="#4F46E5" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              )}
 
-        {/* Arabic translation */}
-        {!loading && showArabic && arabicTranslation && (
-          <div className="card p-5 anim-up" style={{
-            animationDelay: '200ms',
-            background: 'rgba(79, 70, 229, 0.03)',
-            border: '1px solid rgba(79, 70, 229, 0.1)',
-          }}>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full" style={{ background: '#059669' }} />
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#059669' }}>
-                الترجمة العربية
-              </span>
-            </div>
-            <div className="text-sm leading-relaxed space-y-3" dir="rtl">
-              {arabicTranslation.split('\n').filter(p => p.trim()).map((paragraph, idx) => (
-                <p key={idx} className="text-[13px] leading-[2]" style={{ color: 'var(--text-secondary)' }}>
-                  {paragraph.trim()}
-                </p>
-              ))}
+              {/* Section images grid (only for sections with heading and multiple images) */}
+              {section.heading && section.images.length > 1 && (
+                <div className="px-4 py-3 flex gap-2 overflow-x-auto"
+                  style={{ background: 'rgba(249, 250, 251, 0.5)', borderBottom: '1px solid var(--border)' }}>
+                  {section.images.map((img, imgIdx) => (
+                    <div key={imgIdx} className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 border bg-white"
+                      style={{ borderColor: 'var(--border)' }}>
+                      <img
+                        src={`/img_book/${img}`}
+                        alt={`${section.heading} ${imgIdx + 1}`}
+                        className="w-full h-full object-contain"
+                        loading="lazy"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Section content (no heading - intro text) */}
+              {!section.heading && section.paragraphs.length > 0 && (
+                <div className="p-4">
+                  <div className="space-y-2" dir="ltr">
+                    {section.paragraphs.map((para, pIdx) => (
+                      <p key={pIdx} className="text-[13px] leading-[1.8]" style={{ color: 'var(--text-secondary)' }}>
+                        {para}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Section paragraphs (under heading) */}
+              {section.heading && section.paragraphs.length > 0 && (
+                <div className="p-4 space-y-2.5" dir="ltr">
+                  {section.paragraphs.map((para, pIdx) => (
+                    <p key={pIdx} className="text-[13px] leading-[1.8]" style={{ color: 'var(--text-secondary)' }}>
+                      {para}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {/* Arabic translation for this section */}
+              {showAllArabic && arabicTranslations[secIdx] && (
+                <div className="px-4 pb-4" style={{
+                  background: 'rgba(16, 185, 129, 0.02)',
+                  borderTop: '1px dashed rgba(16, 185, 129, 0.15)',
+                }}>
+                  <div className="flex items-center gap-2 pt-3 mb-2">
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#059669' }} />
+                    <span className="text-[9px] font-bold" style={{ color: '#059669' }}>
+                      الترجمة العربية
+                    </span>
+                  </div>
+                  <div className="text-[12px] leading-[2]" dir="rtl" style={{ color: 'var(--text-secondary)' }}>
+                    {arabicTranslations[secIdx].split('\n').filter(p => p.trim()).map((para, pIdx) => (
+                      <p key={pIdx} className="mb-1.5">{para.trim()}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        )}
+        ))}
 
         {/* Navigation between lessons */}
         {!loading && (
           <div className="flex justify-between items-center pt-4 pb-2">
             {prevLesson ? (
-              <button onClick={() => setSelectedLesson(prevLesson)}
+              <button onClick={() => { setSelectedLesson(prevLesson); stopSpeech(); setPlayingSection(null); }}
                 className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-all hover:scale-105"
                 style={{ color: '#4F46E5', background: 'rgba(79, 70, 229, 0.1)', border: '1px solid rgba(79, 70, 229, 0.2)' }}>
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -417,7 +571,7 @@ export default function TheoryBookScreen() {
               </button>
             ) : <div />}
             {nextLesson && (
-              <button onClick={() => setSelectedLesson(nextLesson)}
+              <button onClick={() => { setSelectedLesson(nextLesson); stopSpeech(); setPlayingSection(null); }}
                 className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-all hover:scale-105"
                 style={{ color: '#4F46E5', background: 'rgba(79, 70, 229, 0.1)', border: '1px solid rgba(79, 70, 229, 0.2)' }}>
                 Lezione {nextLesson}

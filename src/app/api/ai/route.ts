@@ -152,6 +152,7 @@ export async function POST(req: NextRequest) {
     if (action === 'chat') return handleChat(body);
     if (action === 'studyPlan') return handleStudyPlan(body);
     if (action === 'translate') return handleTranslate(body);
+    if (action === 'translateText') return handleTranslateText(body);
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
@@ -1327,4 +1328,86 @@ async function handleTranslate(body: { action: string; word: string; from?: stri
 
   // 5. Fallback: no Arabic translation available
   return NextResponse.json({ translation: '', word: cleaned, from: 'it', to: 'ar', fallback: true });
+}
+
+// ============================================================
+// PARAGRAPH-LEVEL TRANSLATION (Italian → Arabic) for Theory Book
+// Splits long text into chunks, translates each, caches results
+// ============================================================
+const paragraphTranslationCache = new Map<string, { translation: string; timestamp: number }>();
+
+async function handleTranslateText(body: { text: string; target_lang?: string }): Promise<NextResponse> {
+  const { text } = body;
+  if (!text || text.trim().length === 0) {
+    return NextResponse.json({ translation: '', error: 'No text provided' });
+  }
+
+  const cleaned = text.trim();
+
+  // Check cache
+  const cacheKey = cleaned.substring(0, 200);
+  const cached = paragraphTranslationCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < 24 * 60 * 60 * 1000) {
+    return NextResponse.json({ translation: cached.translation, source: 'cache' });
+  }
+
+  try {
+    const zai = await ZAI.create();
+
+    // Split into paragraphs and translate in batches
+    const paragraphs = cleaned.split('\n').filter(p => p.trim().length > 10);
+    const chunks: string[] = [];
+    let current = '';
+
+    for (const para of paragraphs) {
+      if ((current + '\n' + para).length > 1500) {
+        if (current.trim()) chunks.push(current.trim());
+        current = para;
+      } else {
+        current = current ? current + '\n' + para : para;
+      }
+    }
+    if (current.trim()) chunks.push(current.trim());
+
+    // Limit to max 10 chunks to avoid timeout
+    const limitedChunks = chunks.slice(0, 10);
+
+    const translatedChunks: string[] = [];
+    for (const chunk of limitedChunks) {
+      try {
+        const completion = await zai.chat.completions.create({
+          messages: [
+            {
+              role: 'system',
+              content: 'أنت مترجم محترف من الإيطالية إلى العربية. ترجم النص التالي إلى العربية بوضوح ودقة. حافظ على تنسيق النص الأصلي (فقرات وأرقام). أجب بالترجمة العربية فقط بدون أي شرح إضافي. إذا كان النص يحتوي على مصطلحات تقنية متعلقة بالقيادة أو إشارات المرور، ترجمها بدقة.'
+            },
+            {
+              role: 'user',
+              content: chunk
+            }
+          ],
+          temperature: 0.1,
+          max_tokens: 2000,
+        });
+        const tr = completion.choices[0]?.message?.content?.trim();
+        if (tr) translatedChunks.push(tr);
+      } catch {
+        translatedChunks.push(chunk); // Keep original if translation fails
+      }
+    }
+
+    const fullTranslation = translatedChunks.join('\n\n');
+
+    // Cache result
+    paragraphTranslationCache.set(cacheKey, { translation: fullTranslation, timestamp: Date.now() });
+    if (paragraphTranslationCache.size > 500) {
+      const entries = Array.from(paragraphTranslationCache.entries()).sort((a, b) => a[1].timestamp - b[1].timestamp);
+      for (let i = 0; i < 100; i++) paragraphTranslationCache.delete(entries[i][0]);
+    }
+
+    return NextResponse.json({ translation: fullTranslation, source: 'ai', chunks: limitedChunks.length });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Translation failed';
+    return NextResponse.json({ translation: '', error: msg }, { status: 500 });
+  }
 }
