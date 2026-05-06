@@ -186,6 +186,7 @@ export default function TheoryBookScreen() {
   const [loading, setLoading] = useState(false);
   // Per-section visibility of translation
   const [visibleTranslations, setVisibleTranslations] = useState<Set<number>>(new Set());
+  const [translationError, setTranslationError] = useState<string | null>(null);
   const [playingSection, setPlayingSection] = useState<number | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const stopRef = useRef(false);
@@ -202,6 +203,7 @@ export default function TheoryBookScreen() {
     setLoading(true);
     setArabicTranslations({});
     setVisibleTranslations(new Set());
+    setTranslationError(null);
     stopSpeech();
     setPlayingSection(null);
 
@@ -315,6 +317,7 @@ export default function TheoryBookScreen() {
     if (text.length < 20) return;
 
     setTranslatingSection(sectionIdx);
+    setTranslationError(null);
 
     try {
       const res = await fetch('/api/ai', {
@@ -325,17 +328,29 @@ export default function TheoryBookScreen() {
           text: text.substring(0, 3000),
         }),
       });
+      
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        setTranslationError('خطأ في الاتصال بالخادم');
+        return;
+      }
+      
       const data = await res.json();
-      if (data.translation) {
+      if (data.translation && data.translation.length > 5) {
         setArabicTranslations(prev => ({ ...prev, [sectionIdx]: data.translation }));
         setVisibleTranslations(prev => {
           const next = new Set(prev);
           next.add(sectionIdx);
           return next;
         });
+      } else if (data.error) {
+        setTranslationError('حدث خطأ في الترجمة، حاول مرة أخرى');
+      } else {
+        setTranslationError('لم يتم الحصول على ترجمة، حاول مرة أخرى');
       }
     } catch (e) {
       console.error('Translation error for section', sectionIdx, ':', e);
+      setTranslationError('فشل الاتصال، تحقق من الإنترنت وحاول مرة أخرى');
     }
 
     setTranslatingSection(null);
@@ -534,19 +549,33 @@ export default function TheoryBookScreen() {
                     }}>
                     {/* Main heading + image */}
                     <div className="flex items-start gap-4">
-                      {/* Large sign image */}
-                      {section.images.length > 0 && (
-                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden flex-shrink-0 border-2 bg-white"
-                          style={{ borderColor: `${lessonColor}30` }}>
-                          <img
-                            src={`/img_book/${section.images[0]}`}
-                            alt={section.heading}
-                            className="w-full h-full object-contain p-1.5"
-                            loading="lazy"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                          />
-                        </div>
-                      )}
+                      {/* Large sign image - use clean sign from /img_sign/ first, fallback to book scan */}
+                      {(() => {
+                        const signImg = getSignImage(section.heading || '');
+                        const bookImg = section.images.length > 0 ? `/img_book/${section.images[0]}` : null;
+                        const imgSrc = signImg || bookImg;
+                        if (!imgSrc) return null;
+                        return (
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden flex-shrink-0 border-2 bg-white"
+                            style={{ borderColor: `${lessonColor}30` }}>
+                            <img
+                              src={imgSrc}
+                              alt={section.heading || ''}
+                              className="w-full h-full object-contain p-1.5"
+                              loading="lazy"
+                              onError={(e) => {
+                                const el = e.target as HTMLImageElement;
+                                // If sign image fails, try book scan image
+                                if (signImg && bookImg && el.src.includes('/img_sign/')) {
+                                  el.src = bookImg;
+                                } else {
+                                  el.style.display = 'none';
+                                }
+                              }}
+                            />
+                          </div>
+                        );
+                      })()}
 
                       {/* Heading text - LARGE & BOLD like the book */}
                       <div className="flex-1 min-w-0">
@@ -628,16 +657,18 @@ export default function TheoryBookScreen() {
                   </div>
                 )}
 
-                {/* ─── ADDITIONAL SIGN IMAGES (gallery) ─── */}
-                {section.heading && section.images.length > 1 && (
+                {/* ─── ADDITIONAL BOOK SCAN IMAGES (gallery) ─── */}
+                {section.heading && section.images.length > 0 && (
                   <div className="px-5 py-3 flex gap-2 overflow-x-auto"
                     style={{ background: 'rgba(249, 250, 251, 0.5)', borderBottom: `1px solid ${lessonColor}10` }}>
-                    {section.images.slice(1).map((img, imgIdx) => (
+                    {/* If we used sign image as primary, show ALL book scans in gallery */}
+                    {/* If no sign image, skip first (already shown as primary) */}
+                    {(getSignImage(section.heading || '') ? section.images : section.images.slice(1)).map((img, imgIdx) => (
                       <div key={imgIdx} className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 border-2 bg-white"
                         style={{ borderColor: `${lessonColor}18` }}>
                         <img
                           src={`/img_book/${img}`}
-                          alt={`${section.heading} - صورة ${imgIdx + 2}`}
+                          alt={`${section.heading} - صورة ${imgIdx + 1}`}
                           className="w-full h-full object-contain p-1.5"
                           loading="lazy"
                           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -712,6 +743,16 @@ export default function TheoryBookScreen() {
                           ? (visibleTranslations.has(secIdx) ? 'إخفاء الترجمة' : 'عرض الترجمة')
                           : 'ترجمة عربي'}
                     </button>
+                  </div>
+                )}
+
+                {/* ─── TRANSLATION ERROR ─── */}
+                {translationError && translatingSection === null && !arabicTranslations[secIdx] && (
+                  <div className="px-5 pb-3">
+                    <div className="text-[11px] font-medium px-3 py-2 rounded-lg"
+                      style={{ background: 'rgba(239, 68, 68, 0.08)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                      {translationError}
+                    </div>
                   </div>
                 )}
 

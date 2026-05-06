@@ -228,10 +228,53 @@ export async function speakWord(word: string, lang: 'it' | 'ar' = 'it'): Promise
 }
 
 // ============================================================
+// VOICE SELECTION - Pick the best voice for a language and PIN it
+// Prevents voice switching between chunks
+// ============================================================
+function pickVoice(langCode: string): SpeechSynthesisVoice | null {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return null;
+  
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices || voices.length === 0) return null;
+
+  // Filter voices matching the language
+  const langVoices = voices.filter(v => v.lang.startsWith(langCode.split('-')[0]));
+  if (langVoices.length === 0) return null;
+
+  // Prefer female voices (more common for educational content)
+  // Priority: female local > female remote > male local > any
+  const femaleKeywords = ['female', 'woman', 'donna', 'femmina'];
+  const maleKeywords = ['male', 'man', 'uomo', 'maschio'];
+
+  const femaleVoices = langVoices.filter(v => 
+    femaleKeywords.some(k => v.name.toLowerCase().includes(k))
+  );
+  const maleVoices = langVoices.filter(v => 
+    maleKeywords.some(k => v.name.toLowerCase().includes(k))
+  );
+
+  // Prefer local (offline) voices over network (remote) voices
+  const localFemale = femaleVoices.filter(v => v.localService);
+ const remoteFemale = femaleVoices.filter(v => !v.localService);
+  const localMale = maleVoices.filter(v => v.localService);
+  const remoteMale = maleVoices.filter(v => !v.localService);
+
+  // Return best available: local female > remote female > local male > any
+  if (localFemale.length > 0) return localFemale[0];
+  if (remoteFemale.length > 0) return remoteFemale[0];
+  if (localMale.length > 0) return localMale[0];
+  // If no gender match, prefer local
+  const localVoices = langVoices.filter(v => v.localService);
+  if (localVoices.length > 0) return localVoices[0];
+  // Fallback: first matching voice
+  return langVoices[0];
+}
+
+// ============================================================
 // PUBLIC API - speakContinuous
 // Plays long text in sequential chunks using ONLY Web Speech API
-// No fallback to Google TTS (prevents voice switching)
-// Does NOT call stopSpeech between chunks
+// Pins a SINGLE voice across all chunks (no voice switching)
+// Chrome bug workaround: pause/resume between chunks
 // ============================================================
 export async function speakContinuous(
   text: string, 
@@ -247,12 +290,21 @@ export async function speakContinuous(
   // Cancel any existing speech before starting
   stopSpeech();
 
-  // Split into chunks at sentence boundaries
+  // Wait a moment for voices to load if needed
+  let voice = pickVoice(langCode);
+  if (!voice) {
+    // Force load voices and try again
+    window.speechSynthesis.getVoices();
+    await new Promise(r => setTimeout(r, 100));
+    voice = pickVoice(langCode);
+  }
+
+  // Split into chunks at sentence boundaries (smaller chunks = less cutoff risk)
   const sentences = text.split(/(?<=[.!?])\s+/);
   const chunks: string[] = [];
   let current = '';
   for (const s of sentences) {
-    if ((current + ' ' + s).length > 450) {
+    if ((current + ' ' + s).length > 350) {
       if (current) chunks.push(current.trim());
       current = s;
     } else {
@@ -261,30 +313,46 @@ export async function speakContinuous(
   }
   if (current.trim()) chunks.push(current.trim());
 
-  for (const chunk of chunks) {
+  for (let i = 0; i < chunks.length; i++) {
     if (cancelToken?.cancelled) break;
+
+    const chunk = chunks[i];
 
     await new Promise<void>((resolve) => {
       if (cancelToken?.cancelled) { resolve(); return; }
 
-      const utterance = new SpeechSynthesisUtterance(chunk.trim().substring(0, 500));
+      const utterance = new SpeechSynthesisUtterance(chunk.trim().substring(0, 400));
       utterance.rate = 0.85;
       utterance.pitch = 1;
       utterance.volume = 1;
       utterance.lang = langCode;
 
+      // CRITICAL: Pin the same voice to ALL chunks
+      if (voice) {
+        utterance.voice = voice;
+      }
+
       let resolved = false;
       const finish = () => {
         if (!resolved) {
           resolved = true;
+          clearInterval(keepAlive);
+          clearTimeout(timeoutId);
           resolve();
         }
       };
 
-      utterance.onend = finish;
-      utterance.onerror = finish;
+      utterance.onend = () => finish();
+      utterance.onerror = (e) => {
+        // 'interrupted' or 'canceled' means we stopped it ourselves - not an error
+        if (e.error === 'interrupted' || e.error === 'canceled') {
+          finish();
+        } else {
+          finish();
+        }
+      };
 
-      // Chrome keepAlive: resume every 8 seconds
+      // Chrome keepAlive: resume every 5 seconds (more frequent to prevent freeze)
       const keepAlive = setInterval(() => {
         if (cancelToken?.cancelled) {
           clearInterval(keepAlive);
@@ -294,24 +362,29 @@ export async function speakContinuous(
         if (window.speechSynthesis && window.speechSynthesis.speaking) {
           try { window.speechSynthesis.resume(); } catch (e) { /* ignore */ }
         }
-      }, 8000);
+      }, 5000);
 
-      // 30-second timeout per chunk
-      setTimeout(() => {
-        clearInterval(keepAlive);
+      // 20-second timeout per chunk (shorter = move to next chunk faster if stuck)
+      const timeoutId = setTimeout(() => {
         if (!resolved) {
           try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
           finish();
         }
-      }, 30000);
+      }, 20000);
 
       try {
         window.speechSynthesis.speak(utterance);
       } catch (e) {
-        clearInterval(keepAlive);
         finish();
       }
     });
+
+    // Chrome bug workaround: pause briefly between chunks to prevent freeze
+    if (i < chunks.length - 1 && !cancelToken?.cancelled) {
+      try { window.speechSynthesis.pause(); } catch (e) { /* ignore */ }
+      await new Promise(r => setTimeout(r, 50));
+      try { window.speechSynthesis.resume(); } catch (e) { /* ignore */ }
+    }
   }
 }
 
