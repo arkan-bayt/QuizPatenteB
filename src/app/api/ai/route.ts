@@ -1351,6 +1351,82 @@ async function handleTranslateText(body: { text: string; target_lang?: string })
     return NextResponse.json({ translation: cached.translation, source: 'cache' });
   }
 
+  // Helper: cache result
+  const cacheAndReturn = (translation: string, source: string): NextResponse => {
+    paragraphTranslationCache.set(cacheKey, { translation, timestamp: Date.now() });
+    if (paragraphTranslationCache.size > 500) {
+      const entries = Array.from(paragraphTranslationCache.entries()).sort((a, b) => a[1].timestamp - b[1].timestamp);
+      for (let i = 0; i < 100; i++) paragraphTranslationCache.delete(entries[i][0]);
+    }
+    return NextResponse.json({ translation, source });
+  };
+
+  // ============================================================
+  // Google Translate API fallback (free, reliable, no SDK needed)
+  // ============================================================
+  async function googleTranslateFallback(textToTranslate: string): Promise<string | null> {
+    try {
+      const paragraphs = textToTranslate.split('\n').filter(p => p.trim().length > 0);
+      const translatedParagraphs: string[] = [];
+
+      // Translate paragraph by paragraph (Google Translate has a length limit)
+      for (const para of paragraphs) {
+        // Skip very short paragraphs (likely headings/labels)
+        if (para.trim().length < 3) {
+          translatedParagraphs.push(para.trim());
+          continue;
+        }
+
+        // Split long paragraphs into segments of max 800 chars
+        const segments: string[] = [];
+        let segCurrent = '';
+        const sentences = para.split(/(?<=[.!?])\s+/);
+        for (const s of sentences) {
+          if ((segCurrent + ' ' + s).length > 800) {
+            if (segCurrent.trim()) segments.push(segCurrent.trim());
+            segCurrent = s;
+          } else {
+            segCurrent = segCurrent ? segCurrent + ' ' + s : s;
+          }
+        }
+        if (segCurrent.trim()) segments.push(segCurrent.trim());
+
+        for (const seg of segments) {
+          try {
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=it&tl=ar&dt=t&q=${encodeURIComponent(seg.substring(0, 1000))}`;
+            const response = await fetch(url, {
+              signal: AbortSignal.timeout(10000),
+            });
+
+            if (!response.ok) continue;
+
+            const data = await response.json();
+            if (Array.isArray(data) && Array.isArray(data[0])) {
+              const translated = data[0]
+                .filter((entry: any[]) => entry && entry[0])
+                .map((entry: any[]) => entry[0] as string)
+                .join('');
+              if (translated) {
+                translatedParagraphs.push(translated);
+              }
+            }
+          } catch {
+            // Skip failed segment, continue with next
+          }
+        }
+      }
+
+      const result = translatedParagraphs.join('\n\n');
+      if (result.trim().length > 5) return result;
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  // ============================================================
+  // METHOD 1: ZAI SDK (primary - better quality)
+  // ============================================================
   try {
     const zai = await ZAI.create();
 
@@ -1372,6 +1448,7 @@ async function handleTranslateText(body: { text: string; target_lang?: string })
     // Limit to max 10 chunks to avoid timeout
     const limitedChunks = chunks.slice(0, 10);
 
+    let hasAIError = false;
     const translatedChunks: string[] = [];
     for (const chunk of limitedChunks) {
       try {
@@ -1390,24 +1467,35 @@ async function handleTranslateText(body: { text: string; target_lang?: string })
           max_tokens: 2000,
         });
         const tr = completion.choices[0]?.message?.content?.trim();
-        if (tr) translatedChunks.push(tr);
+        if (tr && tr.length > 5) translatedChunks.push(tr);
+        else hasAIError = true;
       } catch {
-        translatedChunks.push(chunk); // Keep original if translation fails
+        hasAIError = true;
       }
     }
 
     const fullTranslation = translatedChunks.join('\n\n');
 
-    // Cache result
-    paragraphTranslationCache.set(cacheKey, { translation: fullTranslation, timestamp: Date.now() });
-    if (paragraphTranslationCache.size > 500) {
-      const entries = Array.from(paragraphTranslationCache.entries()).sort((a, b) => a[1].timestamp - b[1].timestamp);
-      for (let i = 0; i < 100; i++) paragraphTranslationCache.delete(entries[i][0]);
+    // If AI translation succeeded, return it
+    if (!hasAIError && fullTranslation.length > 10) {
+      return cacheAndReturn(fullTranslation, 'ai');
     }
 
-    return NextResponse.json({ translation: fullTranslation, source: 'ai', chunks: limitedChunks.length });
+    // AI failed or returned empty — fall through to Google Translate
+    console.log('[translateText] ZAI SDK failed or returned empty, falling back to Google Translate');
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Translation failed';
-    return NextResponse.json({ translation: '', error: msg }, { status: 500 });
+    console.log('[translateText] ZAI SDK error:', msg, '— falling back to Google Translate');
   }
+
+  // ============================================================
+  // METHOD 2: Google Translate API (fallback - reliable, free)
+  // ============================================================
+  const googleTranslation = await googleTranslateFallback(cleaned);
+  if (googleTranslation) {
+    return cacheAndReturn(googleTranslation, 'google');
+  }
+
+  // Both methods failed
+  return NextResponse.json({ translation: '', error: 'ترجمة فشلت، حاول مرة أخرى' }, { status: 500 });
 }

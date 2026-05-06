@@ -572,30 +572,28 @@ export default function TheoryBookScreen() {
                     }}>
                     {/* Main heading + image */}
                     <div className="flex items-start gap-4">
-                      {/* Large sign image - use clean sign from /img_sign/ first, fallback to book scan */}
+                      {/* Only show clean sign image from /img_sign/ when matched; otherwise show generic icon */}
                       {(() => {
                         const signImg = getSignImage(section.heading || '');
-                        const bookImg = section.images.length > 0 ? `/img_book/${section.images[0]}` : null;
-                        const imgSrc = signImg || bookImg;
-                        if (!imgSrc) return null;
+                        if (signImg) {
+                          return (
+                            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden flex-shrink-0 border-2 bg-white"
+                              style={{ borderColor: `${lessonColor}30` }}>
+                              <img
+                                src={signImg}
+                                alt={section.heading || ''}
+                                className="w-full h-full object-contain p-1.5"
+                                loading="lazy"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                              />
+                            </div>
+                          );
+                        }
+                        // No sign image match → show generic category icon placeholder
                         return (
-                          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden flex-shrink-0 border-2 bg-white"
-                            style={{ borderColor: `${lessonColor}30` }}>
-                            <img
-                              src={imgSrc}
-                              alt={section.heading || ''}
-                              className="w-full h-full object-contain p-1.5"
-                              loading="lazy"
-                              onError={(e) => {
-                                const el = e.target as HTMLImageElement;
-                                // If sign image fails, try book scan image
-                                if (signImg && bookImg && el.src.includes('/img_sign/')) {
-                                  el.src = bookImg;
-                                } else {
-                                  el.style.display = 'none';
-                                }
-                              }}
-                            />
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl flex-shrink-0 flex items-center justify-center border-2"
+                            style={{ background: `${lessonColor}08`, borderColor: `${lessonColor}18` }}>
+                            <span className="text-4xl sm:text-5xl opacity-40">{lesson.icon}</span>
                           </div>
                         );
                       })()}
@@ -607,12 +605,6 @@ export default function TheoryBookScreen() {
                             style={{ background: `${lessonColor}18`, color: lessonColor }}>
                             {secIdx + 1}
                           </span>
-                          {section.images.length > 0 && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
-                              style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#059669' }}>
-                              {section.images.length} صور
-                            </span>
-                          )}
                         </div>
                         <h2 className="text-xl sm:text-2xl font-extrabold leading-tight tracking-tight"
                           style={{ color: lessonColor }}
@@ -680,26 +672,7 @@ export default function TheoryBookScreen() {
                   </div>
                 )}
 
-                {/* ─── ADDITIONAL BOOK SCAN IMAGES (gallery) ─── */}
-                {section.heading && section.images.length > 0 && (
-                  <div className="px-5 py-3 flex gap-2 overflow-x-auto"
-                    style={{ background: 'rgba(249, 250, 251, 0.5)', borderBottom: `1px solid ${lessonColor}10` }}>
-                    {/* If we used sign image as primary, show ALL book scans in gallery */}
-                    {/* If no sign image, skip first (already shown as primary) */}
-                    {(getSignImage(section.heading || '') ? section.images : section.images.slice(1)).map((img, imgIdx) => (
-                      <div key={imgIdx} className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 border-2 bg-white"
-                        style={{ borderColor: `${lessonColor}18` }}>
-                        <img
-                          src={`/img_book/${img}`}
-                          alt={`${section.heading} - صورة ${imgIdx + 1}`}
-                          className="w-full h-full object-contain p-1.5"
-                          loading="lazy"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* Book scan gallery removed — only clean /img_sign/ images shown when matched */}
 
                 {/* ─── SECTION CONTENT (paragraphs) ─── */}
                 {section.paragraphs.length > 0 && (
