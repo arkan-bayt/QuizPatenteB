@@ -4,12 +4,32 @@ import { useStore } from '@/store/useStore';
 import { speakContinuous, stopSpeech, isSpeaking } from '@/logic/ttsEngine';
 
 // ============================================================
-// SIGNAL IMAGE MAPPING - EXACT MATCH ONLY (no partial matching!)
+// COMPREHENSIVE SIGNAL IMAGE MAPPING
 // Maps Italian road sign heading names → clean /img_sign/ images
-// Partial matching REMOVED to prevent wrong image-to-topic mapping
+// Covers ALL 30 lessons from the official theory book
 // ============================================================
 const HEADING_SIGN_IMAGE: Record<string, string> = {
-  // Lesson 2: Segnali di Pericolo (fig 1-39)
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 1: Definizioni Stradali e di Traffico
+  // ═══════════════════════════════════════════════════════════
+  'STRADA': '/img_sign/207.png',
+  'CARREGGIATA': '/img_sign/207.png',
+  'CORSIA': '/img_sign/245.png',
+  'CORSIA DI ACCELERAZIONE': '/img_sign/250.png',
+  'CORSIA DI DECELERAZIONE': '/img_sign/251.png',
+  'INTERSEZIONE (INCROCIO) A LIVELLI SFALSATI': '/img_sign/10.png',
+  'INTERSEZIONE (INCROCIO) A RASO': '/img_sign/10.png',
+  'BANCHINA': '/img_sign/23.png',
+  'MARCIAPIEDE': '/img_sign/186.png',
+  'SALVAGENTE': '/img_sign/23.png',
+  'ISOLA DI TRAFFICO': '/img_sign/29.png',
+  'PASSAGGIO A LIVELLO': '/img_sign/8.png',
+  'AREA PEDONALE': '/img_sign/186.png',
+  'VELOCITÀ MASSIMA': '/img_sign/58.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 2: Segnali di Pericolo (fig 1-39)
+  // ═══════════════════════════════════════════════════════════
   'STRADA DEFORMATA': '/img_sign/1.png',
   'DOSSO': '/img_sign/2.png',
   'CUNETTA': '/img_sign/3.png',
@@ -53,11 +73,10 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
   'FORTE VENTO LATERALE': '/img_sign/37.png',
   'PERICOLO DI INCENDIO': '/img_sign/38.png',
   'ALTRI PERICOLI': '/img_sign/39.png',
-  'ZONA A TRAFFICO LIMITATO': '/img_sign/56.png',
-  'FINE DELLA ZONA A TRAFFICO LIMITATO': '/img_sign/56.png',
-  'INIZIO ZONA RESIDENTIALE': '/img_sign/56.png',
-  'FINE ZONA RESIDENTIALE': '/img_sign/56.png',
-  // Lesson 3: Segnali di Precedenza (fig 40-53)
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 3: Segnali di Precedenza (fig 40-53)
+  // ═══════════════════════════════════════════════════════════
   'DARE PRECEDENZA': '/img_sign/40.png',
   'FERMARSI E DARE PRECEDENZA (STOP)': '/img_sign/41.png',
   'PREAVVISO DI DARE PRECEDENZA': '/img_sign/42.png',
@@ -73,7 +92,10 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
   'FINE DEL DIRITTO DI PRECEDENZA': '/img_sign/46.png',
   'DARE PRECEDENZA NEI SENSI UNICI ALTERNATI': '/img_sign/45.png',
   'DIRITTO DI PRECEDENZA NEI SENSI UNICI ALTERNATI': '/img_sign/53.png',
-  // Lesson 4: Segnali di Divieto (fig 54-89)
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 4: Segnali di Divieto (fig 54-89)
+  // ═══════════════════════════════════════════════════════════
   'DIVIETO DI TRANSITO': '/img_sign/54.png',
   'DIVIETO DI TRANSITO PER AUTOTRENI ED AUTOARTICOLATI': '/img_sign/55.png',
   'SENSO VIETATO': '/img_sign/56.png',
@@ -101,7 +123,30 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
   'PREAVVISO DI PARCHEGGIO': '/img_sign/88.png',
   'SOSTA CONSENTITA A PARTICOLARI CATEGORIE': '/img_sign/89.png',
   'DISTANZIAMENTO MINIMO OBBLIGATORIO DI 70 METRI': '/img_sign/74.png',
-  // Lesson 5: Segnali di Obbligo (fig 90-114)
+  // NEW: Additional Lesson 4 mappings
+  'DIVIETO DI SORPASSO PER GLI AUTOCARRI CHE SUPERANO 3,5 T.': '/img_sign/60.png',
+  'FINE DEL DIVIETO DI SORPASSO PER GLI AUTOCARRI CHE SUPERANO 3,5 T.': '/img_sign/82.png',
+  'DIVIETO DI TRANSITO AGLI AUTOCARRI CHE SUPERANO 3,5 T.': '/img_sign/68.png',
+  'DIVIETO DI TRANSITO AGLI AUTOCARRI CHE SUPERANO 6,5 T.': '/img_sign/69.png',
+  'DIVIETO DI TRANSITO ALLE MACCHINE AGRICOLE': '/img_sign/71.png',
+  'DIVIETO DI TRANSITO AI VEICOLI CHE TRASPORTANO MERCI PERICOLOSE': '/img_sign/72.png',
+  'DIVIETO DI TRANSITO AI VEICOLI CHE TRASPORTANO ESPLOSIVI O PRODOTTI': '/img_sign/73.png',
+  'FACILMENTE INFIAMMABILI': '/img_sign/73.png',
+  'DIVIETO DI TRANSITO AI VEICOLI CHE TRASPORTANO PRODOTTI SUSCETTIBI-': '/img_sign/72.png',
+  'LI DI CONTAMINARE L\'ACQUA': '/img_sign/72.png',
+  'DIVIETO DI TRANSITO A TUTTI I VEICOLI AVENTI LARGHEZZA SUPERIORE A': '/img_sign/76.png',
+  '2,30 METRI': '/img_sign/76.png',
+  'DIVIETO DI TRANSITO A TUTTI I VEICOLI AVENTI ALTEZZA SUPERIORE A 3,50': '/img_sign/77.png',
+  'METRI': '/img_sign/77.png',
+  'DIVIETO DI TRANSITO A TUTTI I VEICOLI, O COMPLESSI DI VEICOLI, AVENTI': '/img_sign/77.png',
+  'LUNGHEZZA SUPERIORE A 10 METRI': '/img_sign/77.png',
+  'DIVIETO DI TRANSITO A TUTTI I VEICOLI AVENTI UNA MASSA SUPERIORE A': '/img_sign/78.png',
+  'DIVIETO DI TRANSITO A TUTTI I VEICOLI AVENTI MASSA PER ASSE SUPERIORE': '/img_sign/79.png',
+  'REGOLAZIONE FLESSIBILE DELLA SOSTA IN CENTRO ABITATO': '/img_sign/92.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 5: Segnali di Obbligo (fig 90-114)
+  // ═══════════════════════════════════════════════════════════
   'DIREZIONE OBBLIGATORIA DIRITTO': '/img_sign/93.png',
   'DIREZIONE OBBLIGATORIA A SINISTRA': '/img_sign/94.png',
   'DIREZIONE OBBLIGATORIA A DESTRA': '/img_sign/95.png',
@@ -127,12 +172,526 @@ const HEADING_SIGN_IMAGE: Record<string, string> = {
   'FINE DEL PERCORSO PEDONALE E CICLABILE': '/img_sign/111.png',
   'PERCORSO RISERVATO AI QUADRUPEDI DA SOMA E DA SELLA': '/img_sign/90.png',
   'FINE DEL PERCORSO RISERVATO AI QUADRUPEDI DA SOMA E DA SELLA': '/img_sign/91.png',
+  // NEW: Additional Lesson 5 mappings
+  'ALT-DOGANA': '/img_sign/118.png',
+  'CONFINE DI STATO TRA PAESI DELLA COMUNITÀ EUROPEA': '/img_sign/116.png',
+  'PREAVVISO DI CONFINE DI STATO TRA PAESI DELLA COMUNITÀ EUROPEA': '/img_sign/164.png',
+  'ALT-POLIZIA': '/img_sign/119.png',
+  'ALT-STAZIONE': '/img_sign/120.png',
+  // Lesson 5 heading "ROTATORIA" maps to obbligo (roundabout obligation sign)
+  'ROTATORIA (OBBLIGATORIA)': '/img_sign/104.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 6: Segnali di Indicazione (fig 116+)
+  // ═══════════════════════════════════════════════════════════
+  'SENSO UNICO PARALLELO': '/img_sign/152.png',
+  'SENSO UNICO FRONTALE': '/img_sign/153.png',
+  'PREAVVISO DI DIRAMAZIONE URBANA': '/img_sign/166.png',
+  'SEGNALE DI PREAVVISO DI INTERSEZIONE URBANA': '/img_sign/166.png',
+  'SEGNALE DI PREAVVISO DI INTERSEZIONI RAVVICINATE URBANE': '/img_sign/167.png',
+  'SEGNALE DI PREAVVISO DI INTERSEZIONE URBANA CON ROTATORIA': '/img_sign/168.png',
+  'SEGNALE DI PREAVVISO DI INTERSEZIONE URBANA, CON DIVIETO DI TRANSI-': '/img_sign/169.png',
+  'TO PER UNA CATEGORIA DI VEICOLI SU UN RAMO DELL\'INTERSEZIONE': '/img_sign/169.png',
+  'SEGNALE DI PREAVVISO DI INTERSEZIONE EXTRAURBANA CON PASSAGGIO A': '/img_sign/170.png',
+  'LIVELLO SU UN RAMO DELL\'INTERSEZIONE': '/img_sign/170.png',
+  'PREAVVISO DI DIRAMAZIONE AUTOSTRADALE': '/img_sign/200.png',
+  'SEGNALE DI PRESELEZIONE EXTRAURBANO': '/img_sign/174.png',
+  'SEGNALE DI PRESELEZIONE URBANO': '/img_sign/174.png',
+  'PROGRESSIVA DISTANZIOMETRICA AUTOSTRADALE': '/img_sign/201.png',
+  'SEGNALE DI ITINERARIO EXTRAURBANO': '/img_sign/182.png',
+  'INIZIO CENTRO ABITATO': '/img_sign/207.png',
+  'FINE CENTRO ABITATO': '/img_sign/183.png',
+  'SEGNALE DI CONFERMA AUTOSTRADALE': '/img_sign/182.png',
+  'SEGNALE DI IDENTIFICAZIONE ITINERARIO INTERNAZIONALE': '/img_sign/199.png',
+  'SEGNALE DI IDENTIFICAZIONE AUTOSTRADA': '/img_sign/184.png',
+  'SEGNALE DI IDENTIFICAZIONE STRADA STATALE': '/img_sign/203.png',
+  'SEGNALE DI IDENTIFICAZIONE STRADA COMUNALE': '/img_sign/203.png',
+  'ZONA A TRAFFICO LIMITATO': '/img_sign/187.png',
+  'TRANSITABILITÀ (PASSO APERTO CON OBBLIGO DI CATENE O PNEUMATICI DA': '/img_sign/189.png',
+  'NEVE)': '/img_sign/189.png',
+  'TRANSITABILITÀ (TRATTO TERMINALE DELLA STRADA O PASSO CHIUSO)': '/img_sign/189.png',
+  'INIZIO STRADA EXTRAURBANA PRINCIPALE': '/img_sign/194.png',
+  'INVERSIONE DI MARCIA': '/img_sign/200.png',
+  'LIMITI DI VELOCITÀ GENERALI': '/img_sign/193.png',
+  'PRONTO SOCCORSO': '/img_sign/210.png',
+  'OSPEDALE': '/img_sign/214.png',
+  'SEGNALE DI LOCALIZZAZIONE TERRITORIALE (NOME FIUME)': '/img_sign/216.png',
+  'PREAVVISO DI INFORMAZIONI TURISTICO-ALBERGHIERE': '/img_sign/199.png',
+  // Lesson 6 versions of attraversamento handled by LESSON_IMAGE_OVERRIDE
+
+  'SCUOLABUS': '/img_sign/219.png',
+  'FERMATA AUTOBUS': '/img_sign/256.png',
+  'PARCHEGGIO DI SCAMBIO CON LINEE AUTOBUS': '/img_sign/265.png',
+  'S.O.S.': '/img_sign/220.png',
+  'STRADA SENZA USCITA': '/img_sign/224.png',
+  'PREAVVISO DI STRADA SENZA USCITA': '/img_sign/225.png',
+  'VELOCITÀ CONSIGLIATA': '/img_sign/226.png',
+  'STRADA RISERVATA AI VEICOLI A MOTORE': '/img_sign/228.png',
+  'GALLERIA AUTOSTRADALE': '/img_sign/230.png',
+  'PONTE': '/img_sign/239.png',
+  'SVOLTA A SINISTRA INDIRETTA': '/img_sign/240.png',
+  'PIAZZOLA SU VIABILITÀ ORDINARIA': '/img_sign/243.png',
+  'USO CORSIE': '/img_sign/245.png',
+  'VARIAZIONE CORSIE DISPONIBILI (IN AUMENTO)': '/img_sign/247.png',
+  'VARIAZIONE CORSIE DISPONIBILI (IN DIMINUZIONE)': '/img_sign/248.png',
+  'PREAVVISO DI DEVIAZIONE CONSIGLIATA': '/img_sign/282.png',
+  'ASSISTENZA MECCANICA': '/img_sign/252.png',
+  'TELEFONO': '/img_sign/253.png',
+  'RIFORNIMENTO': '/img_sign/254.png',
+  'DISTRIBUTORE CARBURANTE': '/img_sign/254.png',
+  'CAMPEGGIO': '/img_sign/260.png',
+  'AUTO AL SEGUITO': '/img_sign/272.png',
+  'POSTEGGIO PER TAXI': '/img_sign/272.png',
+  'AREA ATTREZZATA CON IMPIANTI DI SCARICO': '/img_sign/274.png',
+  'POLIZIA STRADALE': '/img_sign/275.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 7: Segnali Temporanei e di Cantiere
+  // ═══════════════════════════════════════════════════════════
+  // LAVORI: overridden by LESSON_IMAGE_OVERRIDE for lessons 2 & 7
+  'PREAVVISO DI SEMAFORO TEMPORANEO': '/img_sign/276.png',
+  'DIREZIONE CONSIGLIATA AGLI AUTOCARRI': '/img_sign/283.png',
+  'DIREZIONE OBBLIGATORIA PER AUTOTRENI ED AUTOARTICOLATI': '/img_sign/284.png',
+  'PREAVVISO DI DEVIAZIONE': '/img_sign/282.png',
+  'SEGNALE DI CORSIA CHIUSA (CHIUSURA CORSIA DI DESTRA)': '/img_sign/285.png',
+  'USO CORSIE DISPONIBILI': '/img_sign/288.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 8: Segnali Complementari
+  // ═══════════════════════════════════════════════════════════
+  'BARRIERE NORMALI': '/img_sign/301.png',
+  'CONO': '/img_sign/278.png',
+  'DELINEATORI NORMALI DI MARGINE PER STRADE A DOPPIO SENSO': '/img_sign/289.png',
+  'DELINEATORI NORMALI DI MARGINE PER STRADE A SENSO UNICO': '/img_sign/290.png',
+  'DELINEATORI PER GALLERIE A SENSO UNICO': '/img_sign/291.png',
+  'DELINEATORE PER STRADE DI MONTAGNA': '/img_sign/292.png',
+  'DELINEATORE DI CURVA STRETTA O DI TORNANTE': '/img_sign/293.png',
+  'DELINEATORI MODULARI DI CURVA': '/img_sign/295.png',
+  'DELINEATORE PER INTERSEZIONE (INCROCIO) A "T"': '/img_sign/294.png',
+  'DELINEATORE SPECIALE DI OSTACOLO': '/img_sign/297.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 9: Pannelli Integrativi dei Segnali
+  // ═══════════════════════════════════════════════════════════
+  'DISTANZA': '/img_sign/121.png',
+  'ESTESA': '/img_sign/129.png',
+  'FASCE ORARIE DI TUTTI I GIORNI': '/img_sign/123.png',
+  'FASCE ORARIE DEI GIORNI FESTIVI': '/img_sign/125.png',
+  'FASCE ORARIE DEI GIORNI LAVORATIVI': '/img_sign/124.png',
+  'LIMITAZIONE': '/img_sign/126.png',
+  'ECCEZIONE': '/img_sign/127.png',
+  'INIZIO': '/img_sign/128.png',
+  'CONTINUAZIONE': '/img_sign/130.png',
+  'FINE': '/img_sign/131.png',
+  'SEGNALE DI CORSIA': '/img_sign/132.png',
+  'SEGNI ORIZZONTALI IN RIFACIMENTO': '/img_sign/133.png',
+  'INCIDENTE': '/img_sign/134.png',
+  'ATTRAVERSAMENTO DI BINARI': '/img_sign/135.png',
+  'SGOMBRANEVE IN AZIONE': '/img_sign/136.png',
+  'ZONA SOGGETTA AD ALLAGAMENTO': '/img_sign/138.png',
+  'CODA': '/img_sign/136.png',
+  'MEZZI DI LAVORO IN AZIONE': '/img_sign/137.png',
+  'STRADA SDRUCCIOLEVOLE PER GHIACCIO': '/img_sign/142.png',
+  'STRADA SDRUCCIOLEVOLE PER PIOGGIA': '/img_sign/140.png',
+  'AUTOCARRI IN RALLENTAMENTO': '/img_sign/139.png',
+  'ZONA RIMOZIONE COATTA': '/img_sign/141.png',
+  'TORNANTE': '/img_sign/143.png',
+  'NUMERO DEL TORNANTE': '/img_sign/144.png',
+  'PULIZIA MECCANICA DELLA STRADA': '/img_sign/145.png',
+  'ANDAMENTO DELLA STRADA PRINCIPALE': '/img_sign/146.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 10: Semafori e Segnali degli Agenti
+  // ═══════════════════════════════════════════════════════════
+  'LANTERNA SEMAFORICA VEICOLARE NORMALE': '/img_sign/154.png',
+  'LA LUCE ROSSA DEL SEMAFORO': '/img_sign/154.png',
+  'QUANDO IL SEMAFORO EMETTE LUCE VERDE NELLA NOSTRA DIREZIONE:': '/img_sign/154.png',
+  'LA LUCE GIALLA FISSA DEL SEMAFORO': '/img_sign/154.png',
+  'POSSIAMO TROVARE UNA LUCE GIALLA LAMPEGGIANTE': '/img_sign/160.png',
+  'LANTERNE SEMAFORICHE GIALLE LAMPEGGIANTI': '/img_sign/160.png',
+  'INCONTRANDO IL SEMAFORO A TRE LUCI È CONSENTITO IL PASSAGGIO:': '/img_sign/154.png',
+  'SEMAFORI VEICOLARI DI CORSIA': '/img_sign/155.png',
+  'LANTERNE SEMAFORICHE PER CORSIE REVERSIBILI': '/img_sign/159.png',
+  'SEMAFORO PEDONALE': '/img_sign/157.png',
+  'SEMAFORO PER VELOCIPEDI (BICICLETTE)': '/img_sign/158.png',
+  'LANTERNE SEMAFORICHE SPECIALI DI ONDA VERDE': '/img_sign/161.png',
+  'SEMAFORI PER VEICOLI DI TRASPORTO PUBBLICO': '/img_sign/156.png',
+  'LE LUCI ROSSE LAMPEGGIANTI ALTERNATIVAMENTE': '/img_sign/160.png',
+  'VIGILE IN POSIZIONE DI ALT': '/img_sign/385.png',
+  'VIGILE IN POSIZIONE DI AVANTI': '/img_sign/383.png',
+  'VIGILE IN POSIZIONE DI ATTENZIONE': '/img_sign/384.png',
+  'VIGILE CON LE BRACCIA DISTESE ORIZZONTALMENTE A 90 GRADI': '/img_sign/386.png',
+  'SUONO PROLUNGATO DEL FISCHIETTO DA PARTE DEL VIGILE': '/img_sign/386.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 11: Segnaletica Orizzontale
+  // ═══════════════════════════════════════════════════════════
+  'LE STRISCE LUNGO L\'ASSE (IL CENTRO) DELLA CARREGGIATA': '/img_sign/245.png',
+  'LA STRISCIA BIANCA CONTINUA': '/img_sign/250.png',
+  'LA STRISCIA BIANCA DISCONTINUA (TRATTEGGIATA)': '/img_sign/251.png',
+  'IN UNA STRADA A DOPPIO SENSO LA STRISCIA BIANCA DISCONTINUA': '/img_sign/251.png',
+  'IN UNA STRADA A SENSO UNICO CON LA STRISCIA BIANCA DISCONTINUA': '/img_sign/251.png',
+  'STRISCIA LONGITUDINALE CONTINUA E DISCONTINUA': '/img_sign/250.png',
+  'STRISCIA LONGITUDINALE DISCONTINUA E CONTINUA': '/img_sign/250.png',
+  'LA DOPPIA STRISCIA CONTINUA': '/img_sign/250.png',
+  'STRADA EXTRAURBANA A DOPPIO SENSO CON QUATTRO CORSIE': '/img_sign/245.png',
+  'STRADA A TRE CARREGGIATE E OTTO CORSIE': '/img_sign/245.png',
+  'LE STRISCE BIANCHE CONTINUE AI MARGINI (BORDI) DELLA CARREGGIATA': '/img_sign/250.png',
+  'LE STRISCE BIANCHE LATERALI DISCONTINUE (TRATTEGGIATE)': '/img_sign/251.png',
+  'STRISCE DI GUIDA SULLE INTERSEZIONI': '/img_sign/245.png',
+  'ZEBRATURE SULLA PAVIMENTAZIONE STRADALE (ISOLA DI TRAFFICO)': '/img_sign/29.png',
+  'ATTRAVERSAMENTI PEDONALI (DIRETTI ED OBLIQUI)': '/img_sign/218.png',
+  'SIMBOLO DI PASSAGGIO A LIVELLO SULLA PAVIMENTAZIONE (P e L)': '/img_sign/135.png',
+  'LA SCRITTA "STOP" SULLA PAVIMENTAZIONE': '/img_sign/41.png',
+  'STRISCIA TRASVERSALE CONTINUA': '/img_sign/250.png',
+  'CORSIE DI CANALIZZAZIONE': '/img_sign/245.png',
+  'FRECCE BIANCHE DIREZIONALI': '/img_sign/245.png',
+  'FRECCE DI RIENTRO': '/img_sign/245.png',
+  'STRISCIA DI DELIMITAZIONE': '/img_sign/250.png',
+  'ISCRIZIONI E SIMBOLI SULLA PAVIMENTAZIONE STRADALE': '/img_sign/245.png',
+  'SEGNI GIALLI E NERI': '/img_sign/250.png',
+  'SEGNI A STRISCE OBLIQUE BIANCHE E NERE ALTERNATE POSSONO INDICARE:': '/img_sign/250.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 12: Pericolo, Intralcio e Velocita
+  // ═══════════════════════════════════════════════════════════
+  'PUÒ RITENERSI UTILE PER LA SICUREZZA:': '/img_sign/58.png',
+  'È VIETATO IN QUANTO COSTITUISCE PERICOLO PER LA CIRCOLAZIONE:': '/img_sign/39.png',
+  'LA VELOCITÀ DEVE ESSERE REGOLATA': '/img_sign/58.png',
+  'È OBBLIGATORIO RIDURRE LA VELOCITÀ E SE OCCORRE FERMARSI:': '/img_sign/58.png',
+  'DISTANZA DI SICUREZZA': '/img_sign/58.png',
+  'LIMITI DI VELOCITÀ': '/img_sign/193.png',
+  'LIMITI MASSIMI DI VELOCITÀ GENERALI': '/img_sign/193.png',
+  'LIMITI MASSIMI DI VELOCITÀ PER PARTICOLARI VEICOLI': '/img_sign/58.png',
+  'LIMITI MASSIMI DI VELOCITÀ IN AUTOSTRADA': '/img_sign/184.png',
+  'LIMITI MASSIMI DI VELOCITÀ SU STRADE EXTRAURBANE PRINCIPALI': '/img_sign/194.png',
+  'LIMITI MASSIMI DI VELOCITÀ SU STRADE EXTRAURBANE SECONDARIE': '/img_sign/193.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 13: Posizione dei Veicoli sulla Carreggiata
+  // ═══════════════════════════════════════════════════════════
+  'SU UNA STRADA:': '/img_sign/245.png',
+  'È AMMESSA LA MARCIA PER FILE PARALLELE:': '/img_sign/245.png',
+  'DEBBONO ESSERE TENUTI IL PIÙ POSSIBILE VICINO AL MARGINE DESTRO:': '/img_sign/245.png',
+  'QUANDO SI VUOLE CAMBIARE CORSIA O DIREZIONE:': '/img_sign/245.png',
+  'LA SVOLTA A DESTRA SI EFFETTUA:': '/img_sign/245.png',
+  'SVOLTA A SINISTRA': '/img_sign/245.png',
+  'IN PROSSIMITÀ O IN CORRISPONDENZA DEGLI INCROCI È VIETATO:': '/img_sign/10.png',
+  'GIUNGENDO IN PROSSIMITÀ DI UN INCROCIO SI DEVE:': '/img_sign/10.png',
+  'CONVOGLI MILITARI E CORTEI': '/img_sign/10.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 14: Norme sulla Precedenza (Incroci)
+  // ═══════════════════════════════════════════════════════════
+  'È OBBLIGATORIO DARE LA PRECEDENZA A DESTRA E A SINISTRA:': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA:': '/img_sign/40.png',
+  // All specific order-of-precedence diagrams map to intersection sign
+  'ORDINE DI PRECEDENZA: R - A - T.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: L - C - H.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: R - D - F.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: B - T - S.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: R - A - C.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: E - C - L.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: R - B - D - T.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: S - B - L - D.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: R - D - B.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: P - B - C.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: A - E - B.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: E - C - M.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: D - C - A - H.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: D - P - B - N.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: H - D - B - L.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: P - D - B - L.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: L - E - N - R.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: H - A - F - L.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: A - C - L.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: H - D - B.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: T - P - M.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: T - O - A.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: T - A - S.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: T - G - P - B.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: N - A - R.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: C - R - A - H.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: S - A - E - R.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: R - D - A.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: B - H - C.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: A - E - V - H - C.': '/img_sign/40.png',
+  'ORDINE DI PRECEDENZA: C - A - L - R - E.': '/img_sign/40.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 15: Sorpasso
+  // ═══════════════════════════════════════════════════════════
+  'SORPASSO': '/img_sign/57.png',
+  'LO SPAZIO PER LA MANOVRA DI SORPASSO:': '/img_sign/57.png',
+  'NELLA FASE DI RIENTRO DAL SORPASSO BISOGNA:': '/img_sign/57.png',
+  'L\'ELEVATA PERICOLOSITÀ DEL SORPASSO È DETERMINATA DA:': '/img_sign/57.png',
+  'QUANDO SI VIENE SORPASSATI BISOGNA:': '/img_sign/57.png',
+  'IN CASO DI SORPASSO DI NOTTE SU STRADA A DOPPIO SENSO:': '/img_sign/57.png',
+  'IL SORPASSO È VIETATO:': '/img_sign/57.png',
+  'IL SORPASSO A DESTRA È CONSENTITO:': '/img_sign/57.png',
+  'IL SORPASSO IN PROSSIMITÀ DI UN INCROCIO È CONSENTITO:': '/img_sign/57.png',
+  'IL SORPASSO IN PROSSIMITÀ DI UN DOSSO È CONSENTITO:': '/img_sign/57.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 16: Fermata e Sosta
+  // ═══════════════════════════════════════════════════════════
+  'LA FERMATA': '/img_sign/61.png',
+  'LA SOSTA': '/img_sign/60.png',
+  'LA SOSTA È VIETATA': '/img_sign/60.png',
+  'LA SOSTA DI AUTOVEICOLI IN DOPPIA FILA': '/img_sign/60.png',
+  'IL DIVIETO DI SOSTA PUÒ ESSERE SEGNALATO CON:': '/img_sign/60.png',
+  'UN PARCHEGGIO AUTORIZZATO': '/img_sign/86.png',
+  'PER ARRESTARE IL VEICOLO NEL MINOR SPAZIO POSSIBILE OCCORRE:': '/img_sign/61.png',
+  'LO SPAZIO MINIMO DI ARRESTO DI UN VEICOLO:': '/img_sign/61.png',
+  'ALLA PARTENZA DAL MARGINE DELLA CARREGGIATA OCCORRE:': '/img_sign/61.png',
+  'IL VEICOLO S MUOVENDOSI IN RETROMARCIA DEVE:': '/img_sign/61.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 17: Ingombro della Carreggiata
+  // ═══════════════════════════════════════════════════════════
+  'INGOMBRO DELLA CARREGGIATA': '/img_sign/39.png',
+  'SEGNALE MOBILE TRIANGOLARE DI PERICOLO': '/img_sign/276.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 18: Circolazione sulle Strade Extraurbane
+  // ═══════════════════════════════════════════════════════════
+  'STRADA EXTRAURBANA PRINCIPALE': '/img_sign/194.png',
+  'AUTOSTRADA': '/img_sign/184.png',
+  'SONO AMMESSI A CIRCOLARE IN AUTOSTRADA:': '/img_sign/184.png',
+  'SONO ESCLUSI DALLA CIRCOLAZIONE IN AUTOSTRADA:': '/img_sign/184.png',
+  'NELLE AUTOSTRADE È VIETATO:': '/img_sign/184.png',
+  'VEDENDO UN AUTOMOBILISTA IN PANNE (DIFFICOLTÀ) NELLA CORSIA DI E-': '/img_sign/184.png',
+  'MERGENZA': '/img_sign/184.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 19: Dispositivi di Equipaggiamento
+  // ═══════════════════════════════════════════════════════════
+  'ACCENSIONE DELLE LUCI': '/img_sign/154.png',
+  'USO DELLE LUCI': '/img_sign/154.png',
+  'NEI CENTRI ABITATI': '/img_sign/207.png',
+  'FUORI DEI CENTRI ABITATI': '/img_sign/194.png',
+  'USO DELLE LUCI DI POSIZIONE': '/img_sign/154.png',
+  'USO DEI PROIETTORI ANABBAGLIANTI': '/img_sign/154.png',
+  'USO DEI PROIETTORI ABBAGLIANTI': '/img_sign/154.png',
+  'SE, DI NOTTE, INCROCIAMO UN VEICOLO CON FARI ABBAGLIANTI ACCESI OC-': '/img_sign/154.png',
+  'CORRE:': '/img_sign/154.png',
+  'PROIETTORE ABBAGLIANTE': '/img_sign/154.png',
+  'PROIETTORE ANABBAGLIANTE ASIMMETRICO CORRETTO': '/img_sign/154.png',
+  'PROIETTORE ANABBAGLIANTE ASIMMETRICO ERRATO': '/img_sign/154.png',
+  'USO DEGLI INDICATORI DI DIREZIONE (FRECCE)': '/img_sign/154.png',
+  'LAMPEGGIO SIMULTANEO DEGLI INDICATORI DI DIREZIONE': '/img_sign/154.png',
+  'LUCE BIANCA DELLA TARGA': '/img_sign/154.png',
+  'LUCI DI SOSTA (O DI STAZIONAMENTO)': '/img_sign/154.png',
+  'CATADIOTTRI': '/img_sign/154.png',
+  'MANUTENZIONE DELL\'IMPIANTO DI ILLUMINAZIONE': '/img_sign/154.png',
+  'DISPOSITIVI DI SEGNALAZIONE ACUSTICA (CLACSON, TROMBE)': '/img_sign/59.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 20: Spie e Simboli sui Comandi
+  // ═══════════════════════════════════════════════════════════
+  'SIMBOLO PROIETTORI ABBAGLIANTI': '/img_sign/154.png',
+  'SIMBOLO PROIETTORI ANABBAGLIANTI': '/img_sign/154.png',
+  'SIMBOLO DEGLI INDICATORI DI DIREZIONE': '/img_sign/154.png',
+  'SIMBOLO DEL SEGNALE DI EMERGENZA': '/img_sign/154.png',
+  'SIMBOLO DEL TERGICRISTALLO': '/img_sign/154.png',
+  'SIMBOLO DEL TERGI-LAVACRISTALLO': '/img_sign/154.png',
+  'SIMBOLO DEL CLACSON': '/img_sign/59.png',
+  'SIMBOLO DELLA RISERVA CARBURANTE': '/img_sign/154.png',
+  'SIMBOLO DELLA TEMPERATURA ECCESSIVA DELL\'ACQUA': '/img_sign/154.png',
+  'SIMBOLO DELLA BATTERIA': '/img_sign/154.png',
+  'SIMBOLO DELLA PRESSIONE BASSA DELL\'OLIO': '/img_sign/154.png',
+  'SIMBOLO DEL LUNOTTO TERMICO': '/img_sign/154.png',
+  'SIMBOLO DI SBRINAMENTO DEL PARABREZZA': '/img_sign/154.png',
+  'SIMBOLO DEI FENDINEBBIA POSTERIORI': '/img_sign/154.png',
+  'SIMBOLO DEI FENDINEBBIA ANTERIORI': '/img_sign/154.png',
+  'SIMBOLO DEL FRENO DI STAZIONAMENTO': '/img_sign/154.png',
+  'SIMBOLO FUNZIONAMENTO DIFETTOSO DEL SISTEMA FRENANTE': '/img_sign/154.png',
+  'SPIE ROSSE': '/img_sign/154.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 21: Cinture di Sicurezza e Airbag
+  // ═══════════════════════════════════════════════════════════
+  'CINTURE DI SICUREZZA': '/img_sign/154.png',
+  'SONO ESENTATI (ESCLUSI) DALL\'OBBLIGO DI INDOSSARE LE CINTURE': '/img_sign/154.png',
+  'SISTEMI DI RITENUTA PER BAMBINI': '/img_sign/154.png',
+  'L\'AIRBAG': '/img_sign/154.png',
+  'IL CASCO': '/img_sign/107.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 22: Trasporto di Persone e Carico
+  // ═══════════════════════════════════════════════════════════
+  'TRASPORTO DI PERSONE': '/img_sign/154.png',
+  'IL CARICO DEVE ESSERE SISTEMATO SUL VEICOLO IN MODO DA:': '/img_sign/302.png',
+  'SPOSTAMENTO DEL CARICO IN AVANTI': '/img_sign/302.png',
+  'PANNELLO PER CARICHI SPORGENTI': '/img_sign/302.png',
+  'PANNELLI ARANCIONI PER TRASPORTO MERCI PERICOLOSE': '/img_sign/303.png',
+  'PANNELLI POSTERIORI PER AUTOVEICOLI ADIBITI AL TRASPORTO DI COSE DI': '/img_sign/304.png',
+  'MASSA A PIENO CARICO OLTRE 3,5 T.': '/img_sign/304.png',
+  'PANNELLI POSTERIORI PER RIMORCHI E SEMIRIMORCHI ADIBITI AL TRA-': '/img_sign/304.png',
+  'SPORTO COSE DI MASSA A PIENO CARICO OLTRE 3,5 T.': '/img_sign/304.png',
+  'SEGNALI DI VELOCITÀ DA APPLICARE SUI VEICOLI': '/img_sign/301.png',
+  'PANNELLO APPLICATO SUI VEICOLI OPERATRICI': '/img_sign/301.png',
+  'PRESEGNALE DI CANTIERE MOBILE': '/img_sign/280.png',
+  'IL TRAINO DI UN VEICOLO IN AVARIA (GUASTO)': '/img_sign/275.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 23: Patenti di Guida
+  // ═══════════════════════════════════════════════════════════
+  'CON LA PATENTE DELLA SOTTOCATEGORIA A1 SI POSSONO GUIDARE': '/img_sign/154.png',
+  'CON LA PATENTE DI CATEGORIA A SI POSSONO GUIDARE': '/img_sign/154.png',
+  'CON LA PATENTE DI CATEGORIA B SI POSSONO GUIDARE': '/img_sign/154.png',
+  'DURATA E CONFERMA DI VALIDITÀ DELLA PATENTE DI CATEGORIA B': '/img_sign/154.png',
+  'LA REVISIONE DELLA PATENTE': '/img_sign/154.png',
+  'LA REVOCA DELLA PATENTE': '/img_sign/154.png',
+  'IL RITIRO IMMEDIATO DELLA PATENTE': '/img_sign/154.png',
+  'LA SOSPENSIONE DELLA PATENTE': '/img_sign/154.png',
+  'RITIRO DELLA CARTA DI CIRCOLAZIONE': '/img_sign/154.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 24: Obblighi e Documenti di Guida
+  // ═══════════════════════════════════════════════════════════
+  'CIÒ CHE CONTRADDISTINGUE GLI ADDETTI AL SERVIZIO DI POLIZIA È:': '/img_sign/275.png',
+  'DOCUMENTI DA ESIBIRE AGLI AGENTI:': '/img_sign/275.png',
+  'USO DELLE LENTI': '/img_sign/154.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 25: Cause di Incidenti Stradali
+  // ═══════════════════════════════════════════════════════════
+  'CAUSE PRINCIPALI DI INCIDENTI POSSONO ESSERE:': '/img_sign/39.png',
+  'PER EVITARE IL PRODURSI DI INCIDENTI BISOGNA CONTROLLARE:': '/img_sign/39.png',
+  'IN CASO DI MAL TEMPO PRIMA DI PARTIRE BISOGNA:': '/img_sign/37.png',
+  'CONDIZIONI AVVERSE DEL TEMPO': '/img_sign/37.png',
+  'IN CASO DI PIOGGIA OCCORRE:': '/img_sign/24.png',
+  'SU STRADA SDRUCCIOLEVOLE, COPERTA DI NEVE O GHIACCIO BISOGNA:': '/img_sign/24.png',
+  'IN CASO DI NEBBIA FITTA È OPPORTUNO:': '/img_sign/154.png',
+  'IN CASO DI FORTE VENTO LATERALE È OPPORTUNO:': '/img_sign/37.png',
+  'ALL\'INGRESSO E ALL\'USCITA DELLE GALLERIE È OPPORTUNO:': '/img_sign/13.png',
+  'L\'USO CORRETTO DELLA STRADA COMPORTA CHE:': '/img_sign/245.png',
+  'SU TUTTE LE STRADE È VIETATO:': '/img_sign/57.png',
+  'SE, GIUNGENDO AD UN INCROCIO, SI SBAGLIA CORSIA OCCORRE:': '/img_sign/10.png',
+  'ALLA LUCE VERDE DEL SEMAFORO SE UN VEICOLO TARDA A RIPARTIRE BISO-': '/img_sign/154.png',
+  'GNA:': '/img_sign/154.png',
+  'CHI GUIDA UN VEICOLO AD ELEVATE PRESTAZIONI DEVE COMUNQUE:': '/img_sign/58.png',
+  'IN CASO DI TRAFFICO INTENSO IL CONDUCENTE DEVE:': '/img_sign/58.png',
+  'SE UN PEDONE, FUORI DELLE STRISCE, NON CI DA LA PRECEDENZA BISOGNA:': '/img_sign/15.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 26: Comportamento in Caso di Incidente
+  // ═══════════════════════════════════════════════════════════
+  'IN CASO DI INCIDENTE STRADALE IL CONDUCENTE DEVE:': '/img_sign/220.png',
+  'DOPO UN INCIDENTE STRADALE OCCORRE:': '/img_sign/220.png',
+  'PER INDIVIDUARE PERSONE E/O VEICOLI COINVOLTI IN UN INCIDENTE': '/img_sign/220.png',
+  'PER INDIVIDUARE I TESTIMONI PRESENTI AL SINISTRO (INCIDENTE STRADALE)': '/img_sign/220.png',
+  'DOPO UN INCIDENTE STRADALE SI DEVE CHIAMARE LA POLIZIA:': '/img_sign/275.png',
+  'RESPONSABILITÀ CIVILE': '/img_sign/220.png',
+  'IN UN INCIDENTE CHI È CIVILMENTE OBBLIGATO A RISARCIRE I DANNI': '/img_sign/220.png',
+  'RESPONSABILITÀ PENALE': '/img_sign/220.png',
+  'RESPONSABILITÀ PENALE E CIVILE': '/img_sign/220.png',
+  'ASSICURAZIONE R.C.A. (RESPONSABILITÀ CIVILE AUTO)': '/img_sign/220.png',
+  'MASSIMALI DELLA POLIZZA R.C.A.': '/img_sign/220.png',
+  'CONTRATTO CON FORMULA "BONUS-MALUS"': '/img_sign/220.png',
+  'DOCUMENTI CHE DEVE RILASCIARE L\'IMPRESA ASSICURATRICE:': '/img_sign/220.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 27: Stato Fisico ed Effetti dell'Alcool
+  // ═══════════════════════════════════════════════════════════
+  'CHI ACCUSA SEGNI DI STANCHEZZA DEVE:': '/img_sign/220.png',
+  'I FARMACI PER IL MAL D\'AUTO': '/img_sign/220.png',
+  'SE SI STANNO SEGUENDO TERAPIE (CURE) CON FARMACI AD AZIONE SEDATIVA': '/img_sign/220.png',
+  'ASSUNZIONE DI ALCOOL E GUIDA IN STATO DI EBBREZZA (UBRIACHEZZA)': '/img_sign/220.png',
+  'GUIDA SOTTO L\'INFLUENZA DI SOSTANZE STUPEFACENTI': '/img_sign/220.png',
+  'IL MANCATO SENSO DEL PERICOLO DURANTE LA GUIDA PUÒ ESSERE DATO DA:': '/img_sign/39.png',
+  'PRIMO SOCCORSO': '/img_sign/210.png',
+  'CORPO ESTRANEO IN UN OCCHIO': '/img_sign/210.png',
+  'FRATTURA AGLI ARTI (GAMBE O BRACCIA)': '/img_sign/210.png',
+  'USTIONI (BRUCIATURE)': '/img_sign/210.png',
+  'FERITA SANGUINANTE (EMORRAGIA)': '/img_sign/210.png',
+  'STATO DI SHOCK': '/img_sign/210.png',
+  'TRAUMA ALLA GABBIA TORACICA': '/img_sign/210.png',
+  'STATO DI INCOSCIENZA': '/img_sign/210.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 28: Consumi e Inquinamento
+  // ═══════════════════════════════════════════════════════════
+  'PER LIMITARE I CONSUMI DI CARBURANTE OCCORRE:': '/img_sign/254.png',
+  'INQUINAMENTO ATMOSFERICO PRODOTTO DAI VEICOLI': '/img_sign/254.png',
+  'INQUINAMENTO PRODOTTO DAI VEICOLI CON MOTORE A SCOPPIO (BENZINA)': '/img_sign/254.png',
+  'L\'INQUINAMENTO PRODOTTO DAI VEICOLI CON MOTORE A SCOPPIO (BENZI-': '/img_sign/254.png',
+  'NA) DIPENDE': '/img_sign/254.png',
+  'L\'INQUINAMENTO ATMOSFERICO PRODOTTO DAI VEICOLI CON MOTORE DIESEL': '/img_sign/254.png',
+  'SONO CAUSA DI RUMORE:': '/img_sign/59.png',
+  'INQUINAMENTO DA RUMORE': '/img_sign/59.png',
+  'PER RIDURRE IL RUMORE È NECESSARIO:': '/img_sign/59.png',
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 29: Elementi Costitutivi del Veicolo
+  // ═══════════════════════════════════════════════════════════
+  'SUI PNEUMATICI OCCORRE SPESSO VERIFICARE:': '/img_sign/24.png',
+  'PNEUMATICI CON BATTISTRADA USURATO': '/img_sign/24.png',
+  'I PNEUMATICI CON LESIONI SUI FIANCHI (LATI) CHE INTERESSANO LE TELE:': '/img_sign/24.png',
+  'VIAGGIANDO CON PNEUMATICI DELLO STESSO ASSE GONFIATI DIFFERENTE-': '/img_sign/24.png',
+  'MENTE:': '/img_sign/24.png',
+  'AQUAPLANING (PERDITA DI ADERENZA)': '/img_sign/24.png',
+  'SOSPENSIONI E AMMORTIZZATORI': '/img_sign/24.png',
+  'PERCHÈ GLI ORGANI DI STERZO CONTRIBUISCANO ALLA SICUREZZA:': '/img_sign/24.png',
+  'LO STERZO DIVENTA PIÙ DURO DEL NORMALE:': '/img_sign/24.png',
+  'SE LO STERZO VIBRA FORTEMENTE PUÒ DIPENDERE:': '/img_sign/24.png',
+  'CON FRENI SQUILIBRATI PUÒ AVVENIRE IN FRENATA:': '/img_sign/24.png',
+  'LA SQUILIBRATURA DEI FRENI PUÒ DIPENDERE DA:': '/img_sign/24.png',
+  'SE, PER UN GUASTO, FUNZIONANO SOLO I FRENI POSTERIORI OCCORRE:': '/img_sign/24.png',
+  'SISTEMA ANTI BLOCCAGGIO RUOTE (A.B.S.)': '/img_sign/24.png',
+  'PER MANTENERE I FRENI EFFICIENTI OCCORRE SPESSO CONTROLLARE:': '/img_sign/24.png',
+  // Lesson 29 override handled in LESSON_IMAGE_OVERRIDE
+
+  // ═══════════════════════════════════════════════════════════
+  // LESSON 30: Stabilita e Tenuta di Strada
+  // ═══════════════════════════════════════════════════════════
+  'L\'ADERENZA (CONTATTO) DELLE RUOTE SUL MANTO STRADALE È RIDOTTA DA:': '/img_sign/24.png',
+  'PER ASSICURARE STABILITÀ AL VEICOLO IN CURVA È OPPORTUNO:': '/img_sign/4.png',
+  'SULLA STABILITÀ DEL VEICOLO IN MARCIA INFLUISCE POSITIVAMENTE:': '/img_sign/24.png',
+  'LA INSUFFICIENTE TENUTA DI STRADA DEL VEICOLO PUÒ DIPENDERE:': '/img_sign/24.png',
+  'SE IL VEICOLO IN FASE DI FRENATURA TENDE A SBANDARE': '/img_sign/24.png',
+  'PER CONTROLLARE LO SBANDAMENTO DEL VEICOLO È OPPORTUNO:': '/img_sign/24.png',
 };
 
-// EXACT MATCH ONLY — no partial matching to prevent wrong images!
-function getSignImage(heading: string): string | null {
+// Lesson-specific image overrides (same heading, different image per lesson)
+const LESSON_IMAGE_OVERRIDE: Record<string, Record<string, string>> = {
+  2: { 'LAVORI': '/img_sign/13.png' },      // Lesson 2: danger sign for road works
+  6: { 'ATTRAVERSAMENTO PEDONALE': '/img_sign/218.png', 'ATTRAVERSAMENTO CICLABILE': '/img_sign/236.png' },
+  7: { 'LAVORI': '/img_sign/279.png' },     // Lesson 7: temporary works sign
+  29: { 'PER EVITARE IL PRODURSI DI INCIDENTI BISOGNA CONTROLLARE:': '/img_sign/24.png' },
+};
+
+// EXACT MATCH with fallback to continuation heading detection
+function getSignImage(heading: string, lessonId?: number): string | null {
   if (!heading) return null;
-  return HEADING_SIGN_IMAGE[heading] || null;
+  // 0. Check lesson-specific overrides first
+  if (lessonId && LESSON_IMAGE_OVERRIDE[lessonId]?.[heading]) {
+    return LESSON_IMAGE_OVERRIDE[lessonId][heading];
+  }
+  // 1. Exact match first
+  if (HEADING_SIGN_IMAGE[heading]) return HEADING_SIGN_IMAGE[heading];
+  // 2. Check if heading is a continuation (starts with common prefixes)
+  const h = heading.trim().toUpperCase();
+  if (h.startsWith('LI DI CONTAMINARE')) return HEADING_SIGN_IMAGE['LI DI CONTAMINARE L\'ACQUA'] || '/img_sign/72.png';
+  if (h.startsWith('2,30 METRI')) return '/img_sign/76.png';
+  if (h.startsWith('METRI')) return '/img_sign/77.png';
+  if (h.startsWith('LUNGHEZZA')) return '/img_sign/77.png';
+  if (h.startsWith('NEVE)')) return '/img_sign/189.png';
+  if (h.startsWith('TO PER UNA CATEGORIA')) return '/img_sign/169.png';
+  if (h.startsWith('LIVELLO SU UN RAMO')) return '/img_sign/170.png';
+  if (h.startsWith('GNA:')) return '/img_sign/154.png';
+  if (h.startsWith('MERGENZA')) return '/img_sign/184.png';
+  if (h.startsWith('CORRE:')) return '/img_sign/154.png';
+  if (h.startsWith('MENTE:')) return '/img_sign/24.png';
+  if (h.startsWith('NA) DIPENDE')) return '/img_sign/254.png';
+  if (h.startsWith('MASSA A PIENO')) return '/img_sign/304.png';
+  if (h.startsWith('SPORTO COSE')) return '/img_sign/304.png';
+  // 3. Fallback: match by first word for generic categorization
+  if (h.startsWith('ORDINE DI PRECEDENZA')) return '/img_sign/40.png';
+  if (h.startsWith('LIMITI MASSIMI')) return '/img_sign/193.png';
+  if (h.startsWith('PER EVITARE')) return '/img_sign/39.png';
+  return null;
 }
 
 // ============================================================
@@ -650,7 +1209,7 @@ export default function TheoryBookScreen() {
                     <div className="flex items-start gap-4">
                       {/* Only show clean sign image from /img_sign/ when matched; otherwise show generic icon */}
                       {(() => {
-                        const signImg = getSignImage(section.heading || '');
+                        const signImg = getSignImage(section.heading || '', selectedLesson);
                         if (signImg) {
                           return (
                             <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden flex-shrink-0 border-2 bg-white"
