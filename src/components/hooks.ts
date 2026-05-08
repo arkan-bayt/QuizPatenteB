@@ -2,7 +2,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useStore } from '@/store/useStore';
 import { QuizQuestion, Chapter, getSubtopicsForChapter, getQuestionsBySubtopic, getQuestionsByChapters, getRandomQuestions } from '@/data/quizData';
-import { getChapterProgress, getUserStats, getWrongAnswerIds, updateChapterProgress, addWrongAnswer, removeWrongAnswer, recordAnswer, recordExamResult, saveQuizResume, loadQuizResume, clearQuizResume } from '@/logic/progressEngine';
+import { getChapterProgress, getUserStats, getWrongAnswerIds, updateChapterProgress, addWrongAnswer, removeWrongAnswer, recordAnswer, recordExamResult } from '@/logic/progressEngine';
+import { saveQuizResume, clearQuizResume } from '@/logic/quizResume';
 import { speakText, stopSpeech } from '@/logic/ttsEngine';
 
 // ============================================================
@@ -38,18 +39,26 @@ export function useQuizEngine() {
       if (!isCorrect) addWrongAnswer(username, q.id, q.chapter);
       else removeWrongAnswer(username, q.id);
     }
-    if (quizMode === 'exam') {
-      if (!isCorrect) addWrongAnswer(username, q.id, q.chapter);
-      else removeWrongAnswer(username, q.id);
-      // Save resume for exam
-      saveQuizResume(username, { chapterIds: selectedChapterIds, questionIds: quizQuestions.map((x) => x.id), idx: currentIdx, correct: correctCount, wrong: wrongCount, mode: 'exam' });
+    // Auto-save progress for ALL quiz modes (resume feature)
+    if (quizQuestions.length >= 30) {
+      saveQuizResume(username, {
+        chapterIds: selectedChapterIds,
+        questionIds: quizQuestions.map((x) => x.id),
+        idx: currentIdx,
+        correct: correctCount,
+        wrong: wrongCount,
+        mode: quizMode,
+        chapterId: activeChapterId || undefined,
+        subtopic: activeSubtopic || undefined,
+        ts: Date.now(),
+      });
     }
   }, [correctCount + wrongCount]);
 
   // Clear resume when quiz completes
   useEffect(() => {
-    if (isComplete && username) clearQuizResume(username);
-  }, [isComplete]);
+    if (isComplete && username) clearQuizResume(username, quizMode, activeChapterId || undefined, activeSubtopic || undefined);
+  }, [isComplete, username, quizMode, activeChapterId, activeSubtopic]);
 
   const handleAnswer = useCallback((val: boolean) => {
     if (showFeedback) return;

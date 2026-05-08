@@ -7,6 +7,8 @@ import { clearSession } from '@/logic/authEngine';
 import { forceSyncToCloud, saveThemePreference } from '@/logic/progressEngine';
 import QuestionCountModal from './QuestionCountModal';
 import ChapterIcon from './ChapterIcons';
+import ResumeDialog from './ResumeDialog';
+import { hasQuizResume, clearQuizResume, type QuizResumeData } from '@/logic/quizResume';
 
 const CHAPTER_COLORS: Record<number, string> = {
   1: '#3B82F6', 2: '#EF4444', 3: '#DC2626', 4: '#2563EB', 5: '#F59E0B',
@@ -42,6 +44,10 @@ export default function HomeScreen() {
   const [showChapterSelect, setShowChapterSelect] = useState(false);
   const [isDark, setIsDark] = useState(false);
 
+  // Resume dialog state
+  const [showResumeDialog, setShowResumeDialog] = useState(false);
+  const [resumeData, setResumeData] = useState<QuizResumeData | null>(null);
+
   useEffect(() => {
     const stored = localStorage.getItem('qp_theme') || localStorage.getItem('theme');
     const hasDarkClass = document.documentElement.classList.contains('dark');
@@ -76,14 +82,53 @@ export default function HomeScreen() {
 
   const handleExamConfirm = (count: number | 'all') => {
     setShowExamModal(false);
+    let examQs: any[];
     if (count === 'all') {
-      const shuffled = [...availableExamQs].sort(() => Math.random() - 0.5);
-      store.startQuiz(shuffled, 'exam');
+      examQs = [...availableExamQs].sort(() => Math.random() - 0.5);
     } else {
-      const examQs = getRandomQuestions(availableExamQs, count);
+      examQs = getRandomQuestions(availableExamQs, count);
       if (examQs.length === 0) return;
-      store.startQuiz(examQs, 'exam');
     }
+    // Check for saved resume
+    checkAndStartExam(examQs);
+  };
+
+  const checkAndStartExam = (qs: any[]) => {
+    if (!user?.username || qs.length < 30) {
+      store.startQuiz(qs, 'exam');
+      return;
+    }
+    const saved = hasQuizResume(user.username, 'exam', qs.length);
+    if (saved && saved.idx > 0) {
+      setResumeData(saved);
+      setShowResumeDialog(true);
+    } else {
+      store.startQuiz(qs, 'exam');
+    }
+  };
+
+  const handleResumeExam = () => {
+    if (!resumeData || !user?.username) return;
+    const savedQuestions = resumeData.questionIds
+      .map((id) => allQuestions.find((q) => q.id === id))
+      .filter(Boolean) as any[];
+    if (savedQuestions.length === 0) {
+      clearQuizResume(user.username, 'exam');
+      store.startQuiz(availableExamQs, 'exam');
+    } else {
+      store.startQuiz(savedQuestions, 'exam', resumeData.idx, resumeData.correct, resumeData.wrong);
+    }
+    setShowResumeDialog(false);
+    setResumeData(null);
+  };
+
+  const handleRestartExam = () => {
+    if (!user?.username) return;
+    clearQuizResume(user.username, 'exam');
+    const shuffled = [...availableExamQs].sort(() => Math.random() - 0.5);
+    store.startQuiz(shuffled, 'exam');
+    setShowResumeDialog(false);
+    setResumeData(null);
   };
 
   const handleWrongRetry = () => {
@@ -418,6 +463,19 @@ export default function HomeScreen() {
         totalAvailable={availableExamQs.length}
         title="Scegli quante domande"
         subtitle={isAllChapters ? 'Esame completo - tutti i capitoli' : `Esame - ${selectedCount} capitoli selezionati`}
+      />
+
+      {/* Resume Exam Dialog */}
+      <ResumeDialog
+        visible={showResumeDialog}
+        resumeIdx={resumeData?.idx ?? 0}
+        totalQuestions={resumeData?.questionIds.length ?? 0}
+        correctCount={resumeData?.correct ?? 0}
+        wrongCount={resumeData?.wrong ?? 0}
+        modeLabel="امتحان"
+        onResume={handleResumeExam}
+        onRestart={handleRestartExam}
+        onDismiss={() => { setShowResumeDialog(false); setResumeData(null); }}
       />
     </div>
   );

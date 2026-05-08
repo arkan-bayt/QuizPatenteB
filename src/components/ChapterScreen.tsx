@@ -4,6 +4,8 @@ import { useStore } from '@/store/useStore';
 import { getSubtopicsForChapter, getQuestionsBySubtopic, getQuestionsByChapters } from '@/data/quizData';
 import { useChapterProgress } from './hooks';
 import QuestionCountModal from './QuestionCountModal';
+import ResumeDialog from './ResumeDialog';
+import { hasQuizResume, loadQuizResume, clearQuizResume, type QuizResumeData } from '@/logic/quizResume';
 
 export default function ChapterScreen() {
   const store = useStore();
@@ -30,10 +32,68 @@ export default function ChapterScreen() {
   const isComplete = pct === 100;
   const accuracy = answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
 
+  // Resume dialog state
+  const [showResumeDialog, setShowResumeDialog] = useState(false);
+  const [resumeData, setResumeData] = useState<QuizResumeData | null>(null);
+  const [resumeAction, setResumeAction] = useState<'chapter' | 'subtopic' | 'exam'>('chapter');
+  const [pendingSubtopic, setPendingSubtopic] = useState<string | null>(null);
+
+  const checkAndStartQuiz = (qs: any[], mode: 'chapter' | 'subtopic' | 'exam', subtopic?: string) => {
+    if (!user?.username || qs.length < 30) {
+      // Not enough questions for resume - just start normally
+      store.startQuiz(qs, mode);
+      return;
+    }
+    const saved = hasQuizResume(user.username, mode, qs.length, chapter.id, subtopic);
+    if (saved && saved.idx > 0) {
+      // Found saved progress - show resume dialog
+      setResumeData(saved);
+      setResumeAction(mode);
+      setPendingSubtopic(subtopic || null);
+      setShowResumeDialog(true);
+    } else {
+      // No saved progress - start fresh
+      store.startQuiz(qs, mode);
+    }
+  };
+
+  const handleResume = () => {
+    if (!resumeData || !user?.username) return;
+    // Reconstruct the same question order from saved data
+    const savedQuestions = resumeData.questionIds
+      .map((id) => allQuestions.find((q) => q.id === id))
+      .filter(Boolean) as any[];
+    if (savedQuestions.length === 0) {
+      // Can't reconstruct - start fresh
+      clearQuizResume(user.username, resumeAction, chapter.id, pendingSubtopic || undefined);
+      store.startQuiz(allChapterQs, resumeAction);
+    } else {
+      store.startQuiz(savedQuestions, resumeAction, resumeData.idx, resumeData.correct, resumeData.wrong);
+    }
+    setShowResumeDialog(false);
+    setResumeData(null);
+  };
+
+  const handleRestart = () => {
+    if (!user?.username) return;
+    clearQuizResume(user.username, resumeAction, chapter.id, pendingSubtopic || undefined);
+    // Start fresh with the appropriate questions
+    if (resumeAction === 'subtopic' && pendingSubtopic) {
+      const qs = getQuestionsBySubtopic(allQuestions, chapter.id, pendingSubtopic);
+      store.startQuiz(qs, 'subtopic');
+    } else {
+      const unanswered = allChapterQs.filter((q) => !chapterProgress.answeredIds.includes(q.id));
+      const qs = unanswered.length > 0 ? unanswered : allChapterQs;
+      store.startQuiz(qs, 'chapter');
+    }
+    setShowResumeDialog(false);
+    setResumeData(null);
+  };
+
   const handleStartAll = () => {
     const unanswered = allChapterQs.filter((q) => !chapterProgress.answeredIds.includes(q.id));
     const qs = unanswered.length > 0 ? unanswered : allChapterQs;
-    store.startQuiz(qs, 'chapter');
+    checkAndStartQuiz(qs, 'chapter');
   };
 
   const handleChapterExamClick = () => {
@@ -45,11 +105,11 @@ export default function ChapterScreen() {
     setShowExamModal(false);
     if (count === 'all') {
       const shuffled = [...allChapterQs].sort(() => Math.random() - 0.5);
-      store.startQuiz(shuffled, 'exam');
+      checkAndStartQuiz(shuffled, 'exam');
     } else {
       const examQs = [...allChapterQs].sort(() => Math.random() - 0.5).slice(0, count);
       if (examQs.length === 0) return;
-      store.startQuiz(examQs, 'exam');
+      checkAndStartQuiz(examQs, 'exam');
     }
   };
 
@@ -231,7 +291,7 @@ export default function ChapterScreen() {
               }
               const unanswered = stQs.filter((q) => !chapterProgress.answeredIds.includes(q.id));
               const qs = unanswered.length > 0 ? unanswered : stQs;
-              store.startQuiz(qs, 'subtopic');
+              checkAndStartQuiz(qs, 'subtopic', st);
             };
 
             return (
@@ -306,6 +366,19 @@ export default function ChapterScreen() {
         totalAvailable={allChapterQs.length}
         title={`Scegli quante domande`}
         subtitle={`Esame Cap. ${chapter.id} - ${chapter.name}`}
+      />
+
+      {/* Resume Quiz Dialog */}
+      <ResumeDialog
+        visible={showResumeDialog}
+        resumeIdx={resumeData?.idx ?? 0}
+        totalQuestions={resumeData?.questionIds.length ?? 0}
+        correctCount={resumeData?.correct ?? 0}
+        wrongCount={resumeData?.wrong ?? 0}
+        modeLabel={resumeAction === 'chapter' ? `فصل ${chapter.id}` : resumeAction === 'subtopic' ? 'موضوع فرعي' : 'امتحان'}
+        onResume={handleResume}
+        onRestart={handleRestart}
+        onDismiss={() => { setShowResumeDialog(false); setResumeData(null); }}
       />
 
       {/* Floating Start Button (Select Mode) */}

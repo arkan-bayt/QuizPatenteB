@@ -253,4 +253,4 @@ export function stopAutoSync(): void {
 }
 
 // Re-export quiz resume from separate module
-export { saveQuizResume, loadQuizResume, clearQuizResume, hasQuizResumeForMode, type QuizResumeData } from './quizResume';
+export { saveQuizResume, loadQuizResume, clearQuizResume, hasQuizResume, loadQuizResumeLegacy, clearQuizResumeLegacy, RESUME_THRESHOLD, type QuizResumeData } from './quizResume';

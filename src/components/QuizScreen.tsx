@@ -2,7 +2,8 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useStore } from '@/store/useStore';
 import { speakText, stopSpeech } from '@/logic/ttsEngine';
-import { recordExamResult, recordAnswer, updateChapterProgress, addWrongAnswer, removeWrongAnswer, saveQuizResume, clearQuizResume } from '@/logic/progressEngine';
+import { recordExamResult, recordAnswer, updateChapterProgress, addWrongAnswer, removeWrongAnswer } from '@/logic/progressEngine';
+import { saveQuizResume, clearQuizResume } from '@/logic/quizResume';
 import { submitAssignmentResult } from '@/logic/assignmentEngine';
 import { authenticatedFetch } from '@/lib/api';
 import WordTranslator from './WordTranslator';
@@ -327,20 +328,35 @@ export default function QuizScreen() {
     if (quizMode === 'exam') {
       if (!isCorrect) addWrongAnswer(username, q.id, q.chapter);
       else removeWrongAnswer(username, q.id);
-      saveQuizResume(username, { chapterIds: selectedChapterIds, questionIds: quizQuestions.map((x) => x.id), idx: currentIdx, correct: correctCount, wrong: wrongCount, mode: 'exam' });
     }
     if (quizMode === 'wrong') {
       if (isCorrect) removeWrongAnswer(username, q.id);
+    }
+    // Auto-save progress for ALL quiz modes (resume feature)
+    // Only save if quiz has enough questions (>= 30) to make resume worthwhile
+    if (quizQuestions.length >= 30) {
+      saveQuizResume(username, {
+        chapterIds: selectedChapterIds,
+        questionIds: quizQuestions.map((x) => x.id),
+        idx: currentIdx,
+        correct: correctCount,
+        wrong: wrongCount,
+        mode: quizMode,
+        chapterId: activeChapterId || undefined,
+        subtopic: activeSubtopic || undefined,
+        ts: Date.now(),
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [correctCount + wrongCount]);
 
   useEffect(() => {
     if (isComplete && username) {
-      clearQuizResume(username);
+      // Clear the saved resume for this specific quiz context
+      clearQuizResume(username, quizMode, activeChapterId || undefined, activeSubtopic || undefined);
       if (quizMode === 'exam') recordExamResult(username, correctCount >= 21);
     }
-  }, [isComplete, username, quizMode, correctCount]);
+  }, [isComplete, username, quizMode, correctCount, activeChapterId, activeSubtopic]);
 
   // Auto-submit assignment result when quiz completes
   useEffect(() => {
