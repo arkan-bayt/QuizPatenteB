@@ -402,12 +402,100 @@ export function stopAutoSync(): void {
 }
 
 // ---- Manual sync (download cloud → merge → upload merged) ----
-export async function manualSync(username: string): Promise<boolean> {
+// Returns detailed result for UI feedback
+export async function manualSync(username: string): Promise<{ ok: boolean; msg: string; cloudData?: any }> {
   try {
-    await doBidirectionalSync(username);
-    return true;
-  } catch {
-    return false;
+    // Check auth token first
+    const token = typeof window !== 'undefined' ? localStorage.getItem('qp_session_token') : null;
+    if (!token) {
+      return { ok: false, msg: 'Nessun token di sessione. Effettua di nuovo il login.' };
+    }
+
+    // Step 1: Try to load cloud data
+    const cloud = await cloudLoad(username);
+    if (!cloud) {
+      // cloudLoad can fail if auth is bad or no data exists
+      // Try a direct test to see what's happening
+      try {
+        const testRes = await authenticatedFetch(`/api/progress?username=${encodeURIComponent(username)}`);
+        const testData = await testRes.json();
+        if (testRes.status === 401) {
+          return { ok: false, msg: 'Sessione scaduta. Effettua di nuovo il login.' };
+        }
+        // If no cloud data but auth is ok, that's fine - just upload local
+      } catch {
+        return { ok: false, msg: 'Errore di connessione al server.' };
+      }
+    }
+
+    // Step 2: Read local progress
+    const localStats = getUserStats(username);
+    const localCp = getChapterProgress(username);
+    const localWrong = getWrongAnswerIds(username);
+    const localTheme = getThemePreference(username);
+
+    const localAnsweredCount = localStats.totalAnswered;
+    const localChapterCount = Object.keys(localCp).length;
+
+    // Step 3: Merge cloud + local (if cloud data exists)
+    if (cloud) {
+      if (cloud.stats) {
+        const mergedStats = mergeStats(localStats, cloud.stats);
+        saveUserStats(username, mergedStats);
+      }
+      if (cloud.chapterProgress) {
+        const mergedCp = mergeChapterProgress(localCp, cloud.chapterProgress);
+        try { localStorage.setItem(key(username), JSON.stringify(mergedCp)); } catch { /* */ }
+      }
+      if (cloud.wrongAnswerIds) {
+        const mergedWrong = mergeWrongAnswers(localWrong, cloud.wrongAnswerIds);
+        try { localStorage.setItem(wrongKey(username), JSON.stringify(mergedWrong)); } catch { /* */ }
+      }
+      if (cloud.theme && cloud.theme !== localTheme) {
+        try { localStorage.setItem('qp_theme', cloud.theme); } catch { /* */ }
+      }
+    }
+
+    // Step 4: Upload MERGED data to cloud
+    const mergedStats = getUserStats(username);
+    const mergedCp = getChapterProgress(username);
+    const mergedWrong = getWrongAnswerIds(username);
+    const mergedTheme = getThemePreference(username);
+
+    const uploadRes = await authenticatedFetch('/api/progress', {
+      method: 'POST',
+      body: JSON.stringify({
+        username,
+        stats: mergedStats,
+        chapterProgress: mergedCp,
+        wrongAnswerIds: mergedWrong,
+        theme: mergedTheme,
+      }),
+    });
+
+    if (!uploadRes.ok) {
+      const errData = await uploadRes.json().catch(() => ({}));
+      if (uploadRes.status === 401) {
+        return { ok: false, msg: 'Sessione scaduta. Effettua di nuovo il login.' };
+      }
+      return { ok: false, msg: `Errore upload: ${errData.error || uploadRes.status}` };
+    }
+
+    const cloudAnsweredCount = cloud?.stats?.totalAnswered || 0;
+    const mergedAnsweredCount = mergedStats.totalAnswered;
+
+    // Step 5: Notify UI
+    _syncVersion++;
+    if (_syncCallback) _syncCallback();
+
+    return {
+      ok: true,
+      msg: `Sincronizzato! Locale: ${localAnsweredCount}, Cloud: ${cloudAnsweredCount}, Unito: ${mergedAnsweredCount}`,
+      cloudData: cloud,
+    };
+  } catch (err: any) {
+    console.error('[Sync] manualSync error:', err);
+    return { ok: false, msg: `Errore: ${err.message || 'sconosciuto'}` };
   }
 }
 

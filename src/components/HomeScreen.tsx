@@ -48,6 +48,7 @@ export default function HomeScreen() {
   const [showInstallHelp, setShowInstallHelp] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'done' | 'error'>('idle');
+  const [syncMsg, setSyncMsg] = useState('');
 
   // Resume dialog state
   const [showResumeDialog, setShowResumeDialog] = useState(false);
@@ -152,12 +153,14 @@ export default function HomeScreen() {
     if (!username || isSyncing) return;
     setIsSyncing(true);
     setSyncStatus('syncing');
-    const ok = await manualSync(username);
-    if (ok) store.triggerSync(); // Force UI to re-read localStorage
+    setSyncMsg('Sincronizzazione...');
+    const result = await manualSync(username);
+    if (result.ok) store.triggerSync(); // Force UI to re-read localStorage
     setIsSyncing(false);
-    setSyncStatus(ok ? 'done' : 'error');
-    // Reset status after 2 seconds
-    setTimeout(() => setSyncStatus('idle'), 2000);
+    setSyncStatus(result.ok ? 'done' : 'error');
+    setSyncMsg(result.msg);
+    // Reset status after 4 seconds
+    setTimeout(() => { setSyncStatus('idle'); setSyncMsg(''); }, 4000);
   };
 
   const handleLogout = async () => {
@@ -260,6 +263,17 @@ export default function HomeScreen() {
       </div>
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+        {/* Sync Status Message */}
+        {syncMsg && (
+          <div className={`anim-fade px-4 py-3 rounded-xl text-sm font-medium ${
+            syncStatus === 'error' ? 'bg-red-50 border border-red-200 text-red-700' :
+            syncStatus === 'done' ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' :
+            'bg-blue-50 border border-blue-200 text-blue-700'
+          }`}>
+            {syncMsg}
+          </div>
+        )}
+
         {/* Welcome */}
         <div className="anim-up">
           <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Allenati per la Patente B</h1>
