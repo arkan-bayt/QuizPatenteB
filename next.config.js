@@ -3,6 +3,8 @@ const withPWA = require('next-pwa')({
   disable: process.env.NODE_ENV === 'development',
   register: true,
   skipWaiting: true,
+  cacheOnFrontEndNav: true,
+  buildExcludes: [/sw\.js$/, /sw\.js\.map$/, /workbox-.*\.js$/, /workbox-.*\.js\.map$/],
   runtimeCaching: [
     // Sign images - cache first (rarely change)
     {

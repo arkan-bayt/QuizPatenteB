@@ -9,6 +9,7 @@ import QuestionCountModal from './QuestionCountModal';
 import ChapterIcon from './ChapterIcons';
 import ResumeDialog from './ResumeDialog';
 import { hasQuizResume, clearQuizResume, type QuizResumeData } from '@/logic/quizResume';
+import PWAInstallPrompt from './PWAInstallPrompt';
 
 const CHAPTER_COLORS: Record<number, string> = {
   1: '#3B82F6', 2: '#EF4444', 3: '#DC2626', 4: '#2563EB', 5: '#F59E0B',
@@ -43,6 +44,8 @@ export default function HomeScreen() {
   const [showExamModal, setShowExamModal] = useState(false);
   const [showChapterSelect, setShowChapterSelect] = useState(false);
   const [isDark, setIsDark] = useState(false);
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
 
   // Resume dialog state
   const [showResumeDialog, setShowResumeDialog] = useState(false);
@@ -54,6 +57,13 @@ export default function HomeScreen() {
     if (stored === 'dark' || hasDarkClass) {
       setIsDark(true);
     }
+  }, []);
+
+  useEffect(() => {
+    // Check if PWA is already installed
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || ('standalone' in navigator && (navigator as any).standalone);
+    setIsAppInstalled(isStandalone);
   }, []);
 
   const toggleDark = () => {
@@ -185,6 +195,13 @@ export default function HomeScreen() {
             {user?.role === 'super_admin' && (
               <button onClick={() => store.setScreen('admin')} className="text-xs px-3 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              </button>
+            )}
+            {!isAppInstalled && (
+              <button onClick={() => setShowInstallHelp(true)} className="text-xs px-3 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors font-medium flex items-center gap-1.5" title="Installa app">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
               </button>
             )}
             <button onClick={toggleDark} className="text-xs px-3 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors font-medium flex items-center gap-1.5" title={isDark ? 'Passa al tema chiaro' : 'Passa al tema scuro'}>
@@ -477,6 +494,58 @@ export default function HomeScreen() {
         onRestart={handleRestartExam}
         onDismiss={() => { setShowResumeDialog(false); setResumeData(null); }}
       />
+
+      {/* Install Help Modal */}
+      {showInstallHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setShowInstallHelp(false)}>
+          <div className="w-full max-w-sm glass p-5" onClick={e => e.stopPropagation()} style={{
+            borderRadius: 'var(--radius-2xl)',
+            background: 'var(--bg-card)',
+          }}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0" style={{ background: 'linear-gradient(135deg, #1E3A8A, #4F46E5)' }}>
+                <img src="/icons/icon-192x192.png" alt="" className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <h3 className="text-[15px] font-bold" style={{ color: 'var(--text-primary)' }}>Installa l&apos;app</h3>
+                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Accedi più veloce, funziona offline</p>
+              </div>
+            </div>
+            {/Android/.test(navigator.userAgent) ? (
+              <div className="space-y-3 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
+                <p><strong>Su Android (Chrome):</strong></p>
+                <ol className="list-decimal list-inside space-y-2 ml-1">
+                  <li>Tocca il menu <strong>⋮</strong> (tre puntini in alto a destra)</li>
+                  <li>Tocca <strong>&quot;Installa app&quot;</strong> o <strong>&quot;Aggiungi alla schermata Home&quot;</strong></li>
+                  <li>Conferma con <strong>&quot;Installa&quot;</strong></li>
+                </ol>
+              </div>
+            ) : /iPad|iPhone|iPod/.test(navigator.userAgent) ? (
+              <div className="space-y-3 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
+                <p><strong>Su iPhone/iPad (Safari):</strong></p>
+                <ol className="list-decimal list-inside space-y-2 ml-1">
+                  <li>Tocca il pulsante Condividi <strong>⬆️</strong> (in basso)</li>
+                  <li>Scorri e tocca <strong>&quot;Aggiungi alla Home&quot;</strong></li>
+                  <li>Tocca <strong>&quot;Aggiungi&quot;</strong></li>
+                </ol>
+              </div>
+            ) : (
+              <div className="space-y-3 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
+                <p><strong>Su computer (Chrome/Edge):</strong></p>
+                <ol className="list-decimal list-inside space-y-2 ml-1">
+                  <li>Clicca l&apos;icona di installazione nella barra degli indirizzi</li>
+                  <li>Oppure menu → <strong>&quot;Installa app&quot;</strong></li>
+                </ol>
+              </div>
+            )}
+            <button onClick={() => setShowInstallHelp(false)}
+              className="w-full mt-4 py-2.5 rounded-xl text-[14px] font-medium"
+              style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+              Chiudi
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
