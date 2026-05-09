@@ -223,16 +223,27 @@ export function saveThemePreference(username: string, theme: 'dark' | 'light'): 
 
 // ---- Auto Sync (periodic) ----
 let _autoSyncInterval: ReturnType<typeof setInterval> | null = null;
-const AUTO_SYNC_INTERVAL = 60000; // 60 seconds
+const AUTO_SYNC_INTERVAL = 30000; // 30 seconds
+let _syncCallback: (() => void) | null = null;
 
-export function startAutoSync(username: string): void {
+export function startAutoSync(username: string, onSync?: () => void): void {
   stopAutoSync();
+  _syncCallback = onSync || null;
+  // Immediately do first sync
+  doBidirectionalSync(username);
   _autoSyncInterval = setInterval(() => {
+    doBidirectionalSync(username);
+  }, AUTO_SYNC_INTERVAL);
+}
+
+async function doBidirectionalSync(username: string): Promise<void> {
+  try {
+    // Step 1: Upload local progress to cloud
     const stats = getUserStats(username);
     const cp = getChapterProgress(username);
     const wrong = getWrongAnswerIds(username);
     const theme = getThemePreference(username);
-    authenticatedFetch('/api/progress', {
+    await authenticatedFetch('/api/progress', {
       method: 'POST',
       body: JSON.stringify({
         username,
@@ -241,8 +252,25 @@ export function startAutoSync(username: string): void {
         wrongAnswerIds: wrong,
         theme,
       }),
-    }).catch(() => {});
-  }, AUTO_SYNC_INTERVAL);
+    });
+
+    // Step 2: Download cloud progress (merge into localStorage)
+    const cloud = await cloudLoad(username);
+    if (cloud) {
+      if (cloud.stats) saveUserStats(username, cloud.stats);
+      if (cloud.chapterProgress) {
+        try { localStorage.setItem(key(username), JSON.stringify(cloud.chapterProgress)); } catch { /* */ }
+      }
+      if (cloud.wrongAnswerIds) {
+        try { localStorage.setItem(wrongKey(username), JSON.stringify(cloud.wrongAnswerIds)); } catch { /* */ }
+      }
+      if (cloud.theme) {
+        try { localStorage.setItem('qp_theme', cloud.theme); } catch { /* */ }
+      }
+      // Notify UI to re-render with new data
+      if (_syncCallback) _syncCallback();
+    }
+  } catch { /* silent */ }
 }
 
 export function stopAutoSync(): void {
@@ -250,6 +278,7 @@ export function stopAutoSync(): void {
     clearInterval(_autoSyncInterval);
     _autoSyncInterval = null;
   }
+  _syncCallback = null;
 }
 
 // Re-export quiz resume from separate module

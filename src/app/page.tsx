@@ -85,8 +85,11 @@ export default function Page() {
           setSyncing(false);
           // Force re-render of home screen by triggering state update
           store.setData([...store.chapters], [...store.allQuestions]);
-          // Start auto-sync every 60 seconds
-          startAutoSync(session.username);
+          // Start auto-sync every 30 seconds (bidirectional: upload then download)
+          startAutoSync(session.username, () => {
+            // Force re-render when cloud data arrives
+            store.setData([...store.chapters], [...store.allQuestions]);
+          });
           // Apply theme from cloud (cloud theme was loaded into localStorage by loadCloudProgress)
           const savedTheme = getThemePreference(session.username);
           if (savedTheme === 'dark' || savedTheme === 'light') {
