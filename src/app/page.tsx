@@ -21,6 +21,7 @@ import StudentsList from '@/components/StudentsList';
 import AssignmentResults from '@/components/AssignmentResults';
 import TheoryScreen from '@/components/TheoryScreen';
 import TheoryBookScreen from '@/components/TheoryBookScreen';
+import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 
 export default function Page() {
   const store = useStore();
@@ -116,25 +117,34 @@ export default function Page() {
     );
   }
 
-  switch (screen) {
-    case 'login': return <LoginScreen />;
-    case 'home': return <HomeScreen />;
-    case 'chapter': return <ChapterScreen />;
-    case 'quiz': return <QuizScreen />;
-    case 'exam': return <QuizScreen />;
-    case 'result': return <ResultScreen />;
-    case 'admin': return <AdminPanel />;
-    case 'aiAnalysis': return <AIAnalysisScreen />;
-    case 'aiChat': return <AIChatScreen />;
-    case 'studyPlan': return <StudyPlanScreen />;
-    case 'wrong': return <WrongQuestionsScreen />;
-    case 'teacherDashboard': return <TeacherDashboard />;
-    case 'studentDashboard': return <StudentDashboard />;
-    case 'studentsList': return <StudentsList />;
-    case 'assignmentResults': return <AssignmentResults />;
-    case 'theory': return <TheoryScreen />;
-    case 'theoryBook': return <TheoryBookScreen />;
-    case 'createAssignment': return <TeacherDashboard />;
-    default: return <LoginScreen />;
-  }
+  const screenComponent = (() => {
+    switch (screen) {
+      case 'login': return <LoginScreen />;
+      case 'home': return <HomeScreen />;
+      case 'chapter': return <ChapterScreen />;
+      case 'quiz': return <QuizScreen />;
+      case 'exam': return <QuizScreen />;
+      case 'result': return <ResultScreen />;
+      case 'admin': return <AdminPanel />;
+      case 'aiAnalysis': return <AIAnalysisScreen />;
+      case 'aiChat': return <AIChatScreen />;
+      case 'studyPlan': return <StudyPlanScreen />;
+      case 'wrong': return <WrongQuestionsScreen />;
+      case 'teacherDashboard': return <TeacherDashboard />;
+      case 'studentDashboard': return <StudentDashboard />;
+      case 'studentsList': return <StudentsList />;
+      case 'assignmentResults': return <AssignmentResults />;
+      case 'theory': return <TheoryScreen />;
+      case 'theoryBook': return <TheoryBookScreen />;
+      case 'createAssignment': return <TeacherDashboard />;
+      default: return <LoginScreen />;
+    }
+  })();
+
+  return (
+    <>
+      {screenComponent}
+      <PWAInstallPrompt />
+    </>
+  );
 }
