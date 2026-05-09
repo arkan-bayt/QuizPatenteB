@@ -4,7 +4,7 @@ import { useStore } from '@/store/useStore';
 import { loadQuizData } from '@/data/quizData';
 import { loadSession, clearSession } from '@/logic/authEngine';
 import { preloadVoices } from '@/logic/ttsEngine';
-import { loadCloudProgress, startAutoSync, stopAutoSync, getThemePreference } from '@/logic/progressEngine';
+import { loadCloudProgress, startAutoSync, stopAutoSync, getThemePreference, forceSyncToCloud } from '@/logic/progressEngine';
 import LoginScreen from '@/components/LoginScreen';
 import HomeScreen from '@/components/HomeScreen';
 import ChapterScreen from '@/components/ChapterScreen';
@@ -78,10 +78,13 @@ export default function Page() {
       // Load cloud progress on app start
       if (session.username) {
         setSyncing(true);
-        loadCloudProgress(session.username).then(() => {
+        // First upload any local progress, then download cloud
+        forceSyncToCloud(session.username).then(() => {
+          return loadCloudProgress(session.username);
+        }).then(() => {
           setSyncing(false);
-          // Force re-render of home screen
-          store.setData(store.chapters, store.allQuestions);
+          // Force re-render of home screen by triggering state update
+          store.setData([...store.chapters], [...store.allQuestions]);
           // Start auto-sync every 60 seconds
           startAutoSync(session.username);
           // Apply theme from cloud (cloud theme was loaded into localStorage by loadCloudProgress)
@@ -89,7 +92,11 @@ export default function Page() {
           if (savedTheme === 'dark' || savedTheme === 'light') {
             document.documentElement.classList.toggle('dark', savedTheme === 'dark');
           }
-        }).catch(() => setSyncing(false));
+        }).catch(() => {
+          setSyncing(false);
+          // Still start auto-sync even if initial sync fails
+          startAutoSync(session.username);
+        });
       }
     } else {
       store.setScreen('login');

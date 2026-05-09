@@ -59,13 +59,13 @@ function scheduleCloudSync(username: string) {
 }
 
 // Force immediate sync to cloud (call before leaving page)
-export function forceSyncToCloud(username: string) {
+export function forceSyncToCloud(username: string): Promise<boolean> {
   if (_syncTimer) clearTimeout(_syncTimer);
   const stats = getUserStats(username);
   const cp = getChapterProgress(username);
   const wrong = getWrongAnswerIds(username);
   const theme = getThemePreference(username);
-  authenticatedFetch('/api/progress', {
+  return authenticatedFetch('/api/progress', {
     method: 'POST',
     body: JSON.stringify({
       username,
@@ -74,7 +74,7 @@ export function forceSyncToCloud(username: string) {
       wrongAnswerIds: wrong,
       theme,
     }),
-  }).catch(() => {});
+  }).then(res => res.ok).catch(() => false);
 }
 
 // ---- Load cloud progress and REPLACE local data (call on login) ----
