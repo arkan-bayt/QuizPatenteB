@@ -281,5 +281,15 @@ export function stopAutoSync(): void {
   _syncCallback = null;
 }
 
+// ---- Manual sync (upload local → download cloud → merge) ----
+export async function manualSync(username: string): Promise<boolean> {
+  try {
+    await doBidirectionalSync(username);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Re-export quiz resume from separate module
 export { saveQuizResume, loadQuizResume, clearQuizResume, hasQuizResume, loadQuizResumeLegacy, clearQuizResumeLegacy, RESUME_THRESHOLD, type QuizResumeData } from './quizResume';
