@@ -153,6 +153,7 @@ export default function HomeScreen() {
     setIsSyncing(true);
     setSyncStatus('syncing');
     const ok = await manualSync(username);
+    if (ok) store.triggerSync(); // Force UI to re-read localStorage
     setIsSyncing(false);
     setSyncStatus(ok ? 'done' : 'error');
     // Reset status after 2 seconds

@@ -73,7 +73,7 @@ export function useQuizEngine() {
 // CHAPTER PROGRESS HELPER
 // ============================================================
 export function useChapterProgress(chapterId: number) {
-  const { user } = useStore();
+  const { user, syncVersion } = useStore();
   const username = user?.username || '';
   const allProgress = getChapterProgress(username);
   return allProgress[chapterId] || { answeredIds: [], correctIds: [], wrongIds: [] };
@@ -83,7 +83,7 @@ export function useChapterProgress(chapterId: number) {
 // USER STATS HELPER
 // ============================================================
 export function useUserStats() {
-  const { user } = useStore();
+  const { user, syncVersion } = useStore();
   return getUserStats(user?.username || '');
 }
 
@@ -91,7 +91,7 @@ export function useUserStats() {
 // OVERALL PROGRESS STATS
 // ============================================================
 export function useOverallStats() {
-  const { user, chapters } = useStore();
+  const { user, chapters, syncVersion } = useStore();
   const username = user?.username || '';
   const allProgress = getChapterProgress(username);
   let totalAnswered = 0;
@@ -113,7 +113,7 @@ export function useOverallStats() {
 // WRONG ANSWERS STATS
 // ============================================================
 export function useWrongAnswers() {
-  const { user, allQuestions } = useStore();
+  const { user, allQuestions, syncVersion } = useStore();
   const username = user?.username || '';
   const wrongIds = getWrongAnswerIds(username);
   const wrongQuestions = allQuestions.filter((q) => wrongIds.includes(q.id));

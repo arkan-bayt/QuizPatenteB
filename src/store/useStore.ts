@@ -35,6 +35,10 @@ interface State {
   // Results
   examPassed: boolean;
 
+  // Sync
+  syncVersion: number;
+  triggerSync: () => void;
+
   // Auth
   authError: string | null;
   adminMsg: string | null;
@@ -86,7 +90,7 @@ export const useStore = create<State>((set, get) => ({
   quizMode: 'chapter', quizQuestions: [], currentIdx: 0,
   correctCount: 0, wrongCount: 0, selectedAnswer: null,
   showFeedback: false, isComplete: false, autoAdvance: true,
-  showResumePopup: false, examPassed: false, authError: null, adminMsg: null, activeAssignmentId: null, activeAssignmentConfig: null,
+  showResumePopup: false, examPassed: false, syncVersion: 0, authError: null, adminMsg: null, activeAssignmentId: null, activeAssignmentConfig: null,
 
   setScreen: (s) => set({ screen: s }),
   setUser: (u) => set({ user: u }),
@@ -149,6 +153,7 @@ export const useStore = create<State>((set, get) => ({
   setAutoAdvance: (v) => set({ autoAdvance: v }),
   setShowResumePopup: (v) => set({ showResumePopup: v }),
   setExamPassed: (v) => set({ examPassed: v }),
+  triggerSync: () => set((s) => ({ syncVersion: s.syncVersion + 1 })),
 
   getCurrentQ: () => {
     const s = get();

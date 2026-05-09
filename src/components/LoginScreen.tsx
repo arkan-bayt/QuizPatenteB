@@ -9,7 +9,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
-  const { setAuthError, authError, setUser, setScreen } = useStore();
+  const { setAuthError, authError, setUser, setScreen, triggerSync } = useStore();
 
   const handle = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,8 +30,8 @@ export default function LoginScreen() {
       if (savedTheme === 'dark' || savedTheme === 'light') {
         document.documentElement.classList.toggle('dark', savedTheme === 'dark');
       }
-      // Start auto-sync with correct username
-      startAutoSync(res.user.username);
+      // Start auto-sync with callback to trigger UI re-render
+      startAutoSync(res.user.username, () => { triggerSync(); });
       // Route based on role
       if (res.user.role === 'super_admin' || res.user.role === 'admin') {
         setScreen('home');
